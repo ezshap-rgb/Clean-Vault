@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Clean Vault - AI Document & Receipt Vault</title>
+  <title>Clean Vault</title>
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
   <link rel="manifest" href="manifest.json">
@@ -35,14 +35,12 @@
       --amber-hover: #FBBF24;
       --amber-glow: rgba(245, 158, 11, 0.45);
       --blue-indigo: #4F68FF;
-      --blue-indigo-glow: rgba(79, 104, 255, 0.45);
       --rose: #F43F5E;
       --emerald: #10B981;
       --text-main: #FFFFFF;
       --text-muted: #CBD5E1;
       --text-faint: #94A3B8;
       --gradient: linear-gradient(135deg, #5C4FEE 0%, #A816DF 50%, #F50ACE 100%);
-      --gradient-amber: linear-gradient(135deg, #F59E0B 0%, #F50ACE 100%);
       --radius-sm: 8px;
       --radius-md: 12px;
       --radius-lg: 18px;
@@ -66,11 +64,10 @@
       display: flex;
       flex-direction: column;
       overflow-x: hidden;
-      padding-bottom: calc(76px + env(safe-area-inset-bottom, 20px));
+      padding-bottom: calc(24px + env(safe-area-inset-bottom, 16px));
       -webkit-font-smoothing: antialiased;
     }
 
-    /* Ambient background mesh glow */
     body::before {
       content: "";
       position: fixed;
@@ -79,33 +76,33 @@
       transform: translateX(-50%);
       width: 600px;
       height: 400px;
-      background: radial-gradient(circle, rgba(92, 79, 238, 0.15) 0%, rgba(245, 10, 206, 0.08) 50%, transparent 70%);
+      background: radial-gradient(circle, rgba(92, 79, 238, 0.16) 0%, rgba(245, 10, 206, 0.08) 50%, transparent 70%);
       z-index: -1;
       pointer-events: none;
     }
 
     .app-shell {
-      max-width: 680px;
+      max-width: 640px;
       width: 100%;
       margin: 0 auto;
       padding: 12px 16px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
     }
 
-    /* Header */
+    /* Top Streamlined Header */
     header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 18px;
+      padding: 10px 16px;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-card);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
       position: sticky;
-      top: env(safe-area-inset-top, 10px);
+      top: env(safe-area-inset-top, 8px);
       z-index: 40;
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
@@ -114,73 +111,76 @@
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
 
     .brand-logo-img {
-      width: 44px;
-      height: 44px;
-      border-radius: 14px;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
       object-fit: cover;
-      box-shadow: 0 4px 18px var(--accent-glow);
+      box-shadow: 0 4px 14px var(--accent-glow);
       border: 1px solid rgba(245, 10, 206, 0.35);
       flex-shrink: 0;
     }
 
     .brand-title {
-      font-size: 1.25rem;
+      font-size: 1.15rem;
       font-weight: 700;
       letter-spacing: -0.02em;
-      background: linear-gradient(135deg, #FFFFFF 30%, #CBD5E1 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      line-height: 1.15;
+      color: #FFFFFF;
+      line-height: 1.1;
     }
 
-    .brand-sub {
-      font-size: 0.72rem;
-      color: var(--text-faint);
-      font-weight: 500;
-      letter-spacing: 0.02em;
-    }
-
-    .sync-pill {
-      display: inline-flex;
+    .header-actions {
+      display: flex;
       align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      border-radius: var(--radius-pill);
-      background: var(--surface-raised);
-      border: 1px solid var(--border);
-      font-size: 0.72rem;
-      font-family: 'JetBrains Mono', monospace;
-      font-weight: 600;
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: all 0.2s ease;
+      gap: 8px;
     }
 
-    .sync-pill:active {
-      transform: scale(0.96);
-    }
-
-    .status-dot {
-      width: 7px;
-      height: 7px;
+    .sync-indicator {
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       background: var(--emerald);
       box-shadow: 0 0 8px var(--emerald);
+      transition: all 0.2s;
     }
 
-    .status-dot.syncing {
+    .sync-indicator.syncing {
       background: var(--amber);
       box-shadow: 0 0 8px var(--amber);
       animation: pulse 1s infinite;
     }
 
-    .status-dot.error {
+    .sync-indicator.error {
       background: var(--rose);
       box-shadow: 0 0 8px var(--rose);
+    }
+
+    /* Settings Wheel Button (no words, clean icon) */
+    .btn-settings-wheel {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-settings-wheel:active {
+      transform: scale(0.92) rotate(45deg);
+    }
+
+    .btn-settings-wheel svg {
+      width: 19px;
+      height: 19px;
+      stroke-width: 2;
     }
 
     /* Cards */
@@ -188,42 +188,36 @@
       background: var(--surface-card);
       border: 1px solid var(--border);
       border-radius: var(--radius-card);
-      padding: 18px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
       position: relative;
     }
 
-    .card-highlight {
-      border-color: rgba(92, 79, 238, 0.45);
-      box-shadow: 0 10px 30px rgba(92, 79, 238, 0.12);
-    }
-
-    .card-header {
+    .card-title-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
 
-    .card-title {
-      font-size: 0.88rem;
+    .card-heading {
+      font-size: 0.95rem;
       font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-muted);
+      letter-spacing: 0.02em;
+      color: #FFFFFF;
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    .card-title svg {
-      width: 16px;
-      height: 16px;
+    .card-heading svg {
+      width: 18px;
+      height: 18px;
       color: var(--amber);
     }
 
-    /* Capture Area */
-    .capture-zone {
+    /* Clean Camera Tap Area (icon only, minimal words) */
+    .camera-box {
       position: relative;
       border: 2px dashed var(--border-highlight);
       border-radius: var(--radius-lg);
@@ -234,31 +228,35 @@
       align-items: center;
       justify-content: center;
       text-align: center;
-      gap: 12px;
       cursor: pointer;
       overflow: hidden;
-      min-height: 200px;
+      min-height: 140px;
       transition: border-color 0.2s, background 0.2s;
     }
 
-    .capture-zone:hover {
+    .camera-box:hover {
       border-color: var(--accent);
-      background: rgba(21, 28, 51, 0.8);
+      background: rgba(21, 28, 51, 0.7);
     }
 
-    .capture-icon-circle {
-      width: 56px;
-      height: 56px;
+    .camera-circle {
+      width: 54px;
+      height: 54px;
       border-radius: 18px;
       background: var(--gradient);
-      box-shadow: 0 6px 20px var(--accent-glow);
+      box-shadow: 0 4px 16px var(--accent-glow);
       display: flex;
       align-items: center;
       justify-content: center;
       color: #FFFFFF;
+      transition: transform 0.15s;
     }
 
-    .capture-preview-img {
+    .camera-box:active .camera-circle {
+      transform: scale(0.92);
+    }
+
+    .preview-img {
       position: absolute;
       inset: 0;
       width: 100%;
@@ -267,53 +265,33 @@
       border-radius: var(--radius-lg);
     }
 
-    .preview-actions {
+    .btn-remove-preview {
       position: absolute;
       top: 10px;
       right: 10px;
-      display: flex;
-      gap: 8px;
-      z-index: 10;
-    }
-
-    .btn-icon-overlay {
-      width: 34px;
-      height: 34px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
-      background: rgba(7, 9, 19, 0.8);
-      border: 1px solid var(--border-highlight);
-      color: #FFFFFF;
+      background: rgba(7, 9, 19, 0.85);
+      border: 1px solid rgba(244, 63, 94, 0.5);
+      color: var(--rose);
       display: flex;
       align-items: center;
       justify-content: center;
-      backdrop-filter: blur(8px);
       cursor: pointer;
-      transition: transform 0.15s;
+      backdrop-filter: blur(8px);
+      z-index: 10;
     }
 
-    .btn-icon-overlay:active {
-      transform: scale(0.9);
-    }
-
-    .btn-icon-overlay.danger {
-      color: var(--rose);
-      border-color: rgba(244, 63, 94, 0.5);
-    }
-
-    .capture-btn-group {
-      display: flex;
-      gap: 10px;
+    .btn-choose-file {
+      margin-top: 10px;
       width: 100%;
-    }
-
-    .btn-picker {
-      flex: 1;
-      padding: 10px 14px;
+      padding: 9px 14px;
       border-radius: var(--radius-md);
       background: var(--surface-raised);
       border: 1px solid var(--border);
-      color: var(--text-main);
-      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-size: 0.8rem;
       font-weight: 600;
       display: flex;
       align-items: center;
@@ -323,32 +301,33 @@
       transition: all 0.15s;
     }
 
-    .btn-picker:active {
-      transform: scale(0.97);
+    .btn-choose-file:active {
+      transform: scale(0.98);
       background: var(--surface-hover);
     }
 
-    /* Dictation & Note Box */
-    .dictate-box {
+    /* Dictate / Note Bar */
+    .dictate-bar {
       display: flex;
       align-items: center;
       gap: 10px;
       background: var(--surface-raised);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 8px 12px;
+      padding: 6px 10px;
+      margin-top: 12px;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
 
-    .dictate-box:focus-within {
+    .dictate-bar:focus-within {
       border-color: var(--accent);
-      box-shadow: 0 0 16px var(--accent-glow);
+      box-shadow: 0 0 14px var(--accent-glow);
     }
 
     .btn-mic {
-      width: 44px;
-      height: 44px;
-      border-radius: 14px;
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
       background: var(--surface-hover);
       border: 1px solid var(--border-highlight);
       color: var(--text-muted);
@@ -368,71 +347,76 @@
       background: var(--rose);
       color: #FFFFFF;
       border-color: var(--rose);
-      animation: pulseRecord 1.4s infinite;
+      animation: pulseMic 1.3s infinite;
     }
 
-    @keyframes pulseRecord {
+    @keyframes pulseMic {
       0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7); }
-      70% { box-shadow: 0 0 0 12px rgba(244, 63, 94, 0); }
+      70% { box-shadow: 0 0 0 10px rgba(244, 63, 94, 0); }
       100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
     }
 
-    .note-input {
+    .input-field {
       flex: 1;
       background: transparent;
       border: none;
       outline: none;
-      color: var(--text-main);
+      color: #FFFFFF;
       font-size: 0.88rem;
       font-family: inherit;
       user-select: text;
     }
 
-    .note-input::placeholder {
+    .input-field::placeholder {
       color: var(--text-faint);
     }
 
-    /* Form Fields Grid */
+    /* Extraction card */
+    .extraction-box {
+      margin-top: 12px;
+      padding: 14px;
+      border-radius: var(--radius-lg);
+      background: var(--surface-raised);
+      border: 1px solid rgba(168, 22, 223, 0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      animation: fadeIn 0.2s ease-out;
+    }
+
     .fields-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-
-    .field-full {
-      grid-column: span 2;
+      gap: 8px;
     }
 
     .form-group {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 3px;
+    }
+
+    .form-group.full {
+      grid-column: span 2;
     }
 
     .form-label {
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
       color: var(--text-faint);
+      text-transform: uppercase;
     }
 
     .form-input, .form-select {
-      background: var(--surface-raised);
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 9px 12px;
-      font-size: 0.84rem;
-      font-family: inherit;
-      color: var(--text-main);
+      border-radius: var(--radius-sm);
+      padding: 7px 10px;
+      font-size: 0.82rem;
+      color: #FFFFFF;
       outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s;
+      font-family: inherit;
       user-select: text;
-    }
-
-    .form-input:focus, .form-select:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 12px var(--accent-glow);
     }
 
     .form-input.mono {
@@ -440,10 +424,15 @@
       font-weight: 600;
     }
 
-    /* Action Buttons */
-    .btn-primary {
+    .form-input:focus, .form-select:focus {
+      border-color: var(--accent);
+    }
+
+    /* Primary CTA */
+    .btn-file-submit {
+      margin-top: 12px;
       width: 100%;
-      padding: 13px 20px;
+      padding: 12px 18px;
       border-radius: var(--radius-lg);
       background: var(--gradient);
       color: #FFFFFF;
@@ -451,127 +440,33 @@
       font-weight: 700;
       border: none;
       cursor: pointer;
-      box-shadow: 0 6px 24px var(--accent-glow);
+      box-shadow: 0 4px 20px var(--accent-glow);
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
-      transition: transform 0.15s ease, opacity 0.15s ease;
+      gap: 8px;
+      transition: transform 0.15s, opacity 0.15s;
     }
 
-    .btn-primary:active {
+    .btn-file-submit:active {
       transform: scale(0.98);
     }
 
-    .btn-primary:disabled {
-      opacity: 0.45;
+    .btn-file-submit:disabled {
+      opacity: 0.4;
       cursor: not-allowed;
       transform: none;
       box-shadow: none;
     }
 
-    .btn-secondary {
-      padding: 10px 16px;
-      border-radius: var(--radius-md);
-      background: var(--surface-raised);
-      border: 1px solid var(--border);
-      color: var(--text-main);
-      font-size: 0.82rem;
-      font-weight: 600;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: background 0.15s, transform 0.15s;
-    }
-
-    .btn-secondary:active {
-      transform: scale(0.96);
-      background: var(--surface-hover);
-    }
-
-    /* Bottom Navigation Bar */
-    .bottom-nav {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: calc(62px + env(safe-area-inset-bottom, 16px));
-      background: rgba(14, 19, 36, 0.92);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-top: 1px solid var(--border);
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      padding: 0 16px;
-      padding-bottom: env(safe-area-inset-bottom, 16px);
-      z-index: 50;
-    }
-
-    .nav-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      background: transparent;
-      border: none;
-      color: var(--text-faint);
-      font-size: 0.72rem;
-      font-weight: 600;
-      cursor: pointer;
-      padding: 6px 14px;
-      border-radius: var(--radius-pill);
-      transition: all 0.2s ease;
-    }
-
-    .nav-item svg {
-      width: 20px;
-      height: 20px;
-      stroke-width: 2.2;
-      transition: transform 0.2s ease;
-    }
-
-    .nav-item.active {
-      color: #FFFFFF;
-      background: rgba(92, 79, 238, 0.2);
-    }
-
-    .nav-item.active svg {
-      color: #A816DF;
-      transform: translateY(-2px);
-    }
-
-    /* Tab screens */
-    .tab-content {
-      display: none;
-      flex-direction: column;
-      gap: 16px;
-      animation: fadeIn 0.25s ease-out;
-    }
-
-    .tab-content.active {
-      display: flex;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Query & Search Tab Styling */
-    .search-card {
-      background: var(--surface-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-card);
-      padding: 14px;
+    /* Retrieve Card with two fields: AI Ask + Ledger Button */
+    .retrieval-grid {
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
 
-    .search-input-wrap {
+    .ask-row {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -582,107 +477,150 @@
       transition: border-color 0.2s;
     }
 
-    .search-input-wrap:focus-within {
+    .ask-row:focus-within {
       border-color: var(--accent);
-      box-shadow: 0 0 16px var(--accent-glow);
+      box-shadow: 0 0 12px var(--accent-glow);
     }
 
-    .search-input {
-      flex: 1;
-      background: transparent;
+    .btn-ask-submit {
+      padding: 8px 14px;
+      border-radius: var(--radius-md);
+      background: var(--gradient);
       border: none;
-      outline: none;
       color: #FFFFFF;
-      font-size: 0.88rem;
-      font-family: inherit;
-      user-select: text;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: transform 0.15s;
     }
 
-    .chips-scroll {
-      display: flex;
-      gap: 8px;
-      overflow-x: auto;
-      padding-bottom: 4px;
-      scrollbar-width: none;
+    .btn-ask-submit:active {
+      transform: scale(0.95);
     }
 
-    .chips-scroll::-webkit-scrollbar {
-      display: none;
-    }
-
-    .filter-chip {
-      padding: 5px 12px;
-      border-radius: var(--radius-pill);
+    .btn-open-ledger {
+      width: 100%;
+      padding: 11px 16px;
+      border-radius: var(--radius-md);
       background: var(--surface-raised);
       border: 1px solid var(--border);
-      color: var(--text-muted);
-      font-size: 0.72rem;
+      color: var(--text-main);
+      font-size: 0.86rem;
       font-weight: 600;
-      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       cursor: pointer;
       transition: all 0.15s;
     }
 
-    .filter-chip.active {
-      background: var(--gradient);
-      color: #FFFFFF;
-      border-color: transparent;
-      box-shadow: 0 2px 10px var(--accent-glow);
+    .btn-open-ledger:active {
+      transform: scale(0.98);
+      background: var(--surface-hover);
     }
 
-    .ai-answer-box {
-      background: linear-gradient(145deg, rgba(21, 28, 51, 0.95), rgba(16, 23, 43, 0.95));
-      border: 1px solid rgba(168, 22, 223, 0.4);
-      border-radius: var(--radius-lg);
-      padding: 16px;
-      box-shadow: 0 8px 24px rgba(168, 22, 223, 0.15);
-      position: relative;
-    }
-
-    .ai-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 3px 8px;
-      border-radius: var(--radius-pill);
-      background: rgba(168, 22, 223, 0.25);
-      border: 1px solid rgba(168, 22, 223, 0.5);
-      font-size: 0.68rem;
+    .ledger-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
       font-weight: 700;
-      color: #F50ACE;
-      margin-bottom: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+      background: var(--surface);
+      border: 1px solid var(--border-highlight);
+      padding: 2px 8px;
+      border-radius: var(--radius-pill);
+      color: var(--amber);
     }
 
-    /* Ledger Receipt Items */
-    .ledger-list {
+    /* Modal / Popups for Ledger and Settings */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(7, 9, 19, 0.88);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      z-index: 100;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      justify-content: flex-end;
+      padding: 12px;
+      animation: fadeIn 0.2s ease-out;
     }
 
-    .receipt-item {
+    @media (min-width: 640px) {
+      .modal-overlay {
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
+    }
+
+    .modal-dialog {
       background: var(--surface);
+      border: 1px solid var(--border-highlight);
+      border-radius: var(--radius-card);
+      width: 100%;
+      max-width: 600px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
+      overflow: hidden;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-close-modal {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--surface-raised);
       border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 14px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .modal-body {
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Ledger List items */
+    .receipt-item {
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px;
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 12px;
-      transition: transform 0.15s, border-color 0.15s;
-    }
-
-    .receipt-item:hover {
-      border-color: var(--border-highlight);
+      gap: 10px;
     }
 
     .receipt-vendor {
-      font-size: 0.94rem;
+      font-size: 0.9rem;
       font-weight: 700;
       color: #FFFFFF;
-      margin-bottom: 2px;
     }
 
     .receipt-meta {
@@ -690,85 +628,74 @@
       color: var(--text-faint);
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 4px;
+      gap: 6px;
+      margin-top: 2px;
     }
 
     .receipt-tag {
-      display: inline-block;
-      padding: 2px 7px;
+      padding: 2px 6px;
       border-radius: var(--radius-pill);
-      background: var(--surface-raised);
-      border: 1px solid var(--border);
+      background: var(--surface);
       font-size: 0.65rem;
       color: var(--amber);
       font-weight: 600;
     }
 
-    .receipt-summary {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      line-height: 1.35;
-    }
-
-    .receipt-amount-block {
-      text-align: right;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 6px;
-      flex-shrink: 0;
-    }
-
     .receipt-amount {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 1.05rem;
+      font-size: 0.98rem;
       font-weight: 700;
       color: var(--emerald);
+      text-align: right;
     }
 
     .btn-drive-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
+      display: inline-block;
+      margin-top: 4px;
+      font-size: 0.68rem;
+      color: #A816DF;
+      text-decoration: underline;
+    }
+
+    /* AI Response Card */
+    .ai-reply-card {
+      margin-top: 10px;
+      padding: 14px;
+      border-radius: var(--radius-md);
+      background: rgba(92, 79, 238, 0.12);
+      border: 1px solid rgba(168, 22, 223, 0.4);
+      font-size: 0.86rem;
+      line-height: 1.45;
+      color: #F8FAFC;
+    }
+
+    .chips-row {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-bottom: 2px;
+    }
+
+    .chips-row::-webkit-scrollbar {
+      display: none;
+    }
+
+    .query-chip {
       padding: 4px 10px;
       border-radius: var(--radius-pill);
-      background: rgba(92, 79, 238, 0.18);
-      border: 1px solid rgba(92, 79, 238, 0.4);
-      color: #A816DF;
-      font-size: 0.68rem;
-      font-weight: 700;
-      text-decoration: none;
-      transition: all 0.15s;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      white-space: nowrap;
     }
 
-    .btn-drive-link:hover {
-      background: var(--accent);
-      color: #FFFFFF;
-    }
-
-    /* Settings Screen */
-    .settings-group {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .setting-item {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .input-with-action {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
+    /* Toast */
     .status-toast {
       position: fixed;
-      top: 18px;
+      top: 16px;
       left: 50%;
       transform: translateX(-50%) translateY(-100px);
       padding: 10px 18px;
@@ -779,10 +706,7 @@
       font-size: 0.82rem;
       font-weight: 600;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      z-index: 100;
+      z-index: 200;
       transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       pointer-events: none;
     }
@@ -791,195 +715,105 @@
       transform: translateX(-50%) translateY(0);
     }
 
-    .status-toast.success {
-      border-color: var(--emerald);
-      box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
-    }
+    .status-toast.success { border-color: var(--emerald); }
+    .status-toast.error { border-color: var(--rose); }
 
-    .status-toast.error {
-      border-color: var(--rose);
-      box-shadow: 0 0 20px rgba(244, 63, 94, 0.3);
-    }
-
-    /* Setup Guide accordion */
-    details summary {
-      cursor: pointer;
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: var(--amber);
-      list-style: none;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    details summary::-webkit-details-marker {
-      display: none;
-    }
-
-    .guide-step {
-      font-size: 0.78rem;
-      line-height: 1.5;
-      color: var(--text-muted);
-      margin-top: 10px;
-      padding-left: 10px;
-      border-left: 2px solid var(--border-highlight);
-    }
-
-    .code-snippet {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.72rem;
-      background: #05070D;
-      padding: 8px 12px;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--border);
-      color: #F8FAFC;
-      overflow-x: auto;
-      margin-top: 6px;
-    }
-
-    /* Spinner */
     .spinner {
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
       border: 2px solid rgba(255, 255, 255, 0.3);
       border-top-color: #FFFFFF;
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
 
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-    .hidden {
-      display: none !important;
-    }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
 
-  <!-- Toast Notification -->
+  <!-- Toast -->
   <div id="statusToast" class="status-toast">
-    <span id="toastMsg">Saved to Clean Vault</span>
+    <span id="toastMsg">Saved</span>
   </div>
 
   <div class="app-shell">
 
-    <!-- Header -->
+    <!-- Clean Header with Settings Wheel (no text) -->
     <header>
       <div class="brand">
-        <img src="icon.png" alt="Clean Vault Icon" class="brand-logo-img">
-        <div>
-          <h1 class="brand-title">Clean Vault</h1>
-          <div class="brand-sub">AI Document & Receipt Vault</div>
-        </div>
+        <img src="icon.png" alt="Clean Vault" class="brand-logo-img">
+        <h1 class="brand-title">Clean Vault</h1>
       </div>
-      <div id="btnSyncTrigger" class="sync-pill" title="Tap to sync with Google Drive & Sheets">
-        <div id="statusDot" class="status-dot"></div>
-        <span id="statusText">Ready</span>
+      <div class="header-actions">
+        <div id="syncIndicator" class="sync-indicator" title="Cloud Sync Status"></div>
+        <button id="btnOpenSettings" class="btn-settings-wheel" title="Settings">
+          <!-- Clean Settings Gear Icon -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
       </div>
     </header>
 
-    <!-- ========================================== -->
-    <!-- TAB 1: INTAKE (Snap, Dictate & File)       -->
-    <!-- ========================================== -->
-    <main id="tabIntake" class="tab-content active">
+    <!-- ============================================== -->
+    <!-- CARD 1: FILE (Streamlined Intake)              -->
+    <!-- ============================================== -->
+    <section class="card">
+      <div class="card-title-bar">
+        <span class="card-heading">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          File
+        </span>
+      </div>
 
-      <!-- Media Capture Card -->
-      <section class="card">
-        <div class="card-header">
-          <span class="card-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" stroke-width="2"/><polyline points="21 15 16 10 5 21" stroke-width="2"/></svg>
-            1. Document & Receipt Capture
-          </span>
-          <span id="imageDimsBadge" class="text-xs" style="font-size:0.7rem; color:var(--text-faint); font-family:'JetBrains Mono'">Auto-optimize</span>
+      <!-- Camera Tap Zone (Simple camera icon, no extra clutter) -->
+      <div id="cameraBox" class="camera-box" title="Tap to snap photo">
+        <img id="imagePreview" class="preview-img hidden" alt="Receipt">
+        
+        <div id="cameraIconWrap" class="camera-circle">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
         </div>
 
-        <!-- Capture Zone -->
-        <div id="captureZone" class="capture-zone">
-          <img id="imagePreview" class="capture-preview-img hidden" alt="Receipt Preview">
-          
-          <div id="capturePrompt" style="display:flex; flex-direction:column; align-items:center; gap:10px;">
-            <div class="capture-icon-circle">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            </div>
-            <div>
-              <div style="font-weight:600; font-size:0.94rem;">Snap or Select Document</div>
-              <div style="font-size:0.74rem; color:var(--text-faint); margin-top:2px;">Camera photo, invoice screenshot, or file</div>
-            </div>
-          </div>
+        <button id="btnRemovePreview" class="btn-remove-preview hidden" title="Remove">✕</button>
+      </div>
 
-          <div id="previewActions" class="preview-actions hidden">
-            <button id="btnRemoveImage" class="btn-icon-overlay danger" title="Remove & Retake">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-        </div>
+      <!-- Hidden inputs -->
+      <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+      <input type="file" id="galleryInput" accept="image/*" class="hidden">
 
-        <!-- Hidden Native File Inputs -->
-        <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
-        <input type="file" id="galleryInput" accept="image/*" class="hidden">
+      <!-- Choose File Option below the camera box -->
+      <button id="btnChooseFile" type="button" class="btn-choose-file">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        Choose file
+      </button>
 
-        <!-- Trigger Buttons -->
-        <div class="capture-btn-group" style="margin-top:12px;">
-          <button id="btnTriggerCamera" type="button" class="btn-picker">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            Snap Photo
-          </button>
-          <button id="btnTriggerGallery" type="button" class="btn-picker">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-            Choose File
-          </button>
-        </div>
-      </section>
+      <!-- Dictate or Type Context -->
+      <div class="dictate-bar">
+        <button id="btnVoiceDictate" type="button" class="btn-mic" title="Dictate note">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </button>
+        <input type="text" id="voiceNoteText" placeholder="Dictate or type quick notes..." class="input-field">
+      </div>
 
-      <!-- Dictate Description / Notes Card -->
-      <section class="card">
-        <div class="card-header">
-          <span class="card-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
-            2. Dictate or Type Context
-          </span>
-          <span id="speechStatus" style="font-size:0.7rem; color:var(--text-faint);">Tap mic to speak</span>
-        </div>
-
-        <div class="dictate-box">
-          <button id="btnVoiceDictate" type="button" class="btn-mic" title="Dictate notes">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-          </button>
-          <input type="text" id="voiceNoteText" placeholder="e.g. Office supplies for Tel Aviv branch, tax deductible..." class="note-input">
-        </div>
-      </section>
-
-      <!-- AI Extraction Review Card -->
-      <section id="extractionCard" class="card card-highlight hidden">
-        <div class="card-header">
-          <span class="card-title" style="color:var(--amber);">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" stroke-width="2"/></svg>
-            3. AI Extraction Review
-          </span>
-          <span id="extractionModelBadge" style="font-size:0.68rem; color:var(--text-faint); font-family:'JetBrains Mono'">Gemini Vision</span>
-        </div>
-
+      <!-- AI Extraction Review (auto-revealed after photo analysis) -->
+      <div id="extractionBox" class="extraction-box hidden">
         <div class="fields-grid">
           <div class="form-group">
-            <label class="form-label" for="metaVendor">Vendor / Merchant</label>
-            <input type="text" id="metaVendor" class="form-input" placeholder="e.g. Amazon, Home Depot">
+            <label class="form-label">Vendor</label>
+            <input type="text" id="metaVendor" class="form-input">
           </div>
-
           <div class="form-group">
-            <label class="form-label" for="metaDate">Receipt Date</label>
+            <label class="form-label">Date</label>
             <input type="date" id="metaDate" class="form-input mono">
           </div>
-
           <div class="form-group">
-            <label class="form-label" for="metaAmount">Total Amount</label>
-            <input type="number" step="0.01" id="metaAmount" class="form-input mono" placeholder="0.00">
+            <label class="form-label">Amount</label>
+            <input type="number" step="0.01" id="metaAmount" class="form-input mono">
           </div>
-
           <div class="form-group">
-            <label class="form-label" for="metaCurrency">Currency</label>
+            <label class="form-label">Currency</label>
             <select id="metaCurrency" class="form-select mono">
               <option value="USD">USD ($)</option>
               <option value="EUR">EUR (€)</option>
@@ -987,241 +821,143 @@
               <option value="ILS">ILS (₪)</option>
               <option value="CAD">CAD ($)</option>
               <option value="AUD">AUD ($)</option>
-              <option value="CHF">CHF</option>
-              <option value="JPY">JPY (¥)</option>
             </select>
           </div>
-
-          <div class="form-group field-full">
-            <label class="form-label" for="metaCategory">Category</label>
+          <div class="form-group full">
+            <label class="form-label">Category</label>
             <select id="metaCategory" class="form-select">
-              <option value="Groceries">Groceries & Supermarket</option>
-              <option value="Dining">Dining & Coffee</option>
-              <option value="Business">Business & Clients</option>
-              <option value="Office & Tech">Office & Tech Equipment</option>
-              <option value="Travel & Transport">Travel, Gas & Transport</option>
-              <option value="Utilities">Utilities & Bills</option>
-              <option value="Medical & Health">Medical & Health</option>
-              <option value="Home & Hardware">Home & Hardware</option>
-              <option value="Tax & Legal">Tax, Legal & Accounting</option>
-              <option value="Other">Other / General</option>
+              <option value="Groceries">Groceries</option>
+              <option value="Dining">Dining</option>
+              <option value="Business">Business</option>
+              <option value="Office & Tech">Office & Tech</option>
+              <option value="Travel & Transport">Travel</option>
+              <option value="Utilities">Utilities</option>
+              <option value="Medical & Health">Medical</option>
+              <option value="Other">Other</option>
             </select>
           </div>
-
-          <div class="form-group field-full">
-            <label class="form-label" for="metaItems">Line Items & Summary</label>
-            <input type="text" id="metaItems" class="form-input" placeholder="Key items purchased">
-          </div>
         </div>
-      </section>
 
-      <!-- Primary Action CTA Button -->
-      <button id="btnAction" class="btn-primary" disabled>
-        <span id="btnActionSpinner" class="spinner hidden"></span>
-        <span id="btnActionText">Snap receipt to begin</span>
-      </button>
+        <button id="btnSubmitFile" class="btn-file-submit">
+          <span id="btnSubmitSpinner" class="spinner hidden"></span>
+          <span id="btnSubmitText">Save to Vault</span>
+        </button>
+      </div>
+    </section>
 
-    </main>
+    <!-- ============================================== -->
+    <!-- CARD 2: RETRIEVE (Ask + Ledger Button)         -->
+    <!-- ============================================== -->
+    <section class="card">
+      <div class="card-title-bar">
+        <span class="card-heading">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Retrieve
+        </span>
+      </div>
 
-    <!-- ========================================== -->
-    <!-- TAB 2: QUERY & VAULT (AI Retrieval & List) -->
-    <!-- ========================================== -->
-    <main id="tabVault" class="tab-content">
+      <div class="retrieval-grid">
+        <!-- Field 1: Retrieval Ask (voice or text) -->
+        <div class="ask-row">
+          <button id="btnVoiceQuery" type="button" class="btn-mic" style="width:34px; height:34px; border-radius:10px;" title="Dictate query">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          </button>
+          <input type="text" id="queryInput" placeholder="Ask: 'Groceries in March?', 'Monitor receipt'..." class="input-field">
+          <button id="btnAskQuery" type="button" class="btn-ask-submit">Ask</button>
+        </div>
 
-      <!-- Query Engine Card -->
-      <section class="card card-highlight">
-        <div class="card-header">
-          <span class="card-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8" stroke-width="2"/><line x1="21" y1="21" x2="16.65" y2="16.65" stroke-width="2"/></svg>
-            Ask Vault AI
+        <!-- Suggestion chips -->
+        <div class="chips-row">
+          <div class="query-chip" onclick="quickAsk('How much spent on groceries?')">🛒 Groceries</div>
+          <div class="query-chip" onclick="quickAsk('Show recent hardware and tech receipts')">💻 Hardware</div>
+          <div class="query-chip" onclick="quickAsk('Dining expenses this month?')">🍽️ Dining</div>
+          <div class="query-chip" onclick="quickAsk('Highest receipt in the vault?')">💎 Highest</div>
+        </div>
+
+        <!-- AI Query Answer (shown if answered) -->
+        <div id="aiReplyCard" class="ai-reply-card hidden">
+          <div id="aiReplyContent"></div>
+          <div id="aiReplyMatches" style="margin-top:10px; display:flex; flex-direction:column; gap:6px;"></div>
+        </div>
+
+        <!-- Field 2: Ledger Button (opens ledger tab/modal) -->
+        <button id="btnOpenLedgerModal" type="button" class="btn-open-ledger">
+          <span style="display:flex; align-items:center; gap:8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            Open Ledger
           </span>
-          <span style="font-size:0.7rem; color:var(--text-faint);">Natural Language</span>
-        </div>
-
-        <div class="search-input-wrap">
-          <button id="btnVoiceQuery" type="button" class="btn-mic" style="width:36px; height:36px; border-radius:10px;" title="Dictate query">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-          </button>
-          <input type="text" id="aiQueryInput" class="search-input" placeholder="Ask: 'How much did I spend on groceries in March?'">
-          <button id="btnExecuteAiQuery" type="button" class="btn-secondary" style="padding:6px 14px; background:var(--gradient); border:none; color:#FFF;">
-            Ask
-          </button>
-        </div>
-
-        <!-- Sample Query Chips -->
-        <div class="chips-scroll" style="margin-top:6px;">
-          <div class="filter-chip" onclick="setQueryPrompt('How much have I spent on groceries?')">🛒 Groceries total</div>
-          <div class="filter-chip" onclick="setQueryPrompt('Show my recent electronics and hardware receipts')">💻 Hardware & Tech</div>
-          <div class="filter-chip" onclick="setQueryPrompt('What were my dining expenses this month?')">🍽️ Dining out</div>
-          <div class="filter-chip" onclick="setQueryPrompt('Find the most expensive receipt in the vault')">💎 Highest receipt</div>
-        </div>
-
-        <!-- AI Query Response Card -->
-        <div id="aiResponseContainer" class="hidden" style="margin-top:12px;">
-          <div class="ai-answer-box">
-            <div class="ai-badge">✦ Gemini Vault Intelligence</div>
-            <p id="aiAnswerText" style="font-size:0.88rem; line-height:1.5; color:#F8FAFC;"></p>
-            <div id="aiMatchingRecords" class="ledger-list" style="margin-top:12px;"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Ledger Feed & Instant Local Filter -->
-      <section class="card">
-        <div class="card-header">
-          <span class="card-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="8" y1="6" x2="21" y2="6" stroke-width="2"/><line x1="8" y1="12" x2="21" y2="12" stroke-width="2"/><line x1="8" y1="18" x2="21" y2="18" stroke-width="2"/><line x1="3" y1="6" x2="3.01" y2="6" stroke-width="2"/><line x1="3" y1="12" x2="3.01" y2="12" stroke-width="2"/><line x1="3" y1="18" x2="3.01" y2="18" stroke-width="2"/></svg>
-            Receipt Ledger (<span id="ledgerCountDisplay">0</span>)
-          </span>
-          <button id="btnRefreshLedger" class="btn-secondary" style="padding:4px 10px; font-size:0.72rem;">
-            Refresh
-          </button>
-        </div>
-
-        <!-- Local Instant Filter -->
-        <div style="margin-bottom:12px;">
-          <input type="text" id="localSearchInput" class="form-input" style="width:100%;" placeholder="Filter receipts by vendor, category or notes...">
-        </div>
-
-        <!-- Category Pills Filter -->
-        <div id="categoryChips" class="chips-scroll" style="margin-bottom:14px;">
-          <div class="filter-chip active" data-cat="ALL">All Categories</div>
-          <div class="filter-chip" data-cat="Groceries">Groceries</div>
-          <div class="filter-chip" data-cat="Dining">Dining</div>
-          <div class="filter-chip" data-cat="Business">Business</div>
-          <div class="filter-chip" data-cat="Office & Tech">Tech</div>
-          <div class="filter-chip" data-cat="Travel & Transport">Travel</div>
-          <div class="filter-chip" data-cat="Utilities">Utilities</div>
-        </div>
-
-        <!-- Ledger Items Container -->
-        <div id="ledgerContainer" class="ledger-list">
-          <div style="text-align:center; padding:32px 16px; color:var(--text-faint); font-size:0.84rem;">
-            No documents filed yet. Snap your first receipt in the Intake tab!
-          </div>
-        </div>
-      </section>
-
-    </main>
-
-    <!-- ========================================== -->
-    <!-- TAB 3: SETTINGS (API Keys & Diagnostics)   -->
-    <!-- ========================================== -->
-    <main id="tabSettings" class="tab-content">
-
-      <!-- Configurations -->
-      <section class="card">
-        <div class="card-header">
-          <span class="card-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3" stroke-width="2"/><path stroke-width="2" d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            Integration Settings
-          </span>
-          <span style="font-size:0.7rem; color:var(--text-faint);">Stored locally</span>
-        </div>
-
-        <div class="settings-group">
-          <!-- Gemini API Key -->
-          <div class="setting-item">
-            <label class="form-label" for="inputGeminiKey">Google Gemini API Key (AI Studio)</label>
-            <div class="input-with-action">
-              <input type="password" id="inputGeminiKey" class="form-input mono" style="flex:1;" placeholder="AIzaSy...">
-              <button id="btnToggleKeyVisibility" type="button" class="btn-secondary" style="padding:9px 12px;">
-                👁️
-              </button>
-            </div>
-            <div style="font-size:0.7rem; color:var(--text-faint);">Free key available at <a href="https://aistudio.google.com/" target="_blank" style="color:#A816DF;">aistudio.google.com</a></div>
-          </div>
-
-          <!-- Model Choice -->
-          <div class="setting-item">
-            <label class="form-label" for="selectGeminiModel">AI Model</label>
-            <select id="selectGeminiModel" class="form-select mono">
-              <option value="gemini-2.5-flash">gemini-2.5-flash (Recommended: Lightning Fast & High Accuracy)</option>
-              <option value="gemini-2.5-pro">gemini-2.5-pro (Deep Reasoning & Complex Receipts)</option>
-              <option value="gemini-1.5-flash">gemini-1.5-flash (Standard)</option>
-            </select>
-          </div>
-
-          <!-- Apps Script URL -->
-          <div class="setting-item">
-            <label class="form-label" for="inputScriptUrl">Google Apps Script Web App URL</label>
-            <input type="url" id="inputScriptUrl" class="form-input mono" placeholder="https://script.google.com/macros/s/.../exec">
-            <div style="font-size:0.7rem; color:var(--text-faint);">Connects directly to your Google Drive and Sheets</div>
-          </div>
-
-          <!-- Save Button -->
-          <button id="btnSaveSettings" class="btn-primary" style="margin-top:6px;">
-            Save Settings
-          </button>
-
-          <!-- Test Connections Button -->
-          <div style="display:flex; gap:10px; margin-top:4px;">
-            <button id="btnTestConnections" type="button" class="btn-secondary" style="flex:1;">
-              🔍 Test Connection
-            </button>
-            <button id="btnClearCache" type="button" class="btn-secondary danger" style="color:var(--rose);">
-              Clear Cache
-            </button>
-          </div>
-
-          <div id="testResultsBanner" class="hidden" style="padding:10px 14px; border-radius:var(--radius-md); font-size:0.76rem; line-height:1.4;"></div>
-        </div>
-      </section>
-
-      <!-- Step-by-Step Setup Guide Accordion -->
-      <section class="card">
-        <details>
-          <summary>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            Deployment & Setup Walkthrough
-          </summary>
-          <div style="margin-top:12px;">
-            <div class="guide-step">
-              <strong>Step 1: Deploy Backend Script</strong>
-              <div>Go to <a href="https://script.google.com" target="_blank" style="color:#A816DF;">script.google.com</a>, create a New Project called <code>Clean Vault Backend</code>, and paste the code from <code>Code.gs</code>.</div>
-              <div style="margin-top:4px;">Click <strong>Deploy > New deployment > Web app</strong>. Set <em>Execute as: Me</em> and <em>Who has access: Anyone</em>. Copy the <code>/exec</code> URL.</div>
-            </div>
-
-            <div class="guide-step">
-              <strong>Step 2: Get your Gemini Key</strong>
-              <div>Create a key at <a href="https://aistudio.google.com" target="_blank" style="color:#A816DF;">aistudio.google.com</a> and paste it above.</div>
-            </div>
-
-            <div class="guide-step">
-              <strong>Step 3: Install to Phone Home Screen</strong>
-              <div>In Safari (iOS) tap <strong>Share > Add to Home Screen</strong>. In Chrome (Android) tap <strong>Options (⋮) > Install app / Add to Home screen</strong>.</div>
-            </div>
-          </div>
-        </details>
-      </section>
-
-    </main>
+          <span id="ledgerCountBadge" class="ledger-badge">0 records</span>
+        </button>
+      </div>
+    </section>
 
   </div>
 
-  <!-- ========================================== -->
-  <!-- BOTTOM TAB NAVIGATION                      -->
-  <!-- ========================================== -->
-  <nav class="bottom-nav">
-    <button id="navIntake" class="nav-item active">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-      <span>Intake</span>
-    </button>
-    <button id="navVault" class="nav-item">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <span>Vault</span>
-    </button>
-    <button id="navSettings" class="nav-item">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-      <span>Settings</span>
-    </button>
-  </nav>
+  <!-- ============================================== -->
+  <!-- MODAL: LEDGER                                  -->
+  <!-- ============================================== -->
+  <div id="ledgerModal" class="modal-overlay hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          Vault Ledger
+        </div>
+        <button id="btnCloseLedger" class="btn-close-modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="ledgerSearchInput" class="form-input" placeholder="Filter receipts by vendor or notes...">
+        <div id="ledgerList" style="display:flex; flex-direction:column; gap:8px;">
+          <!-- Loaded dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
 
-  <!-- ========================================== -->
-  <!-- APPLICATION SCRIPT                         -->
-  <!-- ========================================== -->
+  <!-- ============================================== -->
+  <!-- MODAL: SETTINGS (Opened via header wheel)      -->
+  <!-- ============================================== -->
+  <div id="settingsModal" class="modal-overlay hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Settings
+        </div>
+        <button id="btnCloseSettings" class="btn-close-modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Gemini API Key</label>
+          <input type="password" id="inputGeminiKey" class="form-input mono" placeholder="AIzaSy...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Model</label>
+          <select id="selectGeminiModel" class="form-select mono">
+            <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+            <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+            <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Apps Script Web App URL</label>
+          <input type="url" id="inputScriptUrl" class="form-input mono" placeholder="https://script.google.com/macros/s/.../exec">
+        </div>
+        
+        <button id="btnSaveSettings" class="btn-file-submit" style="margin-top:6px;">Save Settings</button>
+
+        <div style="display:flex; gap:8px; margin-top:4px;">
+          <button id="btnTestConn" class="btn-choose-file" style="flex:1;">🔍 Test Connection</button>
+          <button id="btnClearData" class="btn-choose-file" style="color:var(--rose);">Clear Cache</button>
+        </div>
+
+        <div id="testFeedback" class="hidden" style="padding:10px; border-radius:8px; background:var(--surface-raised); font-size:0.75rem; line-height:1.4;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script -->
   <script>
-    // --- Application State ---
     const state = {
       apiKey: localStorage.getItem('VAULT_GEMINI_KEY') || '',
       model: localStorage.getItem('VAULT_GEMINI_MODEL') || 'gemini-2.5-flash',
@@ -1229,182 +965,116 @@
       cachedLedger: JSON.parse(localStorage.getItem('VAULT_CACHED_LEDGER') || '[]'),
       activeImageBase64: null,
       extractedData: null,
-      isListeningIntake: false,
-      isListeningQuery: false,
-      intakeState: 'IDLE' // IDLE, COMPRESSING, ANALYZING, READY_TO_FILE, UPLOADING
+      isListeningDictate: false,
+      isListeningQuery: false
     };
 
-    // --- DOM Elements ---
+    // DOM
+    const cameraBox = document.getElementById('cameraBox');
     const cameraInput = document.getElementById('cameraInput');
     const galleryInput = document.getElementById('galleryInput');
-    const btnTriggerCamera = document.getElementById('btnTriggerCamera');
-    const btnTriggerGallery = document.getElementById('btnTriggerGallery');
-    const captureZone = document.getElementById('captureZone');
-    const capturePrompt = document.getElementById('capturePrompt');
+    const btnChooseFile = document.getElementById('btnChooseFile');
     const imagePreview = document.getElementById('imagePreview');
-    const previewActions = document.getElementById('previewActions');
-    const btnRemoveImage = document.getElementById('btnRemoveImage');
-    const imageDimsBadge = document.getElementById('imageDimsBadge');
-    
+    const cameraIconWrap = document.getElementById('cameraIconWrap');
+    const btnRemovePreview = document.getElementById('btnRemovePreview');
+
     const btnVoiceDictate = document.getElementById('btnVoiceDictate');
     const voiceNoteText = document.getElementById('voiceNoteText');
-    const speechStatus = document.getElementById('speechStatus');
-
-    const extractionCard = document.getElementById('extractionCard');
+    const extractionBox = document.getElementById('extractionBox');
     const metaVendor = document.getElementById('metaVendor');
     const metaDate = document.getElementById('metaDate');
     const metaAmount = document.getElementById('metaAmount');
     const metaCurrency = document.getElementById('metaCurrency');
     const metaCategory = document.getElementById('metaCategory');
-    const metaItems = document.getElementById('metaItems');
+    const btnSubmitFile = document.getElementById('btnSubmitFile');
+    const btnSubmitText = document.getElementById('btnSubmitText');
+    const btnSubmitSpinner = document.getElementById('btnSubmitSpinner');
 
-    const btnAction = document.getElementById('btnAction');
-    const btnActionText = document.getElementById('btnActionText');
-    const btnActionSpinner = document.getElementById('btnActionSpinner');
-
-    const statusDot = document.getElementById('statusDot');
-    const statusText = document.getElementById('statusText');
-    const btnSyncTrigger = document.getElementById('btnSyncTrigger');
-
-    const aiQueryInput = document.getElementById('aiQueryInput');
+    const queryInput = document.getElementById('queryInput');
     const btnVoiceQuery = document.getElementById('btnVoiceQuery');
-    const btnExecuteAiQuery = document.getElementById('btnExecuteAiQuery');
-    const aiResponseContainer = document.getElementById('aiResponseContainer');
-    const aiAnswerText = document.getElementById('aiAnswerText');
-    const aiMatchingRecords = document.getElementById('aiMatchingRecords');
+    const btnAskQuery = document.getElementById('btnAskQuery');
+    const aiReplyCard = document.getElementById('aiReplyCard');
+    const aiReplyContent = document.getElementById('aiReplyContent');
+    const aiReplyMatches = document.getElementById('aiReplyMatches');
 
-    const localSearchInput = document.getElementById('localSearchInput');
-    const ledgerContainer = document.getElementById('ledgerContainer');
-    const ledgerCountDisplay = document.getElementById('ledgerCountDisplay');
-    const btnRefreshLedger = document.getElementById('btnRefreshLedger');
-    const categoryChips = document.getElementById('categoryChips');
+    const btnOpenLedgerModal = document.getElementById('btnOpenLedgerModal');
+    const ledgerModal = document.getElementById('ledgerModal');
+    const btnCloseLedger = document.getElementById('btnCloseLedger');
+    const ledgerList = document.getElementById('ledgerList');
+    const ledgerSearchInput = document.getElementById('ledgerSearchInput');
+    const ledgerCountBadge = document.getElementById('ledgerCountBadge');
 
-    // Settings elements
+    const btnOpenSettings = document.getElementById('btnOpenSettings');
+    const settingsModal = document.getElementById('settingsModal');
+    const btnCloseSettings = document.getElementById('btnCloseSettings');
     const inputGeminiKey = document.getElementById('inputGeminiKey');
     const selectGeminiModel = document.getElementById('selectGeminiModel');
     const inputScriptUrl = document.getElementById('inputScriptUrl');
-    const btnToggleKeyVisibility = document.getElementById('btnToggleKeyVisibility');
     const btnSaveSettings = document.getElementById('btnSaveSettings');
-    const btnTestConnections = document.getElementById('btnTestConnections');
-    const btnClearCache = document.getElementById('btnClearCache');
-    const testResultsBanner = document.getElementById('testResultsBanner');
+    const btnTestConn = document.getElementById('btnTestConn');
+    const btnClearData = document.getElementById('btnClearData');
+    const testFeedback = document.getElementById('testFeedback');
+    const syncIndicator = document.getElementById('syncIndicator');
 
-    // Nav tabs
-    const navIntake = document.getElementById('navIntake');
-    const navVault = document.getElementById('navVault');
-    const navSettings = document.getElementById('navSettings');
-    const tabIntake = document.getElementById('tabIntake');
-    const tabVault = document.getElementById('tabVault');
-    const tabSettings = document.getElementById('tabSettings');
-
-    // --- Lifecycle Initialization ---
+    // Init
     window.addEventListener('DOMContentLoaded', () => {
-      // Register Service Worker for PWA
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').catch(() => {});
-      }
-
-      // Populate Settings inputs
+      if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
       inputGeminiKey.value = state.apiKey;
       selectGeminiModel.value = state.model;
       inputScriptUrl.value = state.scriptUrl;
-
-      // Render cached records immediately
-      renderLedger(state.cachedLedger);
-      updateSyncStatus();
-
-      // If scriptUrl is already set, perform quick silent background sync
-      if (state.scriptUrl) {
-        syncLedger(true);
-      } else {
-        showToast("Welcome to Clean Vault! Please configure your settings.", "normal");
-      }
+      updateBadge();
+      if (state.scriptUrl) syncLedger(true);
     });
 
-    // --- Tab Switching Logic ---
-    function switchTab(targetTab) {
-      [tabIntake, tabVault, tabSettings].forEach(t => t.classList.remove('active'));
-      [navIntake, navVault, navSettings].forEach(n => n.classList.remove('active'));
-
-      if (targetTab === 'intake') {
-        tabIntake.classList.add('active');
-        navIntake.classList.add('active');
-      } else if (targetTab === 'vault') {
-        tabVault.classList.add('active');
-        navVault.classList.add('active');
-        renderLedger(state.cachedLedger);
-      } else if (targetTab === 'settings') {
-        tabSettings.classList.add('active');
-        navSettings.classList.add('active');
-      }
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    function updateBadge() {
+      ledgerCountBadge.textContent = `${state.cachedLedger.length} records`;
     }
 
-    navIntake.addEventListener('click', () => switchTab('intake'));
-    navVault.addEventListener('click', () => switchTab('vault'));
-    navSettings.addEventListener('click', () => switchTab('settings'));
-
-    // --- Camera & Gallery Handling with Client Compression ---
-    btnTriggerCamera.addEventListener('click', () => cameraInput.click());
-    btnTriggerGallery.addEventListener('click', () => galleryInput.click());
-    captureZone.addEventListener('click', (e) => {
-      if (e.target.closest('#btnRemoveImage')) return;
-      if (!state.activeImageBase64) {
-        cameraInput.click();
-      }
+    // Camera & Photo Handling
+    cameraBox.addEventListener('click', (e) => {
+      if (e.target.closest('#btnRemovePreview')) return;
+      if (!state.activeImageBase64) cameraInput.click();
     });
 
-    cameraInput.addEventListener('change', handleImageFile);
-    galleryInput.addEventListener('change', handleImageFile);
+    btnChooseFile.addEventListener('click', () => galleryInput.click());
+    cameraInput.addEventListener('change', handleFile);
+    galleryInput.addEventListener('change', handleFile);
 
-    async function handleImageFile(e) {
+    function handleFile(e) {
       const file = e.target.files && e.target.files[0];
       if (!file) return;
 
-      setIntakeState('COMPRESSING');
+      showToast("Optimizing photo...", "normal");
 
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = (evt) => {
         const img = new Image();
         img.onload = () => {
-          // Compress to max 1600px width/height @ 0.8 JPEG for fast upload & crisp OCR
           const maxDim = 1600;
-          let w = img.width;
-          let h = img.height;
-
-          if (w > h && w > maxDim) {
-            h = Math.round((h * maxDim) / w);
-            w = maxDim;
-          } else if (h > maxDim) {
-            w = Math.round((w * maxDim) / h);
-            w = maxDim;
-          }
+          let w = img.width, h = img.height;
+          if (w > h && w > maxDim) { h = Math.round((h * maxDim) / w); w = maxDim; }
+          else if (h > maxDim) { w = Math.round((w * maxDim) / h); h = maxDim; }
 
           const canvas = document.createElement('canvas');
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, w, h);
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
 
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.82);
-          state.activeImageBase64 = compressedBase64;
+          const compressed = canvas.toDataURL('image/jpeg', 0.82);
+          state.activeImageBase64 = compressed;
 
-          // Display preview
-          imagePreview.src = compressedBase64;
+          imagePreview.src = compressed;
           imagePreview.classList.remove('hidden');
-          previewActions.classList.remove('hidden');
-          capturePrompt.classList.add('hidden');
-          imageDimsBadge.textContent = `${w}×${h}px`;
+          cameraIconWrap.classList.add('hidden');
+          btnRemovePreview.classList.remove('hidden');
 
-          // Trigger Multimodal Analysis
-          analyzeWithGemini();
+          analyzeReceipt();
         };
-        img.src = event.target.result;
+        img.src = evt.target.result;
       };
       reader.readAsDataURL(file);
     }
 
-    btnRemoveImage.addEventListener('click', (e) => {
+    btnRemovePreview.addEventListener('click', (e) => {
       e.stopPropagation();
       resetIntake();
     });
@@ -1414,139 +1084,58 @@
       state.extractedData = null;
       imagePreview.src = '';
       imagePreview.classList.add('hidden');
-      previewActions.classList.add('hidden');
-      capturePrompt.classList.remove('hidden');
-      extractionCard.classList.add('hidden');
-      imageDimsBadge.textContent = 'Auto-optimize';
+      cameraIconWrap.classList.remove('hidden');
+      btnRemovePreview.classList.add('hidden');
+      extractionBox.classList.add('hidden');
       cameraInput.value = '';
       galleryInput.value = '';
-      setIntakeState('IDLE');
     }
 
-    // --- Web Speech API Dictation ---
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognitionIntake = null;
-    let recognitionQuery = null;
+    // Web Speech API
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recDictate = null, recQuery = null;
 
-    if (SpeechRecognition) {
-      // Intake Speech Recognition
-      recognitionIntake = new SpeechRecognition();
-      recognitionIntake.continuous = false;
-      recognitionIntake.interimResults = false;
-
-      recognitionIntake.onstart = () => {
-        state.isListeningIntake = true;
-        btnVoiceDictate.classList.add('recording');
-        speechStatus.textContent = 'Listening... speak clearly';
+    if (SpeechRec) {
+      recDictate = new SpeechRec();
+      recDictate.onstart = () => { state.isListeningDictate = true; btnVoiceDictate.classList.add('recording'); };
+      recDictate.onresult = (ev) => {
+        const txt = ev.results[0][0].transcript;
+        voiceNoteText.value = voiceNoteText.value ? `${voiceNoteText.value} ${txt}` : txt;
       };
+      recDictate.onend = () => { state.isListeningDictate = false; btnVoiceDictate.classList.remove('recording'); };
 
-      recognitionIntake.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        voiceNoteText.value = voiceNoteText.value ? `${voiceNoteText.value} ${transcript}` : transcript;
-        showToast("Voice notes transcribed", "normal");
+      recQuery = new SpeechRec();
+      recQuery.onstart = () => { state.isListeningQuery = true; btnVoiceQuery.classList.add('recording'); };
+      recQuery.onresult = (ev) => {
+        const txt = ev.results[0][0].transcript;
+        queryInput.value = txt;
+        executeAsk();
       };
-
-      recognitionIntake.onerror = () => stopListeningIntake();
-      recognitionIntake.onend = () => stopListeningIntake();
-
-      // Query Speech Recognition
-      recognitionQuery = new SpeechRecognition();
-      recognitionQuery.continuous = false;
-      recognitionQuery.interimResults = false;
-
-      recognitionQuery.onstart = () => {
-        state.isListeningQuery = true;
-        btnVoiceQuery.classList.add('recording');
-      };
-
-      recognitionQuery.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        aiQueryInput.value = transcript;
-        executeAiQuery();
-      };
-
-      recognitionQuery.onerror = () => stopListeningQuery();
-      recognitionQuery.onend = () => stopListeningQuery();
-    }
-
-    function stopListeningIntake() {
-      state.isListeningIntake = false;
-      btnVoiceDictate.classList.remove('recording');
-      speechStatus.textContent = 'Tap mic to speak';
-    }
-
-    function stopListeningQuery() {
-      state.isListeningQuery = false;
-      btnVoiceQuery.classList.remove('recording');
+      recQuery.onend = () => { state.isListeningQuery = false; btnVoiceQuery.classList.remove('recording'); };
     }
 
     btnVoiceDictate.addEventListener('click', () => {
-      if (!recognitionIntake) {
-        showToast("Speech recognition not supported in this browser. Please type notes directly.", "error");
-        return;
-      }
-      if (state.isListeningIntake) {
-        recognitionIntake.stop();
-      } else {
-        recognitionIntake.start();
-      }
+      if (!recDictate) { showToast("Speech dictation not supported in this browser", "error"); return; }
+      if (state.isListeningDictate) recDictate.stop(); else recDictate.start();
     });
 
     btnVoiceQuery.addEventListener('click', () => {
-      if (!recognitionQuery) {
-        showToast("Speech recognition not supported. You can type query.", "error");
-        return;
-      }
-      if (state.isListeningQuery) {
-        recognitionQuery.stop();
-      } else {
-        recognitionQuery.start();
-      }
+      if (!recQuery) { showToast("Speech dictation not supported in this browser", "error"); return; }
+      if (state.isListeningQuery) recQuery.stop(); else recQuery.start();
     });
 
-    // --- State UI Synchronization ---
-    function setIntakeState(newState) {
-      state.intakeState = newState;
-
-      if (newState === 'IDLE') {
-        btnAction.disabled = true;
-        btnActionSpinner.classList.add('hidden');
-        btnActionText.textContent = "Snap receipt to begin";
-      } else if (newState === 'COMPRESSING') {
-        btnAction.disabled = true;
-        btnActionSpinner.classList.remove('hidden');
-        btnActionText.textContent = "Optimizing photo...";
-      } else if (newState === 'ANALYZING') {
-        btnAction.disabled = true;
-        btnActionSpinner.classList.remove('hidden');
-        btnActionText.textContent = "Gemini AI Analyzing Document...";
-      } else if (newState === 'READY_TO_FILE') {
-        btnAction.disabled = false;
-        btnActionSpinner.classList.add('hidden');
-        btnActionText.textContent = "File to Vault & Ledger";
-      } else if (newState === 'UPLOADING') {
-        btnAction.disabled = true;
-        btnActionSpinner.classList.remove('hidden');
-        btnActionText.textContent = "Securing in Google Drive & Ledger...";
-      }
-    }
-
-    // --- Multimodal Extraction with Gemini ---
-    async function analyzeWithGemini() {
+    // Gemini Vision Analysis
+    async function analyzeReceipt() {
       if (!state.apiKey) {
-        showToast("Please enter your Gemini API Key in Settings", "error");
-        switchTab('settings');
+        showToast("Set your Gemini API Key in Settings (⚙️)", "error");
+        openSettings();
         return;
       }
 
-      setIntakeState('ANALYZING');
+      showToast("Gemini AI analyzing receipt...", "normal");
 
       const rawBase64 = state.activeImageBase64.split(',')[1];
-      const dictatedNotes = voiceNoteText.value.trim();
-
-      const prompt = `Analyze this receipt or financial document image. Extract all structured values accurately. 
-Dictated Context/User Notes: "${dictatedNotes}".
-If date is unclear, use today's ISO date. Detect currency correctly (e.g. USD, EUR, GBP, ILS, CAD, AUD). Categorize appropriately.`;
+      const prompt = `Analyze this receipt. User note: "${voiceNoteText.value}". Extract structured details.`;
 
       const payload = {
         contents: [{
@@ -1560,13 +1149,12 @@ If date is unclear, use today's ISO date. Detect currency correctly (e.g. USD, E
           responseSchema: {
             type: "OBJECT",
             properties: {
-              date: { type: "STRING", description: "YYYY-MM-DD" },
-              vendor: { type: "STRING", description: "Merchant / Vendor / Company name" },
-              totalAmount: { type: "NUMBER", description: "Final total paid" },
-              currency: { type: "STRING", description: "ISO 3-letter currency code (e.g. USD, EUR, ILS, GBP)" },
-              category: { type: "STRING", description: "Groceries, Dining, Business, Office & Tech, Travel & Transport, Utilities, Medical & Health, Home & Hardware, Tax & Legal, Other" },
-              itemsSummary: { type: "STRING", description: "Concise summary of items or services" },
-              rawOcr: { type: "STRING", description: "Document text transcription" }
+              date: { type: "STRING" },
+              vendor: { type: "STRING" },
+              totalAmount: { type: "NUMBER" },
+              currency: { type: "STRING" },
+              category: { type: "STRING" },
+              itemsSummary: { type: "STRING" }
             },
             required: ["date", "vendor", "totalAmount", "currency", "category"]
           }
@@ -1574,74 +1162,43 @@ If date is unclear, use today's ISO date. Detect currency correctly (e.g. USD, E
       };
 
       try {
-        const modelName = state.model || 'gemini-2.5-flash';
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${state.apiKey}`;
-
-        const res = await fetch(url, {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${state.model}:generateContent?key=${state.apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
 
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error?.message || `HTTP ${res.status}`);
-        }
-
         const data = await res.json();
-        const extractedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!extractedText) throw new Error("No data returned from Gemini.");
+        const extracted = JSON.parse(data.candidates[0].content.parts[0].text);
+        state.extractedData = extracted;
 
-        const parsed = JSON.parse(extractedText);
-        state.extractedData = parsed;
+        metaVendor.value = extracted.vendor || '';
+        metaDate.value = extracted.date || new Date().toISOString().slice(0, 10);
+        metaAmount.value = extracted.totalAmount || '';
+        if (extracted.currency) metaCurrency.value = extracted.currency.toUpperCase();
+        if (extracted.category) metaCategory.value = extracted.category;
 
-        // Populate Form Fields for human review
-        metaVendor.value = parsed.vendor || 'Unknown Vendor';
-        metaDate.value = parsed.date || new Date().toISOString().slice(0, 10);
-        metaAmount.value = parsed.totalAmount !== undefined ? parsed.totalAmount : '';
-        
-        if (parsed.currency && ['USD','EUR','GBP','ILS','CAD','AUD','CHF','JPY'].includes(parsed.currency.toUpperCase())) {
-          metaCurrency.value = parsed.currency.toUpperCase();
-        } else {
-          metaCurrency.value = 'USD';
-        }
-
-        // Match category
-        const catOptions = Array.from(metaCategory.options).map(o => o.value);
-        if (catOptions.includes(parsed.category)) {
-          metaCategory.value = parsed.category;
-        } else {
-          metaCategory.value = 'Other';
-        }
-
-        metaItems.value = parsed.itemsSummary || '';
-
-        // Reveal review card
-        extractionCard.classList.remove('hidden');
-        setIntakeState('READY_TO_FILE');
-        showToast("AI Extraction Complete - Review & Save", "success");
-
+        extractionBox.classList.remove('hidden');
+        showToast("Receipt extracted - tap Save", "success");
       } catch (err) {
-        console.error("Gemini Extraction Error:", err);
-        showToast("Gemini analysis error: " + err.message, "error");
-        // Open review form manually so user can still file
-        extractionCard.classList.remove('hidden');
+        console.error(err);
         metaDate.value = new Date().toISOString().slice(0, 10);
-        setIntakeState('READY_TO_FILE');
+        extractionBox.classList.remove('hidden');
+        showToast("Ready to save", "normal");
       }
     }
 
-    // --- Primary Action Button (File to Apps Script Backend) ---
-    btnAction.addEventListener('click', async () => {
-      if (state.intakeState !== 'READY_TO_FILE') return;
-
+    // Save Receipt to Apps Script
+    btnSubmitFile.addEventListener('click', async () => {
       if (!state.scriptUrl) {
-        showToast("Please enter your Google Apps Script URL in Settings", "error");
-        switchTab('settings');
+        showToast("Set your Apps Script URL in Settings (⚙️)", "error");
+        openSettings();
         return;
       }
 
-      setIntakeState('UPLOADING');
+      btnSubmitSpinner.classList.remove('hidden');
+      btnSubmitText.textContent = "Saving...";
+      btnSubmitFile.disabled = true;
 
       const metadata = {
         vendor: metaVendor.value.trim() || 'Unknown',
@@ -1649,264 +1206,151 @@ If date is unclear, use today's ISO date. Detect currency correctly (e.g. USD, E
         totalAmount: parseFloat(metaAmount.value) || 0,
         currency: metaCurrency.value || 'USD',
         category: metaCategory.value || 'General',
-        itemsSummary: metaItems.value.trim(),
-        notes: voiceNoteText.value.trim(),
-        rawOcr: state.extractedData?.rawOcr || ''
-      };
-
-      const payload = {
-        action: 'save_receipt',
-        imageBase64: state.activeImageBase64,
-        metadata: metadata
+        notes: voiceNoteText.value.trim()
       };
 
       try {
-        // Apps Script Web Apps: sending text/plain avoids CORS preflight failures
         const res = await fetch(state.scriptUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            action: 'save_receipt',
+            imageBase64: state.activeImageBase64,
+            metadata: metadata
+          })
         });
 
         const result = await res.json();
-
         if (result.status === 'success') {
           showToast("Saved to Google Drive & Sheets!", "success");
-          
-          // Clear and reset form
           voiceNoteText.value = '';
           resetIntake();
-
-          // Sync in background to pull the new record
           syncLedger();
         } else {
-          throw new Error(result.message || "Failed to save");
+          throw new Error(result.message || "Failed");
         }
-
       } catch (err) {
-        console.error("Save Error:", err);
-        showToast("Upload failed: " + err.message, "error");
-        setIntakeState('READY_TO_FILE');
+        showToast("Save failed: " + err.message, "error");
+      } finally {
+        btnSubmitSpinner.classList.add('hidden');
+        btnSubmitText.textContent = "Save to Vault";
+        btnSubmitFile.disabled = false;
       }
     });
 
-    // --- Google Apps Script Sync & Ledger Fetching ---
-    async function syncLedger(silent = false) {
-      if (!state.scriptUrl) {
-        updateSyncStatus();
-        return;
-      }
+    // Ask Query
+    window.quickAsk = (q) => { queryInput.value = q; executeAsk(); };
+    btnAskQuery.addEventListener('click', executeAsk);
+    queryInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') executeAsk(); });
 
-      statusDot.className = "status-dot syncing";
-      statusText.textContent = "Syncing...";
+    async function executeAsk() {
+      const q = queryInput.value.trim();
+      if (!q) return;
+
+      if (!state.apiKey) { showToast("Set Gemini API key in Settings (⚙️)", "error"); openSettings(); return; }
+      if (!state.cachedLedger.length) { showToast("Ledger is empty.", "normal"); return; }
+
+      aiReplyCard.classList.remove('hidden');
+      aiReplyContent.innerHTML = `<span class="spinner" style="display:inline-block; vertical-align:middle; margin-right:6px;"></span> Searching vault...`;
+      aiReplyMatches.innerHTML = '';
+
+      const sys = `User document ledger: ${JSON.stringify(state.cachedLedger)}. Answer user question with calculations. Return JSON: {"answer":"...", "matchingRowIds":[1,2]}`;
 
       try {
-        const url = `${state.scriptUrl}?action=get_records&_t=${Date.now()}`;
-        const res = await fetch(url);
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${state.model}:generateContent?key=${state.apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: q }] }],
+            systemInstruction: { parts: [{ text: sys }] },
+            generationConfig: { responseMimeType: "application/json" }
+          })
+        });
         const data = await res.json();
+        const parsed = JSON.parse(data.candidates[0].content.parts[0].text);
 
+        aiReplyContent.textContent = parsed.answer;
+        const matches = state.cachedLedger.filter(r => (parsed.matchingRowIds || []).includes(r.rowId));
+        aiReplyMatches.innerHTML = matches.map(r => `
+          <div class="receipt-item" style="padding:8px; font-size:0.8rem;">
+            <div>
+              <div style="font-weight:700; color:#FFF;">${escapeHtml(r.vendor || 'Unknown')}</div>
+              <div style="font-size:0.68rem; color:var(--text-faint);">${r.date} • ${r.category}</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-weight:700; color:var(--emerald);">${r.totalAmount} ${r.currency}</div>
+              ${r.driveFileUrl ? `<a href="${r.driveFileUrl}" target="_blank" class="btn-drive-link">Drive ↗</a>` : ''}
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        aiReplyContent.innerHTML = `<span style="color:var(--rose);">Error: ${escapeHtml(err.message)}</span>`;
+      }
+    }
+
+    // Ledger Sync & Modal
+    async function syncLedger(silent = false) {
+      if (!state.scriptUrl) { syncIndicator.className = "sync-indicator error"; return; }
+      syncIndicator.className = "sync-indicator syncing";
+
+      try {
+        const res = await fetch(`${state.scriptUrl}?action=get_records&_t=${Date.now()}`);
+        const data = await res.json();
         if (data.status === 'success') {
           state.cachedLedger = data.records || [];
           localStorage.setItem('VAULT_CACHED_LEDGER', JSON.stringify(state.cachedLedger));
-          renderLedger(state.cachedLedger);
-          statusDot.className = "status-dot";
-          statusText.textContent = `${state.cachedLedger.length} Synced`;
-          if (!silent) showToast(`Synced ${state.cachedLedger.length} records from Google Drive`, "success");
-        } else {
-          throw new Error(data.message || "Sync error");
+          updateBadge();
+          renderLedger();
+          syncIndicator.className = "sync-indicator";
+          if (!silent) showToast(`Synced ${state.cachedLedger.length} records`, "success");
         }
-      } catch (err) {
-        console.warn("Ledger Sync Warning:", err);
-        statusDot.className = "status-dot error";
-        statusText.textContent = "Offline";
-        if (!silent) showToast("Could not sync ledger. Check URL or internet.", "error");
+      } catch (e) {
+        syncIndicator.className = "sync-indicator error";
       }
     }
 
-    btnSyncTrigger.addEventListener('click', () => syncLedger());
-    btnRefreshLedger.addEventListener('click', () => syncLedger());
-
-    function updateSyncStatus() {
-      if (!state.scriptUrl) {
-        statusDot.className = "status-dot error";
-        statusText.textContent = "Setup Needed";
-      } else {
-        statusDot.className = "status-dot";
-        statusText.textContent = `${state.cachedLedger.length} Cached`;
-      }
-    }
-
-    // --- Render Ledger List ---
-    let activeCategoryFilter = 'ALL';
-
-    function renderLedger(records) {
-      ledgerCountDisplay.textContent = records.length;
-
-      // Filter by category if not ALL
-      let filtered = records;
-      if (activeCategoryFilter !== 'ALL') {
-        filtered = filtered.filter(r => (r.category || '').toLowerCase().includes(activeCategoryFilter.toLowerCase()));
+    function renderLedger() {
+      const q = (ledgerSearchInput.value || '').toLowerCase().trim();
+      let records = state.cachedLedger;
+      if (q) {
+        records = records.filter(r => (r.vendor||'').toLowerCase().includes(q) || (r.category||'').toLowerCase().includes(q) || (r.notes||'').toLowerCase().includes(q));
       }
 
-      // Filter by local search input
-      const searchVal = localSearchInput.value.trim().toLowerCase();
-      if (searchVal) {
-        filtered = filtered.filter(r => {
-          const v = (r.vendor || '').toLowerCase();
-          const c = (r.category || '').toLowerCase();
-          const s = (r.itemsSummary || '').toLowerCase();
-          const n = (r.notes || '').toLowerCase();
-          const d = (r.date || '').toLowerCase();
-          return v.includes(searchVal) || c.includes(searchVal) || s.includes(searchVal) || n.includes(searchVal) || d.includes(searchVal);
-        });
-      }
-
-      if (!filtered.length) {
-        ledgerContainer.innerHTML = `
-          <div style="text-align:center; padding:32px 16px; color:var(--text-faint); font-size:0.84rem;">
-            ${records.length ? 'No matching receipts found.' : 'No receipts filed yet. Snap your first one in Intake!'}
-          </div>
-        `;
+      if (!records.length) {
+        ledgerList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-faint); font-size:0.82rem;">No receipts found</div>`;
         return;
       }
 
-      ledgerContainer.innerHTML = filtered.map(r => `
+      ledgerList.innerHTML = records.map(r => `
         <div class="receipt-item">
-          <div style="flex:1; min-width:0;">
+          <div>
             <div class="receipt-vendor">${escapeHtml(r.vendor || 'Unknown')}</div>
             <div class="receipt-meta">
               <span>📅 ${escapeHtml(r.date || '')}</span>
               <span class="receipt-tag">${escapeHtml(r.category || 'General')}</span>
             </div>
-            ${r.itemsSummary ? `<div class="receipt-summary">${escapeHtml(r.itemsSummary)}</div>` : ''}
-            ${r.notes ? `<div class="receipt-summary" style="color:var(--text-faint); font-style:italic;">💬 ${escapeHtml(r.notes)}</div>` : ''}
+            ${r.notes ? `<div style="font-size:0.72rem; color:var(--text-faint); margin-top:2px;">💬 ${escapeHtml(r.notes)}</div>` : ''}
           </div>
-          <div class="receipt-amount-block">
-            <div class="receipt-amount">${formatCurrency(r.totalAmount, r.currency)}</div>
-            ${r.driveFileUrl ? `
-              <a href="${escapeHtml(r.driveFileUrl)}" target="_blank" rel="noopener noreferrer" class="btn-drive-link">
-                Drive ↗
-              </a>
-            ` : ''}
+          <div style="text-align:right;">
+            <div class="receipt-amount">${Number(r.totalAmount||0).toFixed(2)} ${r.currency||'USD'}</div>
+            ${r.driveFileUrl ? `<a href="${escapeHtml(r.driveFileUrl)}" target="_blank" class="btn-drive-link">Drive ↗</a>` : ''}
           </div>
         </div>
       `).join('');
     }
 
-    localSearchInput.addEventListener('input', () => renderLedger(state.cachedLedger));
+    ledgerSearchInput.addEventListener('input', renderLedger);
 
-    // Category Filter Chips
-    categoryChips.addEventListener('click', (e) => {
-      const chip = e.target.closest('.filter-chip');
-      if (!chip) return;
-
-      categoryChips.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      activeCategoryFilter = chip.getAttribute('data-cat') || 'ALL';
-      renderLedger(state.cachedLedger);
+    btnOpenLedgerModal.addEventListener('click', () => {
+      renderLedger();
+      ledgerModal.classList.remove('hidden');
     });
+    btnCloseLedger.addEventListener('click', () => ledgerModal.classList.add('hidden'));
 
-    // --- Natural Language AI Vault Query Engine ---
-    window.setQueryPrompt = function(promptText) {
-      aiQueryInput.value = promptText;
-      executeAiQuery();
-    };
-
-    btnExecuteAiQuery.addEventListener('click', executeAiQuery);
-    aiQueryInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') executeAiQuery();
-    });
-
-    async function executeAiQuery() {
-      const query = aiQueryInput.value.trim();
-      if (!query) return;
-
-      if (!state.apiKey) {
-        showToast("Set your Gemini API Key in Settings first", "error");
-        switchTab('settings');
-        return;
-      }
-
-      if (!state.cachedLedger.length) {
-        showToast("No receipts in your ledger yet to search.", "normal");
-        return;
-      }
-
-      aiResponseContainer.classList.remove('hidden');
-      aiAnswerText.innerHTML = `<span class="spinner" style="display:inline-block; vertical-align:middle; margin-right:8px;"></span> Gemini is calculating across your vault records...`;
-      aiMatchingRecords.innerHTML = '';
-
-      const systemPrompt = `You are Clean Vault's smart financial retrieval engine.
-Below is the complete user document and receipt ledger in JSON:
-${JSON.stringify(state.cachedLedger)}
-
-The user is asking a question in natural language.
-Your goals:
-1. Answer accurately and directly (calculate precise sums, counts, averages, or identify the right receipts).
-2. If asking about a specific expense or store, identify the rowIds of the matching receipts.
-Return strictly valid JSON with this schema:
-{
-  "answer": "Direct, conversational, insightful answer with the requested details and math",
-  "matchingRowIds": [2, 5] // array of rowId numbers from the records that match
-}`;
-
-      try {
-        const modelName = state.model || 'gemini-2.5-flash';
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${state.apiKey}`;
-
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: query }] }],
-            systemInstruction: { parts: [{ text: systemPrompt }] },
-            generationConfig: { responseMimeType: "application/json" }
-          })
-        });
-
-        if (!res.ok) throw new Error(`Gemini query error HTTP ${res.status}`);
-
-        const data = await res.json();
-        const jsonText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        const result = JSON.parse(jsonText);
-
-        aiAnswerText.textContent = result.answer || "Query processed.";
-
-        const matching = state.cachedLedger.filter(r => (result.matchingRowIds || []).includes(r.rowId));
-        if (matching.length) {
-          aiMatchingRecords.innerHTML = `
-            <div style="font-size:0.7rem; color:var(--text-faint); font-weight:700; text-transform:uppercase; margin-bottom:6px;">
-              Matching Documents (${matching.length}):
-            </div>
-            ${matching.map(r => `
-              <div class="receipt-item" style="background:var(--surface-raised); border-color:var(--border-highlight);">
-                <div>
-                  <div class="receipt-vendor">${escapeHtml(r.vendor || 'Unknown')}</div>
-                  <div class="receipt-meta">
-                    <span>${escapeHtml(r.date || '')}</span> • <span class="receipt-tag">${escapeHtml(r.category || '')}</span>
-                  </div>
-                </div>
-                <div class="receipt-amount-block">
-                  <div class="receipt-amount">${formatCurrency(r.totalAmount, r.currency)}</div>
-                  ${r.driveFileUrl ? `<a href="${escapeHtml(r.driveFileUrl)}" target="_blank" class="btn-drive-link">Open</a>` : ''}
-                </div>
-              </div>
-            `).join('')}
-          `;
-        } else {
-          aiMatchingRecords.innerHTML = '';
-        }
-
-      } catch (err) {
-        console.error("AI Query Error:", err);
-        aiAnswerText.innerHTML = `<span style="color:var(--rose);">Error retrieving answer: ${escapeHtml(err.message)}</span>`;
-      }
-    }
-
-    // --- Settings Management & Verification Diagnostics ---
-    btnToggleKeyVisibility.addEventListener('click', () => {
-      inputGeminiKey.type = inputGeminiKey.type === 'password' ? 'text' : 'password';
-    });
+    // Settings Modal
+    function openSettings() { settingsModal.classList.remove('hidden'); }
+    btnOpenSettings.addEventListener('click', openSettings);
+    btnCloseSettings.addEventListener('click', () => settingsModal.classList.add('hidden'));
 
     btnSaveSettings.addEventListener('click', () => {
       const key = inputGeminiKey.value.trim();
@@ -1921,95 +1365,52 @@ Return strictly valid JSON with this schema:
       state.model = model;
       state.scriptUrl = url;
 
-      showToast("Settings saved successfully!", "success");
-      updateSyncStatus();
+      showToast("Settings saved!", "success");
+      settingsModal.classList.add('hidden');
       if (url) syncLedger();
     });
 
-    btnTestConnections.addEventListener('click', async () => {
-      testResultsBanner.classList.remove('hidden');
-      testResultsBanner.style.background = "var(--surface-raised)";
-      testResultsBanner.style.border = "1px solid var(--border)";
-      testResultsBanner.innerHTML = `<span class="spinner" style="display:inline-block; vertical-align:middle; margin-right:6px;"></span> Testing connections...`;
+    btnTestConn.addEventListener('click', async () => {
+      testFeedback.classList.remove('hidden');
+      testFeedback.innerHTML = `<span class="spinner" style="display:inline-block; vertical-align:middle; margin-right:4px;"></span> Testing...`;
 
-      const results = [];
-
-      // 1. Test Gemini API Key
-      if (!inputGeminiKey.value.trim()) {
-        results.push(`<div style="color:var(--rose);">❌ Gemini API Key is missing.</div>`);
-      } else {
+      const res = [];
+      if (inputGeminiKey.value.trim()) {
         try {
-          const testRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${inputGeminiKey.value.trim()}`);
-          if (testRes.ok) {
-            results.push(`<div style="color:var(--emerald);">✅ Gemini API Key is valid and active!</div>`);
-          } else {
-            results.push(`<div style="color:var(--rose);">❌ Gemini API Key failed (HTTP ${testRes.status}).</div>`);
-          }
-        } catch (e) {
-          results.push(`<div style="color:var(--rose);">❌ Gemini connection failed: ${escapeHtml(e.message)}</div>`);
-        }
+          const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${inputGeminiKey.value.trim()}`);
+          res.push(r.ok ? `✅ Gemini API connected` : `❌ Gemini key failed`);
+        } catch(e) { res.push(`❌ Gemini error: ${e.message}`); }
       }
-
-      // 2. Test Apps Script URL
-      if (!inputScriptUrl.value.trim()) {
-        results.push(`<div style="color:var(--rose);">❌ Apps Script Web App URL is missing.</div>`);
-      } else {
+      if (inputScriptUrl.value.trim()) {
         try {
-          const testScriptRes = await fetch(`${inputScriptUrl.value.trim()}?action=ping&_t=${Date.now()}`);
-          const scriptJson = await testScriptRes.json();
-          if (scriptJson.status === 'success') {
-            results.push(`<div style="color:var(--emerald);">✅ Google Apps Script backend is online and connected!</div>`);
-          } else {
-            results.push(`<div style="color:var(--amber);">⚠️ Backend responded: ${escapeHtml(scriptJson.message || 'Unknown status')}</div>`);
-          }
-        } catch (e) {
-          results.push(`<div style="color:var(--rose);">❌ Backend ping failed. Check that the script is deployed with "Anyone" access. (${escapeHtml(e.message)})</div>`);
-        }
+          const r = await fetch(`${inputScriptUrl.value.trim()}?action=ping&_t=${Date.now()}`);
+          const d = await r.json();
+          res.push(d.status === 'success' ? `✅ Apps Script connected` : `⚠️ Backend: ${d.message}`);
+        } catch(e) { res.push(`❌ Apps Script ping failed`); }
       }
-
-      testResultsBanner.innerHTML = results.join('');
+      testFeedback.innerHTML = res.join('<br>') || 'Enter keys first';
     });
 
-    btnClearCache.addEventListener('click', () => {
-      if (confirm("Clear local cache? This will not delete your receipts from Google Drive or Sheets.")) {
+    btnClearData.addEventListener('click', () => {
+      if (confirm("Clear local cache?")) {
         localStorage.removeItem('VAULT_CACHED_LEDGER');
         state.cachedLedger = [];
-        renderLedger([]);
-        updateSyncStatus();
-        showToast("Local cache cleared", "normal");
+        updateBadge();
+        renderLedger();
+        showToast("Cache cleared", "normal");
       }
     });
 
-    // --- Helpers ---
-    function formatCurrency(amount, currency = 'USD') {
-      const num = Number(amount) || 0;
-      const symMap = { USD: '$', EUR: '€', GBP: '£', ILS: '₪', CAD: 'CA$', AUD: 'A$', JPY: '¥', CHF: 'CHF ' };
-      const sym = symMap[currency?.toUpperCase()] || `${currency} `;
-      return `${sym}${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    }
-
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    }
-
-    let toastTimeout = null;
-    function showToast(msg, type = "normal") {
-      const toast = document.getElementById('statusToast');
-      const toastMsg = document.getElementById('toastMsg');
-      toastMsg.textContent = msg;
-      toast.className = `status-toast show ${type}`;
-
-      if (toastTimeout) clearTimeout(toastTimeout);
-      toastTimeout = setTimeout(() => {
-        toast.className = "status-toast";
-      }, 3500);
+    // Helpers
+    function escapeHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    let toastTimer;
+    function showToast(msg, type="normal") {
+      const t = document.getElementById('statusToast');
+      document.getElementById('toastMsg').textContent = msg;
+      t.className = `status-toast show ${type}`;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { t.className = "status-toast"; }, 2800);
     }
   </script>
 </body>
 </html>
-
