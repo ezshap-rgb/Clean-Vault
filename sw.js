@@ -1,55 +1,48 @@
-const CACHE_NAME = 'clean-vault-v1';
-const ASSETS_TO_CACHE = [
-  './',
-  './index.html',
-  './manifest.json',
-  './icon.png',
-  './favicon.png'
-];
+const CACHE_NAME = 'clean-vault-v2';
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
-  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
-      );
-    })
+    caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
   );
   self.clients.claim();
 });
 
+// Network-first strategy for index.html so updates are always seen immediately
 self.addEventListener('fetch', (event) => {
-  // Always fetch live for Google AI Studio & Apps Script APIs
-  if (
-    event.request.url.includes('generativelanguage.googleapis.com') ||
-    event.request.url.includes('script.google.com') ||
-    event.request.method !== 'GET'
-  ) {
+  if (event.request.method !== 'GET') return;
+
+  const url = event.request.url;
+  if (url.includes('generativelanguage.googleapis.com') || url.includes('script.google.com')) {
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      return (
-        cachedResponse ||
-        fetch(event.request).catch(() => {
-          if (event.request.mode === 'navigate') {
-            return caches.match('./index.html');
-          }
+  // Network first for page navigation, fallback to cache if offline
+  if (event.request.mode === 'navigate' || url.endsWith('index.html') || url.endsWith('/Clean-Vault/')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return response;
         })
-      );
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Stale-while-revalidate for assets
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      const networkFetch = fetch(event.request).then((response) => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        return response;
+      }).catch(() => cached);
+      return cached || networkFetch;
     })
   );
 });
-
