@@ -808,9 +808,12 @@
 
       <div id="testStatusMessage" style="font-size: 0.8rem; display: none; padding: 8px 12px; border-radius: var(--radius-sm);"></div>
 
-      <div class="modal-actions">
-        <button id="btnTestUrl" class="btn-secondary">Test Link</button>
-        <button id="btnSaveUrl" class="btn-primary" style="flex: 0 0 auto; padding: 0 20px;">Save & Sync</button>
+      <div class="modal-actions" style="flex-wrap: wrap;">
+        <button id="btnClearCache" class="btn-secondary" style="color: var(--amber); border-color: rgba(245, 158, 11, 0.4);" title="Wipe local browser cache and reload fresh from Google Drive">Clear Cache & Force Sync</button>
+        <div style="display: flex; gap: 8px; flex: 1; justify-content: flex-end;">
+          <button id="btnTestUrl" class="btn-secondary">Test Link</button>
+          <button id="btnSaveUrl" class="btn-primary" style="flex: 0 0 auto; padding: 0 20px;">Save & Sync</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1031,7 +1034,8 @@
           state.documents = data.records || [];
           localStorage.setItem('CLEAN_VAULT_DOCS', JSON.stringify(state.documents));
           renderDocuments();
-          if (!silent) showToast(`Cabinet synced: ${state.documents.length} documents`);
+          const pinnedCount = state.documents.filter(d => isDocPinned(d)).length;
+          if (!silent) showToast(`Cabinet synced: ${state.documents.length} docs (${pinnedCount} pinned)`);
         }
       } catch (err) {
         if (!silent) showToast('Sync failed: ' + err.message);
@@ -1283,6 +1287,17 @@
         btnTestUrl.textContent = 'Test Link';
       }
     });
+
+    const btnClearCache = document.getElementById('btnClearCache');
+    if (btnClearCache) {
+      btnClearCache.addEventListener('click', () => {
+        localStorage.removeItem('CLEAN_VAULT_DOCS');
+        state.documents = [];
+        renderDocuments();
+        showToast('Local cache wiped! Fetching fresh from Google Drive...');
+        fetchCloudRecords(false);
+      });
+    }
 
     btnSaveUrl.addEventListener('click', () => {
       const url = inputScriptUrl.value.trim();

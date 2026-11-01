@@ -661,12 +661,19 @@ fun MainScreen() {
             onDismissRequest = { showSettingsModal = false },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
-            Surface(
-                shape = RoundedCornerShape(22.dp),
-                color = SurfaceColor,
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight),
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            val dialogDensity = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides Density(
+                    density = dialogDensity.density,
+                    fontScale = 1.0f
+                )
             ) {
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = SurfaceColor,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                ) {
                 Column(
                     modifier = Modifier.padding(18.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -787,92 +794,100 @@ fun MainScreen() {
             onDismissRequest = { docToRename = null },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = SurfaceColor,
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight),
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+            val dialogDensity = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides Density(
+                    density = dialogDensity.density,
+                    fontScale = 1.0f
+                )
             ) {
-                Column(
-                    modifier = Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = SurfaceColor,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
                 ) {
-                    Text("Rename & Edit Labels", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextMain)
-
-                    // Edit Name
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Document Name", fontSize = 12.sp, color = TextMuted)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(SurfaceRaised)
-                                .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
-                                .padding(horizontal = 10.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            BasicTextField(
-                                value = editName,
-                                onValueChange = { editName = it },
-                                singleLine = true,
-                                textStyle = TextStyle(color = TextMain, fontSize = 13.sp),
-                                cursorBrush = SolidColor(AmberGold),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-
-                    // Edit Labels
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Labels", fontSize = 12.sp, color = TextMuted)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(SurfaceRaised)
-                                .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
-                                .padding(horizontal = 10.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            BasicTextField(
-                                value = editLabels,
-                                onValueChange = { editLabels = it },
-                                singleLine = true,
-                                textStyle = TextStyle(color = TextMain, fontSize = 13.sp),
-                                cursorBrush = SolidColor(AccentMid),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        OutlinedButton(
-                            onClick = { docToRename = null },
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Cancel", fontSize = 12.sp)
+                        Text("Rename & Edit Labels", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextMain)
+
+                        // Edit Name
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Document Name", fontSize = 11.5.sp, color = TextMuted)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(SurfaceRaised)
+                                    .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
+                                    .padding(horizontal = 10.dp, vertical = 9.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                BasicTextField(
+                                    value = editName,
+                                    onValueChange = { editName = it },
+                                    singleLine = true,
+                                    textStyle = TextStyle(color = TextMain, fontSize = 12.sp),
+                                    cursorBrush = SolidColor(AmberGold),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                         }
 
-                        Button(
-                            onClick = {
-                                val updated = repository.renameDocument(target.id, editName.trim(), editLabels.trim())
-                                documents = updated
-                                val targetDoc = updated.find { it.id == target.id } ?: target
-                                scope.launch {
-                                    repository.updateDocRemoteAsync(targetDoc, editName.trim(), editLabels.trim())
-                                }
-                                docToRename = null
-                                Toast.makeText(context, "Document updated", Toast.LENGTH_SHORT).show()
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.weight(1f)
+                        // Edit Labels
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Labels", fontSize = 11.5.sp, color = TextMuted)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(SurfaceRaised)
+                                    .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
+                                    .padding(horizontal = 10.dp, vertical = 9.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                BasicTextField(
+                                    value = editLabels,
+                                    onValueChange = { editLabels = it },
+                                    singleLine = true,
+                                    textStyle = TextStyle(color = TextMain, fontSize = 12.sp),
+                                    cursorBrush = SolidColor(AccentMid),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("Save", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 12.sp)
+                            OutlinedButton(
+                                onClick = { docToRename = null },
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Cancel", fontSize = 11.5.sp)
+                            }
+
+                            Button(
+                                onClick = {
+                                    val updated = repository.renameDocument(target.id, editName.trim(), editLabels.trim())
+                                    documents = updated
+                                    val targetDoc = updated.find { it.id == target.id } ?: target
+                                    scope.launch {
+                                        repository.updateDocRemoteAsync(targetDoc, editName.trim(), editLabels.trim())
+                                    }
+                                    docToRename = null
+                                    Toast.makeText(context, "Document updated", Toast.LENGTH_SHORT).show()
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Save", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 11.5.sp)
+                            }
                         }
                     }
                 }
@@ -891,199 +906,207 @@ fun MainScreen() {
             onDismissRequest = { showCabinetModal = false },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = SurfaceColor,
-                border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.92f)
-                    .padding(horizontal = 12.dp, vertical = 16.dp)
+            val dialogDensity = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides Density(
+                    density = dialogDensity.density,
+                    fontScale = 1.0f
+                )
             ) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = SurfaceColor,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.92f)
+                        .padding(horizontal = 12.dp, vertical = 16.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("File Cabinet", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextMain)
-                            if (isSyncing) {
-                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = AmberGold)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("File Cabinet", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextMain)
+                                if (isSyncing) {
+                                    CircularProgressIndicator(modifier = Modifier.size(13.dp), strokeWidth = 2.dp, color = AmberGold)
+                                }
+                            }
+                            IconButton(onClick = { showCabinetModal = false }, modifier = Modifier.size(28.dp)) {
+                                Icon(Icons.Filled.Close, contentDescription = null, tint = TextMuted)
                             }
                         }
-                        IconButton(onClick = { showCabinetModal = false }, modifier = Modifier.size(28.dp)) {
-                            Icon(Icons.Filled.Close, contentDescription = null, tint = TextMuted)
-                        }
-                    }
 
-                    // Filter by name or labels (Zero cutoff text field)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(11.dp))
-                            .background(SurfaceRaised)
-                            .border(1.dp, BorderColor, RoundedCornerShape(11.dp))
-                            .padding(horizontal = 10.dp, vertical = 9.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Filled.Search, contentDescription = null, tint = TextMuted, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                            if (cabinetSearchQuery.isEmpty()) {
-                                Text("Filter by name or labels...", color = TextFaint, fontSize = 13.sp)
+                        // Filter by name or labels (Zero cutoff text field)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(11.dp))
+                                .background(SurfaceRaised)
+                                .border(1.dp, BorderColor, RoundedCornerShape(11.dp))
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Filled.Search, contentDescription = null, tint = TextMuted, modifier = Modifier.size(17.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                                if (cabinetSearchQuery.isEmpty()) {
+                                    Text("Filter by name or labels...", color = TextFaint, fontSize = 12.sp)
+                                }
+                                BasicTextField(
+                                    value = cabinetSearchQuery,
+                                    onValueChange = { cabinetSearchQuery = it },
+                                    singleLine = true,
+                                    textStyle = TextStyle(color = TextMain, fontSize = 12.sp),
+                                    cursorBrush = SolidColor(AccentColor),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             }
-                            BasicTextField(
-                                value = cabinetSearchQuery,
-                                onValueChange = { cabinetSearchQuery = it },
-                                singleLine = true,
-                                textStyle = TextStyle(color = TextMain, fontSize = 13.sp),
-                                cursorBrush = SolidColor(AccentColor),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                        if (cabinetSearchQuery.isNotEmpty()) {
-                            IconButton(onClick = { cabinetSearchQuery = "" }, modifier = Modifier.size(24.dp)) {
-                                Icon(Icons.Filled.Clear, contentDescription = "Clear", tint = TextFaint, modifier = Modifier.size(14.dp))
+                            if (cabinetSearchQuery.isNotEmpty()) {
+                                IconButton(onClick = { cabinetSearchQuery = "" }, modifier = Modifier.size(24.dp)) {
+                                    Icon(Icons.Filled.Clear, contentDescription = "Clear", tint = TextFaint, modifier = Modifier.size(14.dp))
+                                }
                             }
                         }
-                    }
 
-                    if (filteredDocs.isEmpty()) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No documents found", color = TextFaint, fontSize = 13.sp)
-                        }
-                    } else {
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            items(filteredDocs, key = { it.id }) { doc ->
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = if (doc.isPinned) SurfaceRaised else Color(0xFF0F1426),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, if (doc.isPinned) AmberGold.copy(alpha = 0.5f) else BorderColor)
-                                ) {
-                                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        // Header Row: Pin, Document Name (Full wrap, not cut off), and Timestamp
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.Top,
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
+                        if (filteredDocs.isEmpty()) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text("No documents found", color = TextFaint, fontSize = 12.sp)
+                            }
+                        } else {
+                            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                items(filteredDocs, key = { it.id }) { doc ->
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = if (doc.isPinned) SurfaceRaised else Color(0xFF0F1426),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, if (doc.isPinned) AmberGold.copy(alpha = 0.5f) else BorderColor)
+                                    ) {
+                                        Column(modifier = Modifier.padding(11.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                                            // Header Row: Pin, Document Name (Full wrap, not cut off), and Timestamp
                                             Row(
+                                                modifier = Modifier.fillMaxWidth(),
                                                 verticalAlignment = Alignment.Top,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                                modifier = Modifier.weight(1f)
-                                            ) {
-                                                IconButton(
-                                                    onClick = {
-                                                        val updated = repository.togglePin(doc.id)
-                                                        documents = updated
-                                                        val targetDoc = updated.find { it.id == doc.id } ?: doc
-                                                        scope.launch { repository.togglePinRemoteAsync(targetDoc) }
-                                                    },
-                                                    modifier = Modifier.size(22.dp).padding(top = 1.dp)
-                                                ) {
-                                                    Text(if (doc.isPinned) "📌" else "📍", fontSize = 13.sp)
-                                                }
-                                                // FULL WRAP: Long names wrap onto multiple lines and are NEVER cut off!
-                                                Text(
-                                                    text = doc.name,
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 14.sp,
-                                                    color = TextMain,
-                                                    lineHeight = 18.sp
-                                                )
-                                            }
-                                            if (doc.isSynced) {
-                                                Text("☁️", fontSize = 11.sp, modifier = Modifier.padding(start = 8.dp, top = 2.dp))
-                                            }
-                                        }
-
-                                        if (doc.notes.isNotBlank()) {
-                                            Text("🏷️ ${doc.notes}", color = TextMuted, fontSize = 12.sp)
-                                        }
-
-                                        // Actions: Classic Icons for View, Download, Share, Rename, Delete
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            // View Button: Tap to open directly, Long-press to choose a different viewer app
-                                            @OptIn(ExperimentalFoundationApi::class)
-                                            Surface(
-                                                shape = RoundedCornerShape(8.dp),
-                                                color = AccentColor,
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .height(34.dp)
-                                                    .clip(RoundedCornerShape(8.dp))
-                                                    .combinedClickable(
-                                                        onClick = { openDocumentFile(context, doc, repository, forceChooser = false) },
-                                                        onLongClick = {
-                                                            Toast.makeText(context, "Choose viewer app...", Toast.LENGTH_SHORT).show()
-                                                            openDocumentFile(context, doc, repository, forceChooser = true)
-                                                        }
-                                                    )
+                                                horizontalArrangement = Arrangement.SpaceBetween
                                             ) {
                                                 Row(
-                                                    modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp, vertical = 2.dp),
-                                                    horizontalArrangement = Arrangement.Center,
-                                                    verticalAlignment = Alignment.CenterVertically
+                                                    verticalAlignment = Alignment.Top,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                    modifier = Modifier.weight(1f)
                                                 ) {
-                                                    Icon(Icons.Filled.Visibility, contentDescription = "View", tint = Color.White, modifier = Modifier.size(15.dp))
-                                                    Spacer(modifier = Modifier.width(4.dp))
-                                                    Text("View", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                                    IconButton(
+                                                        onClick = {
+                                                            val updated = repository.togglePin(doc.id)
+                                                            documents = updated
+                                                            val targetDoc = updated.find { it.id == doc.id } ?: doc
+                                                            scope.launch { repository.togglePinRemoteAsync(targetDoc) }
+                                                        },
+                                                        modifier = Modifier.size(22.dp).padding(top = 1.dp)
+                                                    ) {
+                                                        Text(if (doc.isPinned) "📌" else "📍", fontSize = 12.sp)
+                                                    }
+                                                    // FULL WRAP: Long names wrap onto multiple lines and are NEVER cut off!
+                                                    Text(
+                                                        text = doc.name,
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 13.sp,
+                                                        color = TextMain,
+                                                        lineHeight = 16.sp
+                                                    )
+                                                }
+                                                if (doc.isSynced) {
+                                                    Text("☁️", fontSize = 11.sp, modifier = Modifier.padding(start = 8.dp, top = 2.dp))
                                                 }
                                             }
 
-                                            // Classic Download Arrow Button
-                                            OutlinedButton(
-                                                onClick = { downloadDocumentToStorage(context, doc) },
-                                                shape = RoundedCornerShape(8.dp),
-                                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
-                                                modifier = Modifier.weight(1.15f).height(34.dp)
-                                            ) {
-                                                Icon(Icons.Filled.FileDownload, contentDescription = "Download", tint = TextMain, modifier = Modifier.size(15.dp))
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text("Download", fontSize = 11.sp)
+                                            if (doc.notes.isNotBlank()) {
+                                                Text("🏷️ ${doc.notes}", color = TextMuted, fontSize = 11.sp)
                                             }
 
-                                            // Classic Share Icon Button
-                                            OutlinedButton(
-                                                onClick = { shareDocumentFile(context, doc) },
-                                                shape = RoundedCornerShape(8.dp),
-                                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
-                                                modifier = Modifier.weight(1f).height(34.dp)
+                                            // Actions: Classic Icons for View, Download, Share, Rename, Delete
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Icon(Icons.Filled.Share, contentDescription = "Share", tint = TextMain, modifier = Modifier.size(14.dp))
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text("Share", fontSize = 11.sp)
-                                            }
+                                                // View Button: Tap to open directly, Long-press to choose a different viewer app
+                                                @OptIn(ExperimentalFoundationApi::class)
+                                                Surface(
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    color = AccentColor,
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .height(32.dp)
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .combinedClickable(
+                                                            onClick = { openDocumentFile(context, doc, repository, forceChooser = false) },
+                                                            onLongClick = {
+                                                                Toast.makeText(context, "Choose viewer app...", Toast.LENGTH_SHORT).show()
+                                                                openDocumentFile(context, doc, repository, forceChooser = true)
+                                                            }
+                                                        )
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 2.dp),
+                                                        horizontalArrangement = Arrangement.Center,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Icon(Icons.Filled.Visibility, contentDescription = "View", tint = Color.White, modifier = Modifier.size(13.dp))
+                                                        Spacer(modifier = Modifier.width(3.dp))
+                                                        Text("View", color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
+                                                    }
+                                                }
 
-                                            // Classic Rename Pencil Icon
-                                            IconButton(
-                                                onClick = { docToRename = doc },
-                                                modifier = Modifier.size(32.dp)
-                                            ) {
-                                                Icon(Icons.Filled.Edit, contentDescription = "Rename", tint = AmberGold, modifier = Modifier.size(17.dp))
-                                            }
+                                                // Classic Download Arrow Button
+                                                OutlinedButton(
+                                                    onClick = { downloadDocumentToStorage(context, doc) },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+                                                    modifier = Modifier.weight(1.15f).height(32.dp)
+                                                ) {
+                                                    Icon(Icons.Filled.FileDownload, contentDescription = "Download", tint = TextMain, modifier = Modifier.size(13.dp))
+                                                    Spacer(modifier = Modifier.width(3.dp))
+                                                    Text("Download", fontSize = 10.5.sp)
+                                                }
 
-                                            // Classic Delete Trash Icon
-                                            IconButton(
-                                                onClick = {
-                                                    val docIdToDelete = doc.id
-                                                    val fileIdToDelete = doc.driveFileId
-                                                    documents = repository.deleteDocument(docIdToDelete)
-                                                    scope.launch { repository.deleteDocRemoteAsync(docIdToDelete, fileIdToDelete) }
-                                                    Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show()
-                                                },
-                                                modifier = Modifier.size(32.dp)
-                                            ) {
-                                                Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = RoseRed, modifier = Modifier.size(17.dp))
+                                                // Classic Share Icon Button
+                                                OutlinedButton(
+                                                    onClick = { shareDocumentFile(context, doc) },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+                                                    modifier = Modifier.weight(1f).height(32.dp)
+                                                ) {
+                                                    Icon(Icons.Filled.Share, contentDescription = "Share", tint = TextMain, modifier = Modifier.size(13.dp))
+                                                    Spacer(modifier = Modifier.width(3.dp))
+                                                    Text("Share", fontSize = 10.5.sp)
+                                                }
+
+                                                // Classic Rename Pencil Icon
+                                                IconButton(
+                                                    onClick = { docToRename = doc },
+                                                    modifier = Modifier.size(30.dp)
+                                                ) {
+                                                    Icon(Icons.Filled.Edit, contentDescription = "Rename", tint = AmberGold, modifier = Modifier.size(16.dp))
+                                                }
+
+                                                // Classic Delete Trash Icon
+                                                IconButton(
+                                                    onClick = {
+                                                        val docIdToDelete = doc.id
+                                                        val fileIdToDelete = doc.driveFileId
+                                                        documents = repository.deleteDocument(docIdToDelete)
+                                                        scope.launch { repository.deleteDocRemoteAsync(docIdToDelete, fileIdToDelete) }
+                                                        Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show()
+                                                    },
+                                                    modifier = Modifier.size(30.dp)
+                                                ) {
+                                                    Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = RoseRed, modifier = Modifier.size(16.dp))
+                                                }
                                             }
                                         }
                                     }
@@ -1093,6 +1116,7 @@ fun MainScreen() {
                     }
                 }
             }
+        }
         }
     }
 }
