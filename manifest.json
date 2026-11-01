@@ -1,0 +1,25 @@
+{
+  "name": "Clean Vault - AI Document & Receipt Vault",
+  "short_name": "Clean Vault",
+  "description": "Snap, dictate, and intelligently file documents and receipts into Google Drive and Sheets with Gemini AI.",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#070913",
+  "theme_color": "#070913",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
+
