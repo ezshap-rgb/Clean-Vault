@@ -1031,7 +1031,16 @@
         const data = await res.json();
 
         if (data.status === 'success') {
-          state.documents = data.records || [];
+          const records = data.records || [];
+          const localPins = getLocalPins();
+          records.forEach(r => {
+            const k = r.docId || r.id || r.fileId || r.name || r.vendor;
+            if (k && localPins[k] !== undefined) {
+              r.pinned = localPins[k];
+              r.isPinned = localPins[k];
+            }
+          });
+          state.documents = records;
           localStorage.setItem('CLEAN_VAULT_DOCS', JSON.stringify(state.documents));
           renderDocuments();
           const pinnedCount = state.documents.filter(d => isDocPinned(d)).length;
@@ -1048,8 +1057,21 @@
 
     btnSync.addEventListener('click', () => fetchCloudRecords(false));
 
+    function getLocalPins() {
+      try {
+        return JSON.parse(localStorage.getItem('CLEAN_VAULT_LOCAL_PINS') || '{}');
+      } catch (e) {
+        return {};
+      }
+    }
+
     function isDocPinned(d) {
       if (!d) return false;
+      const localPins = getLocalPins();
+      const docKey = d.docId || d.id || d.fileId || d.name || d.vendor;
+      if (docKey && localPins[docKey] !== undefined) {
+        return localPins[docKey] === true;
+      }
       return d.pinned === true || 
              d.isPinned === true || 
              String(d.pinned).toLowerCase() === 'true' || 
@@ -1173,8 +1195,14 @@
         target.pinned = nextPinned;
         target.isPinned = nextPinned;
         localStorage.setItem('CLEAN_VAULT_DOCS', JSON.stringify(state.documents));
-        renderDocuments();
       }
+      const localPins = getLocalPins();
+      const pinKey = docId || fileId || docName || (target ? (target.docId || target.id || target.name) : '');
+      if (pinKey) {
+        localPins[pinKey] = nextPinned;
+        localStorage.setItem('CLEAN_VAULT_LOCAL_PINS', JSON.stringify(localPins));
+      }
+      renderDocuments();
 
       if (!state.scriptUrl) {
         showToast('Local pin updated. Add Apps Script URL in Settings ⚙️ to sync.');
@@ -1300,6 +1328,7 @@
     if (btnClearCache) {
       btnClearCache.addEventListener('click', () => {
         localStorage.removeItem('CLEAN_VAULT_DOCS');
+        localStorage.removeItem('CLEAN_VAULT_LOCAL_PINS');
         state.documents = [];
         renderDocuments();
         showToast('Local cache wiped! Fetching fresh from Google Drive...');

@@ -110,19 +110,20 @@ function doPost(e) {
       });
     }
 
-    // 3. Action: Toggle Pin Status
     if (action === "toggle_pin") {
       const sheet = getOrCreateSheet(SHEET_NAME);
       const targetRow = findRowByPayload(sheet, payload);
 
       if (targetRow > 1) {
-        if (sheet.getLastColumn() < 12) {
-          sheet.getRange(1, 12).setValue("Pinned").setFontWeight("bold");
+        let pinnedCol = getColumnIndexByName(sheet, "Pinned");
+        if (pinnedCol <= 0) {
+          pinnedCol = sheet.getLastColumn() + 1;
+          sheet.getRange(1, pinnedCol).setValue("Pinned").setFontWeight("bold");
         }
-        const currentVal = String(sheet.getRange(targetRow, 12).getValue()).toLowerCase() === "true";
-        const newVal = payload.pinned !== undefined ? (payload.pinned === true || payload.pinned === "true") : !currentVal;
-        sheet.getRange(targetRow, 12).setValue(newVal ? "true" : "false");
-        return createJsonResponse({ status: "success", pinned: newVal, rowId: targetRow });
+        const currentVal = String(sheet.getRange(targetRow, pinnedCol).getValue()).toLowerCase() === "true";
+        const newVal = payload.pinned !== undefined ? (payload.pinned === true || payload.pinned === "true" || payload.pinned === 1) : !currentVal;
+        sheet.getRange(targetRow, pinnedCol).setValue(newVal ? "true" : "false");
+        return createJsonResponse({ status: "success", pinned: newVal, rowId: targetRow, col: pinnedCol });
       }
       return createJsonResponse({ status: "error", message: "Row not found for toggle_pin" }, 404);
     }
@@ -189,6 +190,8 @@ function doGet(e) {
 
       const headers = data[0];
       const rows = data.slice(1);
+      const lowerHeaders = headers.map(h => String(h).trim().toLowerCase());
+      const pinnedIdx = lowerHeaders.indexOf("pinned");
 
       const records = rows.map((row, index) => {
         let record = { rowId: index + 2 };
@@ -206,7 +209,10 @@ function doGet(e) {
         record.driveFileUrl = row[9] || record.driveFileUrl || record.driveFileURL || "";
         record.fileUrl = record.driveFileUrl;
         record.fileId = row[10] || record.fileId || record.fileID || "";
-        record.pinned = String(row[11] || record.pinned).toLowerCase() === "true";
+        
+        // Dynamically evaluate pinned status from dedicated column or camelCase field
+        const rawPinVal = pinnedIdx >= 0 ? row[pinnedIdx] : (row[11] || record.pinned);
+        record.pinned = (rawPinVal === true || rawPinVal === 1 || String(rawPinVal).toLowerCase() === "true");
         record.docId = String(row[12] || record.docId || record.docID || ("row_" + (index + 2)));
 
         return record;
@@ -322,6 +328,18 @@ function findRowByPayload(sheet, payload) {
 
 function findRowByDocIdOrRowId(sheet, docId, rowId) {
   return findRowByPayload(sheet, { docId: docId, rowId: rowId });
+}
+
+function getColumnIndexByName(sheet, colName) {
+  if (!sheet || sheet.getLastRow() === 0) return -1;
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const target = colName.trim().toLowerCase();
+  for (let i = 0; i < headers.length; i++) {
+    if (String(headers[i]).trim().toLowerCase() === target) {
+      return i + 1; // 1-based index
+    }
+  }
+  return -1;
 }
 
 function getOrCreateFolder(folderName) {
