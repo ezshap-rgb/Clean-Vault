@@ -783,6 +783,7 @@ fun MainScreen() {
             }
         }
     }
+}
 
     // RENAME DOCUMENT DIALOG
     if (docToRename != null) {
@@ -1116,7 +1117,6 @@ fun MainScreen() {
                     }
                 }
             }
-        }
         }
     }
 }
