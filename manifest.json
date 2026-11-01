@@ -1,10 +1,10 @@
 {
-  "id": "/Clean-Vault/",
+  "id": "/Clean-Vault/app-v2",
   "name": "Clean Vault",
   "short_name": "Vault",
   "description": "AI Document & Receipt Vault",
-  "start_url": "/Clean-Vault/",
-  "scope": "/Clean-Vault/",
+  "start_url": "./?v=2",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#070913",
