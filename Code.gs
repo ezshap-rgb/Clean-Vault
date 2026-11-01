@@ -209,8 +209,27 @@ function doGet(e) {
         return record;
       });
 
+      // Traverse newest first and deduplicate by fileId / docId to eliminate duplicate rows
       records.reverse();
-      return createJsonResponse({ status: "success", records: records, count: records.length });
+      const seenFileIds = {};
+      const seenDocIds = {};
+      const uniqueRecords = [];
+
+      for (let i = 0; i < records.length; i++) {
+        const r = records[i];
+        const fId = r.fileId ? String(r.fileId).trim() : "";
+        const dId = (r.docId && !r.docId.startsWith("row_")) ? String(r.docId).trim() : "";
+
+        if (fId && seenFileIds[fId]) continue;
+        if (dId && seenDocIds[dId]) continue;
+
+        if (fId) seenFileIds[fId] = true;
+        if (dId) seenDocIds[dId] = true;
+
+        uniqueRecords.push(r);
+      }
+
+      return createJsonResponse({ status: "success", records: uniqueRecords, count: uniqueRecords.length });
     }
 
     // Download a file directly as base64 for native synchronization

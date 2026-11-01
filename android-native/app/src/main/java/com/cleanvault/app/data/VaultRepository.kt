@@ -62,8 +62,45 @@ class VaultRepository(private val context: Context) {
     private fun addDeletedId(id: String) {
         if (id.isBlank()) return
         val current = getDeletedIds().toMutableSet()
-        current.add(id)
+        current.add(id.trim())
         prefs.edit().putStringSet("deleted_doc_ids", current).apply()
+    }
+
+    private fun deduplicateList(rawList: List<VaultDocument>): List<VaultDocument> {
+        val deleted = getDeletedIds()
+        val valid = rawList.filter { !deleted.contains(it.id) && (it.driveFileId == null || !deleted.contains(it.driveFileId)) }
+
+        val dedupedMap = LinkedHashMap<String, VaultDocument>()
+        for (doc in valid) {
+            // Determine primary deduplication key: driveFileId if present, else filePath, else id
+            val key = when {
+                !doc.driveFileId.isNullOrBlank() -> "file_${doc.driveFileId}"
+                doc.filePath.isNotBlank() && File(doc.filePath).exists() -> "path_${doc.filePath}"
+                else -> "id_${doc.id}"
+            }
+
+            val existing = dedupedMap[key]
+            if (existing == null) {
+                dedupedMap[key] = doc
+            } else {
+                // Keep the one with newer modifications or more complete fields
+                val winner = if (doc.lastModified >= existing.lastModified) {
+                    doc.copy(
+                        driveFileId = doc.driveFileId ?: existing.driveFileId,
+                        driveFileUrl = doc.driveFileUrl ?: existing.driveFileUrl,
+                        filePath = if (doc.filePath.isNotBlank() && File(doc.filePath).exists()) doc.filePath else existing.filePath
+                    )
+                } else {
+                    existing.copy(
+                        driveFileId = existing.driveFileId ?: doc.driveFileId,
+                        driveFileUrl = existing.driveFileUrl ?: doc.driveFileUrl,
+                        filePath = if (existing.filePath.isNotBlank() && File(existing.filePath).exists()) existing.filePath else doc.filePath
+                    )
+                }
+                dedupedMap[key] = winner
+            }
+        }
+        return dedupedMap.values.toList()
     }
 
     fun getDocuments(): List<VaultDocument> {
@@ -90,12 +127,14 @@ class VaultRepository(private val context: Context) {
                 )
             )
         }
-        return list.sortedWith(compareByDescending<VaultDocument> { it.isPinned }.thenByDescending { it.timestamp })
+        val deduped = deduplicateList(list)
+        return deduped.sortedWith(compareByDescending<VaultDocument> { it.isPinned }.thenByDescending { it.lastModified })
     }
 
     private fun saveDocuments(docs: List<VaultDocument>) {
+        val deduped = deduplicateList(docs)
         val array = JSONArray()
-        docs.forEach { doc ->
+        deduped.forEach { doc ->
             val obj = JSONObject().apply {
                 put("id", doc.id)
                 put("name", doc.name)
@@ -222,8 +261,8 @@ class VaultRepository(private val context: Context) {
             }
 
             val records = json.optJSONArray("records") ?: JSONArray()
-            val remoteMap = mutableMapOf<String, JSONObject>()
             val deletedIds = getDeletedIds()
+            val remoteMap = mutableMapOf<String, JSONObject>()
 
             for (i in 0 until records.length()) {
                 val r = records.getJSONObject(i)
@@ -233,7 +272,7 @@ class VaultRepository(private val context: Context) {
                     if (remoteFileId.isNotBlank()) "file_$remoteFileId" else "row_${r.optInt("rowId")}"
                 }
 
-                // If document was deleted locally on this device, skip it and purge remote row!
+                // If document was marked deleted, ensure cloud deletes it and skip
                 if (deletedIds.contains(effectiveDocId) || (remoteFileId.isNotBlank() && deletedIds.contains(remoteFileId))) {
                     deleteDocRemoteAsync(effectiveDocId, remoteFileId)
                     continue
@@ -242,12 +281,12 @@ class VaultRepository(private val context: Context) {
                 remoteMap[effectiveDocId] = r
             }
 
+            // Start with current deduplicated local documents
             var localList = getDocuments().toMutableList()
             var addedCount = 0
             var uploadedCount = 0
-            var updatedCount = 0
 
-            // 2. Download or update remote records into local cabinet
+            // 2. Merge each remote record with matching local document
             for ((docId, r) in remoteMap) {
                 val remoteFileId = r.optString("fileId").ifBlank { r.optString("fileID") }
                 val remoteVendor = r.optString("name").ifBlank { r.optString("vendor", "Document") }
@@ -256,29 +295,29 @@ class VaultRepository(private val context: Context) {
                 val remoteFileUrl = r.optString("driveFileUrl").ifBlank { r.optString("driveFileURL").ifBlank { r.optString("fileUrl") } }
                 val remotePinned = r.optBoolean("pinned", false)
 
+                // Match by ID, File ID, or Drive URL
                 val existingIndex = localList.indexOfFirst {
                     it.id == docId ||
-                    (it.driveFileId != null && remoteFileId.isNotBlank() && it.driveFileId == remoteFileId) ||
-                    (it.name.isNotBlank() && it.name.equals(remoteVendor, ignoreCase = true) && it.date == remoteDate)
+                    (remoteFileId.isNotBlank() && it.driveFileId == remoteFileId) ||
+                    (remoteFileUrl.isNotBlank() && it.driveFileUrl == remoteFileUrl)
                 }
 
                 if (existingIndex >= 0) {
                     val existing = localList[existingIndex]
                     val fileOnDisk = File(existing.filePath)
-                    // If file is missing locally, attempt download; never erase valid existing filePath!
                     val actualPath = if ((!fileOnDisk.exists() || existing.filePath.isBlank()) && remoteFileId.isNotBlank()) {
                         downloadAndSaveFile(scriptUrl, remoteFileId, existing.fileName) ?: existing.filePath
                     } else {
                         existing.filePath
                     }
 
-                    // Check if local document was modified after creation
+                    // Check if local document was edited by user on this device
                     val wasLocallyModified = (existing.lastModified > existing.timestamp + 3000)
 
                     val finalName = if (wasLocallyModified) existing.name else remoteVendor
                     val finalNotes = if (wasLocallyModified) existing.notes else remoteNotes
 
-                    // If local document was edited, push the local edits to the cloud
+                    // Push local modifications to cloud if not already updated
                     if (wasLocallyModified && (existing.name != remoteVendor || existing.notes != remoteNotes)) {
                         updateDocRemoteAsync(existing, existing.name, existing.notes)
                     }
@@ -293,9 +332,8 @@ class VaultRepository(private val context: Context) {
                         filePath = actualPath,
                         isSynced = true
                     )
-                    updatedCount++
                 } else {
-                    // Document exists remotely but not on this phone (e.g. spouse added it)
+                    // Only add if NO local document shares this file path
                     var localFilePath = ""
                     var localFileName = "Vault_Doc_${System.currentTimeMillis()}.jpg"
                     var mimeType = "image/jpeg"
@@ -330,41 +368,30 @@ class VaultRepository(private val context: Context) {
                 }
             }
 
-            // 3. Handle local docs not in remote records
-            val updatedLocalList = mutableListOf<VaultDocument>()
+            // 3. Handle local docs that need initial upload
+            val finalDocs = mutableListOf<VaultDocument>()
             for (doc in localList) {
-                // Skip if doc was marked deleted
                 if (deletedIds.contains(doc.id) || (!doc.driveFileId.isNullOrBlank() && deletedIds.contains(doc.driveFileId))) {
                     try { File(doc.filePath).delete() } catch (_: Exception) {}
                     continue
                 }
 
-                val isInCloud = remoteMap.containsKey(doc.id) ||
-                                (doc.driveFileId != null && remoteMap.values.any { (it.optString("fileId").ifBlank { it.optString("fileID") }) == doc.driveFileId })
-
-                if (isInCloud) {
-                    updatedLocalList.add(doc)
-                } else if (!doc.isSynced) {
-                    // Local document was created on this phone and hasn't been uploaded yet
+                if (!doc.isSynced && doc.driveFileId.isNullOrBlank()) {
+                    // Newly created local file not yet uploaded
                     val uploadedDoc = uploadDocumentToCloud(scriptUrl, doc)
                     if (uploadedDoc != null) {
-                        updatedLocalList.add(uploadedDoc)
+                        finalDocs.add(uploadedDoc)
                         uploadedCount++
                     } else {
-                        updatedLocalList.add(doc) // Keep offline for next retry
+                        finalDocs.add(doc)
                     }
                 } else {
-                    // Local document has a valid file on disk; keep it safe and re-upload if needed!
-                    val fileOnDisk = File(doc.filePath)
-                    if (fileOnDisk.exists() && fileOnDisk.length() > 0) {
-                        val uploadedDoc = uploadDocumentToCloud(scriptUrl, doc)
-                        updatedLocalList.add(uploadedDoc ?: doc)
-                    }
+                    finalDocs.add(doc)
                 }
             }
 
-            saveDocuments(updatedLocalList)
-            Result.success(SyncSummary(addedCount, uploadedCount, 0, updatedLocalList.size))
+            saveDocuments(finalDocs)
+            Result.success(SyncSummary(addedCount, uploadedCount, 0, finalDocs.size))
         } catch (e: Exception) {
             Result.failure(e)
         }
