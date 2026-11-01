@@ -1,0 +1,54 @@
+com.cleanvault.app-ui-tooling-release-0 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\0a13854176a9b3e89bc7852f8d916acd\workspace\transformed\ui-tooling-release\res
+com.cleanvault.app-graphics-path-1.0.1-1 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\0c86e4a0f89a3c04ab09cb390205e574\workspace\transformed\graphics-path-1.0.1\res
+com.cleanvault.app-core-1.15.0-2 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\0f275d59b93bdd73ea4f21c8c16830e4\workspace\transformed\core-1.15.0\res
+com.cleanvault.app-ui-tooling-preview-release-3 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\1a609d591aef69482fb8ffd2491afffa\workspace\transformed\ui-tooling-preview-release\res
+com.cleanvault.app-foundation-release-4 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\24c8c8ab0be38688a5403059033c9a56\workspace\transformed\foundation-release\res
+com.cleanvault.app-activity-ktx-1.9.3-5 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\2553fbdbc417e0267159ea8e91419837\workspace\transformed\activity-ktx-1.9.3\res
+com.cleanvault.app-core-runtime-2.2.0-6 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\2983854baf18e82e330de2d945327f25\workspace\transformed\core-runtime-2.2.0\res
+com.cleanvault.app-runtime-saveable-release-7 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\3b68093f2129de42a88750f37657e11c\workspace\transformed\runtime-saveable-release\res
+com.cleanvault.app-material3-release-8 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\43eaf3dd74474f3e8bb0ad5e0464dbac\workspace\transformed\material3-release\res
+com.cleanvault.app-annotation-experimental-1.4.1-9 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\44455eaff7c46f419c8f7a29d277af09\workspace\transformed\annotation-experimental-1.4.1\res
+com.cleanvault.app-lifecycle-runtime-release-10 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\4b79cd809b3dfc39ec95e8df47b03a9e\workspace\transformed\lifecycle-runtime-release\res
+com.cleanvault.app-savedstate-ktx-1.2.1-11 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\4de4bed1b303403a273742a92d748ffd\workspace\transformed\savedstate-ktx-1.2.1\res
+com.cleanvault.app-material-release-12 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\5442e1d49702ed19d94546046760b4b3\workspace\transformed\material-release\res
+com.cleanvault.app-core-ktx-1.15.0-13 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\553eb92573a3c92580c43f8b3b1fec6d\workspace\transformed\core-ktx-1.15.0\res
+com.cleanvault.app-profileinstaller-1.3.1-14 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\6ad8bc05d72b390bf2459fea862fefda\workspace\transformed\profileinstaller-1.3.1\res
+com.cleanvault.app-ui-text-release-15 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\6fc6867e6cd6540d5b5c59a86f6b545e\workspace\transformed\ui-text-release\res
+com.cleanvault.app-material-icons-core-release-16 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\708cf486ff943340f757212bb1d936e1\workspace\transformed\material-icons-core-release\res
+com.cleanvault.app-ui-unit-release-17 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\71dc95ad16729845db660631f1d15073\workspace\transformed\ui-unit-release\res
+com.cleanvault.app-lifecycle-viewmodel-release-18 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\7c69c77bd33d3af56c1a05747bbc3651\workspace\transformed\lifecycle-viewmodel-release\res
+com.cleanvault.app-lifecycle-viewmodel-compose-release-19 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\814898abcab9002ad9382b197f6e00e5\workspace\transformed\lifecycle-viewmodel-compose-release\res
+com.cleanvault.app-runtime-release-20 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\867bdd007063ac2f01dbb8137d5fc1d3\workspace\transformed\runtime-release\res
+com.cleanvault.app-customview-poolingcontainer-1.0.0-21 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\87b063d41fea30e0d1a736bfd86765bd\workspace\transformed\customview-poolingcontainer-1.0.0\res
+com.cleanvault.app-activity-1.9.3-22 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\91f6dc928de43b3fa06735ff76c9f96a\workspace\transformed\activity-1.9.3\res
+com.cleanvault.app-startup-runtime-1.1.1-23 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\95dec09913dee854c7e5fe7bfc0f4f96\workspace\transformed\startup-runtime-1.1.1\res
+com.cleanvault.app-lifecycle-viewmodel-ktx-2.8.7-24 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\9df6c96394c8bab68169233e2c6cfff1\workspace\transformed\lifecycle-viewmodel-ktx-2.8.7\res
+com.cleanvault.app-savedstate-1.2.1-25 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\a6b2b42125d8230721834a0874e48707\workspace\transformed\savedstate-1.2.1\res
+com.cleanvault.app-ui-geometry-release-26 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\a7068f5b0e0f904a27adcce1a39145c4\workspace\transformed\ui-geometry-release\res
+com.cleanvault.app-tracing-1.2.0-27 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\a875afaf0af3f6e793b86eceb5aa50fc\workspace\transformed\tracing-1.2.0\res
+com.cleanvault.app-lifecycle-livedata-core-2.8.7-28 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\a963f0283bfbfff5d2bbb4e219eeea5c\workspace\transformed\lifecycle-livedata-core-2.8.7\res
+com.cleanvault.app-ui-graphics-release-29 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\aaedca5a52514c66b96f904392b86621\workspace\transformed\ui-graphics-release\res
+com.cleanvault.app-lifecycle-runtime-ktx-release-30 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\b2666427361ce25de8e5cbd4fc48514d\workspace\transformed\lifecycle-runtime-ktx-release\res
+com.cleanvault.app-lifecycle-runtime-compose-release-31 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\b312d214ff4182be93587a76b693f389\workspace\transformed\lifecycle-runtime-compose-release\res
+com.cleanvault.app-ui-tooling-data-release-32 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\c2dfa022340ba0f578e2394376dd25a8\workspace\transformed\ui-tooling-data-release\res
+com.cleanvault.app-material-icons-extended-release-33 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\c4088ce3a10259de67f34b6ab874df45\workspace\transformed\material-icons-extended-release\res
+com.cleanvault.app-appcompat-resources-1.6.1-34 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\c765701ec1c4a0129c5a2f886c7be197\workspace\transformed\appcompat-resources-1.6.1\res
+com.cleanvault.app-foundation-layout-release-35 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\c8b72227a62c086702a5ee19a8bc2c77\workspace\transformed\foundation-layout-release\res
+com.cleanvault.app-material-ripple-release-36 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\ca229fa05768dd25832e1e7460267b38\workspace\transformed\material-ripple-release\res
+com.cleanvault.app-coil-base-2.7.0-37 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\ce28b0ad55cd75ac648d5e0a258b8c55\workspace\transformed\coil-base-2.7.0\res
+com.cleanvault.app-animation-release-38 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\dbad632f43b3ecd33219940df1fcad99\workspace\transformed\animation-release\res
+com.cleanvault.app-ui-test-manifest-1.7.6-39 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\de1197adfba4bf849bbf95828f97be31\workspace\transformed\ui-test-manifest-1.7.6\res
+com.cleanvault.app-ui-release-40 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\e2c11fd35a6bb88332b58278f3802fd7\workspace\transformed\ui-release\res
+com.cleanvault.app-lifecycle-viewmodel-savedstate-2.8.7-41 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\e54c6db1727a9c9a213c1e45047722ae\workspace\transformed\lifecycle-viewmodel-savedstate-2.8.7\res
+com.cleanvault.app-emoji2-1.3.0-42 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\e5a601efe3a138270605546fd1ff0811\workspace\transformed\emoji2-1.3.0\res
+com.cleanvault.app-ui-util-release-43 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\e7d36321ff9c813471ce544ae6b74b34\workspace\transformed\ui-util-release\res
+com.cleanvault.app-lifecycle-process-2.8.7-44 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\e8e1e78eff5b7e9ad8c3f8e4b85bbd0d\workspace\transformed\lifecycle-process-2.8.7\res
+com.cleanvault.app-activity-compose-1.9.3-45 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\e9e24a4a34a1cc45de472b19f3ccf72c\workspace\transformed\activity-compose-1.9.3\res
+com.cleanvault.app-animation-core-release-46 C:\Users\ezsha\.gradle\caches\9.3.1\transforms\f96a110b9d5960ca3192673a62e08de6\workspace\transformed\animation-core-release\res
+com.cleanvault.app-pngs-47 C:\Users\ezsha\Github\Clean Vault\android-native\app\build\generated\res\pngs\debug
+com.cleanvault.app-resValues-48 C:\Users\ezsha\Github\Clean Vault\android-native\app\build\generated\res\resValues\debug
+com.cleanvault.app-packageDebugResources-49 C:\Users\ezsha\Github\Clean Vault\android-native\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
+com.cleanvault.app-packageDebugResources-50 C:\Users\ezsha\Github\Clean Vault\android-native\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
+com.cleanvault.app-debug-51 C:\Users\ezsha\Github\Clean Vault\android-native\app\build\intermediates\merged_res\debug\mergeDebugResources
+com.cleanvault.app-debug-52 C:\Users\ezsha\Github\Clean Vault\android-native\app\src\debug\res
+com.cleanvault.app-main-53 C:\Users\ezsha\Github\Clean Vault\android-native\app\src\main\res
