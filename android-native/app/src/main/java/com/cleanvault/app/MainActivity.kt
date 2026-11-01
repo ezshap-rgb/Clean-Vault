@@ -1,17 +1,22 @@
 package com.cleanvault.app
 
+import android.Manifest
 import android.app.Activity
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
 import android.speech.RecognizerIntent
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,7 +31,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,11 +40,11 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -74,18 +78,20 @@ fun MainScreen() {
 
     var documents by remember { mutableStateOf(repository.getDocuments()) }
     var isSyncing by remember { mutableStateOf(false) }
-    var syncStatusText by remember { mutableStateOf("") }
 
     var selectedTempFile by remember { mutableStateOf<File?>(null) }
     var selectedMimeType by remember { mutableStateOf("image/jpeg") }
 
     var docNameText by remember { mutableStateOf("") }
-    var notesText by remember { mutableStateOf("") }
+    var labelsText by remember { mutableStateOf("") }
     var isPinned by remember { mutableStateOf(false) }
 
     var showCabinetModal by remember { mutableStateOf(false) }
     var showSettingsModal by remember { mutableStateOf(false) }
     var cabinetSearchQuery by remember { mutableStateOf("") }
+
+    // Rename Dialog state
+    var docToRename by remember { mutableStateOf<VaultDocument?>(null) }
 
     // Cloud Sync Runner
     fun triggerSync(silent: Boolean = false) {
@@ -110,7 +116,6 @@ fun MainScreen() {
                 } else {
                     "File Cabinet up to date (${summary.total} docs)"
                 }
-                syncStatusText = msg
                 if (!silent) Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
             }.onFailure { err ->
                 if (!silent) Toast.makeText(context, "Sync error: ${err.message}", Toast.LENGTH_LONG).show()
@@ -149,11 +154,11 @@ fun MainScreen() {
         }
     }
 
-    val speechLauncherNotes = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+    val speechLauncherLabels = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
         if (res.resultCode == Activity.RESULT_OK) {
             val spoken = res.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull() ?: ""
             if (spoken.isNotBlank()) {
-                notesText = if (notesText.isBlank()) spoken else "$notesText $spoken"
+                labelsText = if (labelsText.isBlank()) spoken else "$labelsText $spoken"
             }
         }
     }
@@ -161,23 +166,55 @@ fun MainScreen() {
     fun startSpeech(isForName: Boolean) {
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_PROMPT, if (isForName) "Speak Document Name" else "Speak Notes / Labels")
+            putExtra(RecognizerIntent.EXTRA_PROMPT, if (isForName) "Speak Document Name" else "Speak Labels")
         }
         try {
-            if (isForName) speechLauncherName.launch(intent) else speechLauncherNotes.launch(intent)
+            if (isForName) speechLauncherName.launch(intent) else speechLauncherLabels.launch(intent)
         } catch (_: Exception) {
             Toast.makeText(context, "Voice input not available", Toast.LENGTH_SHORT).show()
         }
     }
 
-    // Camera Capture
+    // Safe Camera Launcher with runtime permission check
     var cameraTempUri by remember { mutableStateOf<Uri?>(null) }
     var cameraTempFile by remember { mutableStateOf<File?>(null) }
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        if (success && cameraTempFile != null) {
+        if (success && cameraTempFile != null && cameraTempFile!!.length() > 0) {
             selectedTempFile = cameraTempFile
             selectedMimeType = "image/jpeg"
+        }
+    }
+
+    fun launchCamera() {
+        try {
+            val temp = File(context.cacheDir, "camera_snap_${System.currentTimeMillis()}.jpg")
+            if (temp.exists()) temp.delete()
+            temp.createNewFile()
+            cameraTempFile = temp
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", temp)
+            cameraTempUri = uri
+            cameraLauncher.launch(uri)
+        } catch (e: Exception) {
+            Toast.makeText(context, "Camera error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            launchCamera()
+        } else {
+            Toast.makeText(context, "Camera permission needed to snap photos", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun handleCameraClick() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            launchCamera()
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 
@@ -214,7 +251,6 @@ fun MainScreen() {
         label = "rotation"
     )
 
-    val gradientBrush = Brush.linearGradient(listOf(AccentColor, AccentMid, WarningColor))
     val fileCardBrush = Brush.linearGradient(listOf(Color(0xFF101530), Color(0xFF0C1024)))
     val retrieveCardBrush = Brush.linearGradient(listOf(Color(0xFF1C1028), Color(0xFF120B1C)))
 
@@ -225,26 +261,26 @@ fun MainScreen() {
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
-                    .clip(RoundedCornerShape(20.dp))
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .clip(RoundedCornerShape(18.dp))
                     .background(SurfaceColor)
-                    .border(1.dp, BorderColor, RoundedCornerShape(20.dp))
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                    .border(1.dp, BorderColor, RoundedCornerShape(18.dp))
+                    .padding(horizontal = 14.dp, vertical = 7.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Surface(
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(34.dp),
                         shape = RoundedCornerShape(10.dp),
                         color = AccentColor
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Filled.Folder, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Filled.Folder, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                         }
                     }
                     Column {
-                        Text(text = "Clean Vault", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextMain)
+                        Text(text = "Clean Vault", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextMain)
                         val hasCloud = repository.getScriptUrl().isNotBlank()
                         Text(
                             text = if (hasCloud) "Google Drive Shared" else "Local only",
@@ -254,18 +290,18 @@ fun MainScreen() {
                     }
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     // Sync Button with animated rotation
                     IconButton(
                         onClick = { triggerSync(silent = false) },
-                        modifier = Modifier.size(34.dp)
+                        modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
                             Icons.Filled.Sync,
                             contentDescription = "Sync",
                             tint = if (isSyncing) AmberGold else TextMuted,
                             modifier = Modifier
-                                .size(20.dp)
+                                .size(18.dp)
                                 .then(if (isSyncing) Modifier.rotate(syncRotation) else Modifier)
                         )
                     }
@@ -273,9 +309,9 @@ fun MainScreen() {
                     // Settings Button
                     IconButton(
                         onClick = { showSettingsModal = true },
-                        modifier = Modifier.size(34.dp)
+                        modifier = Modifier.size(32.dp)
                     ) {
-                        Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = TextMuted, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = TextMuted, modifier = Modifier.size(18.dp))
                     }
                 }
             }
@@ -287,47 +323,59 @@ fun MainScreen() {
                 .padding(padding)
                 .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
-            // CARD 1: FILE
+            // CARD 1: STREAMLINED COMPACT FILE CARD
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp))
+                    .clip(RoundedCornerShape(18.dp))
                     .background(fileCardBrush)
-                    .border(1.dp, AccentColor.copy(alpha = 0.4f), RoundedCornerShape(22.dp))
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .border(1.dp, AccentColor.copy(alpha = 0.4f), RoundedCornerShape(18.dp))
+                    .padding(13.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Filled.Folder, contentDescription = null, tint = AmberGold, modifier = Modifier.size(18.dp))
-                    Text("File", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextMain)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Filled.Folder, contentDescription = null, tint = AmberGold, modifier = Modifier.size(16.dp))
+                        Text("File", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextMain)
+                    }
+                    if (selectedTempFile != null) {
+                        Text(
+                            text = "1 item selected",
+                            color = EmeraldGreen,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
 
-                // Camera Tap Area
+                // Compact Camera / Preview Box (Streamlined Height ~78dp)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(130.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .height(78.dp)
+                        .clip(RoundedCornerShape(12.dp))
                         .background(SurfaceColor.copy(alpha = 0.6f))
-                        .border(1.dp, BorderHighlight, RoundedCornerShape(16.dp))
-                        .clickable {
-                            val temp = File(context.cacheDir, "camera_snap_${System.currentTimeMillis()}.jpg")
-                            cameraTempFile = temp
-                            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", temp)
-                            cameraTempUri = uri
-                            cameraLauncher.launch(uri)
-                        },
+                        .border(1.dp, BorderHighlight, RoundedCornerShape(12.dp))
+                        .clickable { handleCameraClick() },
                     contentAlignment = Alignment.Center
                 ) {
                     if (selectedTempFile != null) {
                         if (selectedMimeType.contains("pdf")) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Filled.Description, contentDescription = null, tint = Color.White, modifier = Modifier.size(36.dp))
-                                Text(selectedTempFile?.name ?: "Document.pdf", color = TextMain, fontSize = 13.sp)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(8.dp)
+                            ) {
+                                Icon(Icons.Filled.Description, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+                                Text(selectedTempFile?.name ?: "Document.pdf", color = TextMain, fontSize = 12.sp, maxLines = 1)
                             }
                         } else {
                             AsyncImage(
@@ -338,62 +386,71 @@ fun MainScreen() {
                             )
                         }
 
-                        // Remove button
+                        // Remove thumbnail button
                         Surface(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
-                                .padding(8.dp)
-                                .size(28.dp),
+                                .padding(6.dp)
+                                .size(24.dp),
                             shape = CircleShape,
                             color = BgBase.copy(alpha = 0.85f),
                             onClick = { selectedTempFile = null }
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Filled.Close, contentDescription = null, tint = RoseRed, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Filled.Close, contentDescription = null, tint = RoseRed, modifier = Modifier.size(14.dp))
                             }
                         }
                     } else {
-                        Surface(
-                            modifier = Modifier.size(50.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            color = AccentColor
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Filled.CameraAlt, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+                            Surface(
+                                modifier = Modifier.size(36.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                color = AccentColor
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Filled.CameraAlt, contentDescription = "Camera", tint = Color.White, modifier = Modifier.size(18.dp))
+                                }
                             }
+                            Text("Tap to snap photo", color = TextMuted, fontSize = 12.sp)
                         }
                     }
                 }
 
-                // Choose file button
+                // Sleek File Picker Row
                 OutlinedButton(
                     onClick = { filePickerLauncher.launch("*/*") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().height(36.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = TextMuted)
                 ) {
-                    Icon(Icons.Filled.AttachFile, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Filled.AttachFile, contentDescription = null, modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Choose file (Photo, PDF, Doc)", fontSize = 13.sp)
+                    Text("Or choose file (Photo, PDF, Doc)", fontSize = 12.sp)
                 }
 
-                // Document Name with Dictation Mic
+                // Document Name (Concise One Line)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
+                        .height(44.dp)
+                        .clip(RoundedCornerShape(11.dp))
                         .background(SurfaceRaised)
-                        .border(1.dp, BorderColor, RoundedCornerShape(14.dp))
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                        .border(1.dp, BorderColor, RoundedCornerShape(11.dp))
+                        .padding(horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = { startSpeech(isForName = true) }) {
-                        Icon(Icons.Filled.Mic, contentDescription = null, tint = AmberGold)
+                    IconButton(onClick = { startSpeech(isForName = true) }, modifier = Modifier.size(36.dp)) {
+                        Icon(Icons.Filled.Mic, contentDescription = "Dictate Name", tint = AmberGold, modifier = Modifier.size(18.dp))
                     }
                     TextField(
                         value = docNameText,
                         onValueChange = { docNameText = it },
-                        placeholder = { Text("Document name (dictate or type)...", color = TextFaint, fontSize = 14.sp) },
+                        placeholder = { Text("Document name...", color = TextFaint, fontSize = 13.sp) },
+                        singleLine = true,
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Transparent,
                             unfocusedContainerColor = Color.Transparent,
@@ -404,25 +461,32 @@ fun MainScreen() {
                         ),
                         modifier = Modifier.weight(1f)
                     )
+                    if (docNameText.isNotEmpty()) {
+                        IconButton(onClick = { docNameText = "" }, modifier = Modifier.size(30.dp)) {
+                            Icon(Icons.Filled.Clear, contentDescription = "Clear", tint = TextFaint, modifier = Modifier.size(14.dp))
+                        }
+                    }
                 }
 
-                // Notes / Labels with Dictation Mic
+                // Labels Field (Concise One Line)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
+                        .height(44.dp)
+                        .clip(RoundedCornerShape(11.dp))
                         .background(SurfaceRaised)
-                        .border(1.dp, BorderColor, RoundedCornerShape(14.dp))
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                        .border(1.dp, BorderColor, RoundedCornerShape(11.dp))
+                        .padding(horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = { startSpeech(isForName = false) }) {
-                        Icon(Icons.Filled.Mic, contentDescription = null, tint = AccentMid)
+                    IconButton(onClick = { startSpeech(isForName = false) }, modifier = Modifier.size(36.dp)) {
+                        Icon(Icons.Filled.Mic, contentDescription = "Dictate Labels", tint = AccentMid, modifier = Modifier.size(18.dp))
                     }
                     TextField(
-                        value = notesText,
-                        onValueChange = { notesText = it },
-                        placeholder = { Text("Notes / labels (e.g. taxes, car)...", color = TextFaint, fontSize = 14.sp) },
+                        value = labelsText,
+                        onValueChange = { labelsText = it },
+                        placeholder = { Text("Labels (e.g. taxes, car, receipts)...", color = TextFaint, fontSize = 13.sp) },
+                        singleLine = true,
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Transparent,
                             unfocusedContainerColor = Color.Transparent,
@@ -433,23 +497,28 @@ fun MainScreen() {
                         ),
                         modifier = Modifier.weight(1f)
                     )
+                    if (labelsText.isNotEmpty()) {
+                        IconButton(onClick = { labelsText = "" }, modifier = Modifier.size(30.dp)) {
+                            Icon(Icons.Filled.Clear, contentDescription = "Clear", tint = TextFaint, modifier = Modifier.size(14.dp))
+                        }
+                    }
                 }
 
                 // Streamlined Save Row with Discreet Pin
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(42.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Surface(
                         modifier = Modifier.size(42.dp),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(11.dp),
                         color = if (isPinned) AmberGold.copy(alpha = 0.2f) else SurfaceRaised,
                         border = androidx.compose.foundation.BorderStroke(1.dp, if (isPinned) AmberGold else BorderColor),
                         onClick = { isPinned = !isPinned }
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Text("📌", fontSize = 16.sp)
+                            Text("📌", fontSize = 15.sp)
                         }
                     }
 
@@ -461,7 +530,7 @@ fun MainScreen() {
                             }
                             val doc = repository.saveFileToVault(
                                 name = docNameText,
-                                notes = notesText,
+                                notes = labelsText,
                                 isPinned = isPinned,
                                 sourceFile = selectedTempFile!!,
                                 mimeType = selectedMimeType
@@ -469,7 +538,7 @@ fun MainScreen() {
                             documents = repository.getDocuments()
                             selectedTempFile = null
                             docNameText = ""
-                            notesText = ""
+                            labelsText = ""
                             isPinned = false
                             Toast.makeText(context, "Saved to File Cabinet! 🗄️", Toast.LENGTH_SHORT).show()
 
@@ -479,11 +548,11 @@ fun MainScreen() {
                                 documents = repository.getDocuments()
                             }
                         },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        shape = RoundedCornerShape(11.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = AccentColor)
                     ) {
-                        Text("Save to Vault", fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Save to Vault", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 14.sp)
                     }
                 }
             }
@@ -492,33 +561,33 @@ fun MainScreen() {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp))
+                    .clip(RoundedCornerShape(18.dp))
                     .background(retrieveCardBrush)
-                    .border(1.dp, WarningColor.copy(alpha = 0.4f), RoundedCornerShape(22.dp))
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .border(1.dp, WarningColor.copy(alpha = 0.4f), RoundedCornerShape(18.dp))
+                    .padding(13.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Filled.Search, contentDescription = null, tint = AmberGold, modifier = Modifier.size(18.dp))
-                    Text("Retrieve", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextMain)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(Icons.Filled.Search, contentDescription = null, tint = AmberGold, modifier = Modifier.size(16.dp))
+                    Text("Retrieve", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextMain)
                 }
 
                 // File Cabinet Button
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(11.dp),
                     color = SurfaceRaised,
                     border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
                     onClick = { showCabinetModal = true }
                 ) {
                     Row(
-                        modifier = Modifier.padding(14.dp),
+                        modifier = Modifier.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Filled.FolderZip, contentDescription = null, tint = AccentMid)
-                            Text("File Cabinet", fontWeight = FontWeight.SemiBold, color = TextMain)
+                            Icon(Icons.Filled.FolderZip, contentDescription = null, tint = AccentMid, modifier = Modifier.size(20.dp))
+                            Text("File Cabinet", fontWeight = FontWeight.SemiBold, color = TextMain, fontSize = 14.sp)
                         }
                         Surface(
                             shape = RoundedCornerShape(8.dp),
@@ -553,11 +622,11 @@ fun MainScreen() {
                                 onClick = { openDocumentFile(context, doc) }
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    Text("📌", fontSize = 12.sp)
+                                    Text("📌", fontSize = 11.sp)
                                     Text(doc.name, color = TextMain, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                                 }
                             }
@@ -566,7 +635,7 @@ fun MainScreen() {
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 
@@ -576,19 +645,18 @@ fun MainScreen() {
         var testStatus by remember { mutableStateOf<String?>(null) }
         var isTesting by remember { mutableStateOf(false) }
 
-        AlertDialog(
-            onDismissRequest = { showSettingsModal = false },
-            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        BasicAlertDialog(
+            onDismissRequest = { showSettingsModal = false }
         ) {
             Surface(
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(22.dp),
                 color = SurfaceColor,
                 border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight),
                 modifier = Modifier.fillMaxWidth(0.92f).padding(16.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -597,9 +665,9 @@ fun MainScreen() {
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Icon(Icons.Filled.CloudSync, contentDescription = null, tint = AccentMid)
-                            Text("Shared Cloud Cabinet", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextMain)
+                            Text("Shared Cloud Cabinet", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextMain)
                         }
-                        IconButton(onClick = { showSettingsModal = false }) {
+                        IconButton(onClick = { showSettingsModal = false }, modifier = Modifier.size(28.dp)) {
                             Icon(Icons.Filled.Close, contentDescription = null, tint = TextMuted)
                         }
                     }
@@ -607,8 +675,8 @@ fun MainScreen() {
                     Text(
                         text = "Both you and your wife can use this same Google Apps Script Web App URL to automatically share the exact same Google Drive files & cabinet.",
                         color = TextMuted,
-                        fontSize = 13.sp,
-                        lineHeight = 18.sp
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp
                     )
 
                     OutlinedTextField(
@@ -618,9 +686,9 @@ fun MainScreen() {
                             testStatus = null
                         },
                         placeholder = { Text("https://script.google.com/macros/s/.../exec", color = TextFaint, fontSize = 12.sp) },
-                        label = { Text("Apps Script Web App URL", color = TextMuted) },
+                        label = { Text("Apps Script Web App URL", color = TextMuted, fontSize = 12.sp) },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(11.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = SurfaceRaised,
                             unfocusedContainerColor = SurfaceRaised,
@@ -665,10 +733,10 @@ fun MainScreen() {
                                 }
                             },
                             enabled = !isTesting,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(11.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text(if (isTesting) "Testing..." else "Test Link", fontSize = 13.sp)
+                            Text(if (isTesting) "Testing..." else "Test Link", fontSize = 12.sp)
                         }
 
                         Button(
@@ -679,10 +747,100 @@ fun MainScreen() {
                                 triggerSync(silent = false)
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(11.dp),
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Save & Sync", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 13.sp)
+                            Text("Save & Sync", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // RENAME DOCUMENT DIALOG
+    if (docToRename != null) {
+        val target = docToRename!!
+        var editName by remember(target) { mutableStateOf(target.name) }
+        var editLabels by remember(target) { mutableStateOf(target.notes) }
+
+        BasicAlertDialog(
+            onDismissRequest = { docToRename = null }
+        ) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = SurfaceColor,
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight),
+                modifier = Modifier.fillMaxWidth(0.92f).padding(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text("Rename & Edit Labels", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextMain)
+
+                    // Edit Name
+                    OutlinedTextField(
+                        value = editName,
+                        onValueChange = { editName = it },
+                        label = { Text("Document Name", fontSize = 12.sp) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = SurfaceRaised,
+                            unfocusedContainerColor = SurfaceRaised,
+                            focusedBorderColor = AccentColor,
+                            unfocusedBorderColor = BorderColor,
+                            focusedTextColor = TextMain,
+                            unfocusedTextColor = TextMain
+                        )
+                    )
+
+                    // Edit Labels
+                    OutlinedTextField(
+                        value = editLabels,
+                        onValueChange = { editLabels = it },
+                        label = { Text("Labels", fontSize = 12.sp) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = SurfaceRaised,
+                            unfocusedContainerColor = SurfaceRaised,
+                            focusedBorderColor = AccentColor,
+                            unfocusedBorderColor = BorderColor,
+                            focusedTextColor = TextMain,
+                            unfocusedTextColor = TextMain
+                        )
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { docToRename = null },
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Cancel", fontSize = 12.sp)
+                        }
+
+                        Button(
+                            onClick = {
+                                documents = repository.renameDocument(target.id, editName.trim(), editLabels.trim())
+                                scope.launch {
+                                    repository.updateDocRemoteAsync(target.id, editName.trim(), editLabels.trim())
+                                }
+                                docToRename = null
+                                Toast.makeText(context, "Document updated", Toast.LENGTH_SHORT).show()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Save", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 12.sp)
                         }
                     }
                 }
@@ -697,20 +855,18 @@ fun MainScreen() {
             q.isEmpty() || it.name.lowercase().contains(q) || it.notes.lowercase().contains(q)
         }
 
-        AlertDialog(
-            onDismissRequest = { showCabinetModal = false },
-            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.85f),
-            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        BasicAlertDialog(
+            onDismissRequest = { showCabinetModal = false }
         ) {
             Surface(
-                shape = RoundedCornerShape(24.dp),
+                shape = RoundedCornerShape(22.dp),
                 color = SurfaceColor,
                 border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight),
-                modifier = Modifier.fillMaxSize().padding(16.dp)
+                modifier = Modifier.fillMaxWidth(0.96f).fillMaxHeight(0.88f).padding(10.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -718,22 +874,23 @@ fun MainScreen() {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("File Cabinet", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextMain)
+                            Text("File Cabinet", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextMain)
                             if (isSyncing) {
                                 CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = AmberGold)
                             }
                         }
-                        IconButton(onClick = { showCabinetModal = false }) {
+                        IconButton(onClick = { showCabinetModal = false }, modifier = Modifier.size(28.dp)) {
                             Icon(Icons.Filled.Close, contentDescription = null, tint = TextMuted)
                         }
                     }
 
+                    // Filter by name or labels (as requested)
                     OutlinedTextField(
                         value = cabinetSearchQuery,
                         onValueChange = { cabinetSearchQuery = it },
-                        placeholder = { Text("Filter by name or notes...", color = TextFaint, fontSize = 13.sp) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
+                        placeholder = { Text("Filter by name or labels...", color = TextFaint, fontSize = 13.sp) },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(11.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = SurfaceRaised,
                             unfocusedContainerColor = SurfaceRaised,
@@ -741,12 +898,13 @@ fun MainScreen() {
                             unfocusedBorderColor = BorderColor,
                             focusedTextColor = TextMain,
                             unfocusedTextColor = TextMain
-                        )
+                        ),
+                        singleLine = true
                     )
 
                     if (filteredDocs.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No documents found", color = TextFaint, fontSize = 14.sp)
+                            Text("No documents found", color = TextFaint, fontSize = 13.sp)
                         }
                     } else {
                         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -757,23 +915,27 @@ fun MainScreen() {
                                     color = if (doc.isPinned) SurfaceRaised else Color(0xFF0F1426),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, if (doc.isPinned) AmberGold.copy(alpha = 0.5f) else BorderColor)
                                 ) {
-                                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                modifier = Modifier.weight(1f)
+                                            ) {
                                                 IconButton(
                                                     onClick = {
                                                         documents = repository.togglePin(doc.id)
                                                         scope.launch { repository.togglePinRemoteAsync(doc.id) }
                                                     },
-                                                    modifier = Modifier.size(24.dp)
+                                                    modifier = Modifier.size(22.dp)
                                                 ) {
-                                                    Text(if (doc.isPinned) "📌" else "📍", fontSize = 14.sp)
+                                                    Text(if (doc.isPinned) "📌" else "📍", fontSize = 13.sp)
                                                 }
-                                                Text(doc.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextMain)
+                                                Text(doc.name, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = TextMain, maxLines = 1)
                                             }
                                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                                 if (doc.isSynced) {
@@ -784,28 +946,45 @@ fun MainScreen() {
                                         }
 
                                         if (doc.notes.isNotBlank()) {
-                                            Text("💬 ${doc.notes}", color = TextMuted, fontSize = 12.sp)
+                                            Text("🏷️ ${doc.notes}", color = TextMuted, fontSize = 11.sp)
                                         }
 
-                                        // Actions: View, Share, Delete
+                                        // Actions: View, Download, Share, Rename, Delete
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Button(
                                                 onClick = { openDocumentFile(context, doc) },
-                                                shape = RoundedCornerShape(8.dp),
+                                                shape = RoundedCornerShape(7.dp),
                                                 colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
-                                                modifier = Modifier.weight(1f)
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                                modifier = Modifier.weight(1f).height(32.dp)
                                             ) {
-                                                Text("👁️ View", fontSize = 12.sp)
+                                                Text("👁️ View", fontSize = 11.sp)
+                                            }
+                                            OutlinedButton(
+                                                onClick = { downloadDocumentToStorage(context, doc) },
+                                                shape = RoundedCornerShape(7.dp),
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                                modifier = Modifier.weight(1.1f).height(32.dp)
+                                            ) {
+                                                Text("📥 Download", fontSize = 11.sp)
                                             }
                                             OutlinedButton(
                                                 onClick = { shareDocumentFile(context, doc) },
-                                                shape = RoundedCornerShape(8.dp),
-                                                modifier = Modifier.weight(1f)
+                                                shape = RoundedCornerShape(7.dp),
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                                modifier = Modifier.weight(1f).height(32.dp)
                                             ) {
-                                                Text("📤 Share", fontSize = 12.sp)
+                                                Text("📤 Share", fontSize = 11.sp)
+                                            }
+                                            IconButton(
+                                                onClick = { docToRename = doc },
+                                                modifier = Modifier.size(30.dp)
+                                            ) {
+                                                Icon(Icons.Filled.Edit, contentDescription = "Rename", tint = AmberGold, modifier = Modifier.size(16.dp))
                                             }
                                             IconButton(
                                                 onClick = {
@@ -814,7 +993,7 @@ fun MainScreen() {
                                                     Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show()
                                                 }
                                             ) {
-                                                Icon(Icons.Filled.Delete, contentDescription = null, tint = RoseRed, modifier = Modifier.size(18.dp))
+                                                Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = RoseRed, modifier = Modifier.size(16.dp))
                                             }
                                         }
                                     }
@@ -860,5 +1039,45 @@ fun shareDocumentFile(context: Context, doc: VaultDocument) {
         context.startActivity(Intent.createChooser(intent, "Share via"))
     } catch (e: Exception) {
         Toast.makeText(context, "Could not share file", Toast.LENGTH_SHORT).show()
+    }
+}
+
+fun downloadDocumentToStorage(context: Context, doc: VaultDocument) {
+    try {
+        val srcFile = File(doc.filePath)
+        if (!srcFile.exists()) {
+            Toast.makeText(context, "File not found on device", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val ext = srcFile.extension.ifEmpty { if (doc.mimeType.contains("pdf")) "pdf" else "jpg" }
+        val safeName = (doc.name.ifBlank { "VaultDocument" }).replace(Regex("[^a-zA-Z0-9_-]"), "_")
+        val displayName = "${safeName}_${System.currentTimeMillis()}.$ext"
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
+                put(MediaStore.MediaColumns.MIME_TYPE, doc.mimeType)
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+            }
+            val resolver = context.contentResolver
+            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+            if (uri != null) {
+                resolver.openOutputStream(uri)?.use { out ->
+                    srcFile.inputStream().use { it.copyTo(out) }
+                }
+                Toast.makeText(context, "Downloaded to Downloads: $displayName 📥", Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(context, "Failed to create download entry", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            downloadsDir.mkdirs()
+            val destFile = File(downloadsDir, displayName)
+            srcFile.copyTo(destFile, overwrite = true)
+            Toast.makeText(context, "Saved to Downloads: $displayName 📥", Toast.LENGTH_LONG).show()
+        }
+    } catch (e: Exception) {
+        Toast.makeText(context, "Download failed: ${e.message}", Toast.LENGTH_SHORT).show()
     }
 }

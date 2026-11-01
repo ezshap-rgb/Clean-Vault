@@ -144,6 +144,25 @@ function doPost(e) {
       return createJsonResponse({ status: "error", message: "Row not found" }, 404);
     }
 
+    // 5. Action: Update / Rename Receipt
+    if (action === "update_receipt" || action === "rename_receipt") {
+      const docId = payload.docId;
+      const rowId = parseInt(payload.rowId, 10);
+      const sheet = getOrCreateSheet(SHEET_NAME);
+      const targetRow = findRowByDocIdOrRowId(sheet, docId, rowId);
+
+      if (targetRow > 1) {
+        if (payload.name) {
+          sheet.getRange(targetRow, 3).setValue(payload.name);
+        }
+        if (payload.labels !== undefined) {
+          sheet.getRange(targetRow, 8).setValue(payload.labels);
+        }
+        return createJsonResponse({ status: "success", rowId: targetRow });
+      }
+      return createJsonResponse({ status: "error", message: "Row not found" }, 404);
+    }
+
     return createJsonResponse({ status: "error", message: "Unrecognized action" }, 400);
   } catch (err) {
     return createJsonResponse({ status: "error", message: err.toString() }, 500);

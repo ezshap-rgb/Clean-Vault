@@ -131,6 +131,14 @@ class VaultRepository(private val context: Context) {
         return list
     }
 
+    fun renameDocument(docId: String, newName: String, newNotes: String): List<VaultDocument> {
+        val list = getDocuments().map {
+            if (it.id == docId) it.copy(name = newName.ifBlank { it.name }, notes = newNotes) else it
+        }
+        saveDocuments(list)
+        return list
+    }
+
     fun deleteDocument(docId: String): List<VaultDocument> {
         val list = getDocuments().toMutableList()
         val target = list.find { it.id == docId }
@@ -321,6 +329,22 @@ class VaultRepository(private val context: Context) {
             val jsonPayload = JSONObject().apply {
                 put("action", "toggle_pin")
                 put("docId", docId)
+            }
+            val body = jsonPayload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+            val req = Request.Builder().url(scriptUrl).post(body).build()
+            httpClient.newCall(req).execute().close()
+        } catch (_: Exception) {}
+    }
+
+    suspend fun updateDocRemoteAsync(docId: String, newName: String, newNotes: String) = withContext(Dispatchers.IO) {
+        val scriptUrl = getScriptUrl()
+        if (scriptUrl.isBlank()) return@withContext
+        try {
+            val jsonPayload = JSONObject().apply {
+                put("action", "update_receipt")
+                put("docId", docId)
+                put("name", newName)
+                put("labels", newNotes)
             }
             val body = jsonPayload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
             val req = Request.Builder().url(scriptUrl).post(body).build()
