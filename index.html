@@ -1043,6 +1043,16 @@
 
     btnSync.addEventListener('click', () => fetchCloudRecords(false));
 
+    function isDocPinned(d) {
+      if (!d) return false;
+      return d.pinned === true || 
+             d.isPinned === true || 
+             String(d.pinned).toLowerCase() === 'true' || 
+             String(d.isPinned).toLowerCase() === 'true' ||
+             d.pinned === 1 ||
+             d.isPinned === 1;
+    }
+
     // Render Cabinet Documents
     function renderDocuments() {
       const query = cabinetSearch.value.trim().toLowerCase();
@@ -1052,10 +1062,20 @@
         return !query || name.includes(query) || labels.includes(query);
       });
 
+      // Sort pinned documents to the very top, exactly like mobile app
+      filtered.sort((a, b) => {
+        const aPinned = isDocPinned(a) ? 1 : 0;
+        const bPinned = isDocPinned(b) ? 1 : 0;
+        if (bPinned !== aPinned) return bPinned - aPinned;
+        const dateA = a.timestamp || a.date || '';
+        const dateB = b.timestamp || b.date || '';
+        return dateB.localeCompare(dateA);
+      });
+
       docCountBadge.textContent = `${state.documents.length} documents`;
 
       // Render Pinned Bar
-      const pinned = state.documents.filter(d => d.pinned === true);
+      const pinned = state.documents.filter(d => isDocPinned(d));
       if (pinned.length > 0) {
         pinnedBar.style.display = 'flex';
         pinnedBar.innerHTML = pinned.map(doc => `
@@ -1084,10 +1104,9 @@
       documentsContainer.innerHTML = filtered.map(doc => {
         const name = escapeHtml(doc.name || doc.vendor || 'Document');
         const labels = doc.labels || doc.notes || '';
-        const date = doc.date || '';
         const fileUrl = doc.fileUrl || doc.driveFileUrl || '';
         const fileId = doc.fileId || '';
-        const isPinned = doc.pinned === true;
+        const isPinned = isDocPinned(doc);
 
         return `
           <div class="doc-card ${isPinned ? 'pinned' : ''}">
@@ -1138,12 +1157,28 @@
     }
 
     async function togglePin(docId, fileId, currentPinned) {
-      if (!state.scriptUrl) return;
+      const nextPinned = !currentPinned;
+      // Optimistic instant UI update
+      const target = state.documents.find(d => 
+        (docId && (d.docId === docId || d.id === docId)) || 
+        (fileId && (d.fileId === fileId || d.driveFileId === fileId))
+      );
+      if (target) {
+        target.pinned = nextPinned;
+        target.isPinned = nextPinned;
+        localStorage.setItem('CLEAN_VAULT_DOCS', JSON.stringify(state.documents));
+        renderDocuments();
+      }
+
+      if (!state.scriptUrl) {
+        showToast('Local pin updated. Add Apps Script URL in Settings ⚙️ to sync.');
+        return;
+      }
       try {
         await fetch(state.scriptUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'toggle_pin', docId: docId, fileId: fileId, pinned: !currentPinned })
+          body: JSON.stringify({ action: 'toggle_pin', docId: docId, fileId: fileId, pinned: nextPinned })
         });
         fetchCloudRecords(true);
       } catch (err) {
