@@ -18,9 +18,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -995,15 +997,8 @@ fun MainScreen() {
                                                     lineHeight = 18.sp
                                                 )
                                             }
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                                modifier = Modifier.padding(start = 8.dp)
-                                            ) {
-                                                if (doc.isSynced) {
-                                                    Text("☁️", fontSize = 11.sp)
-                                                }
-                                                Text(doc.date, color = TextFaint, fontSize = 11.sp)
+                                            if (doc.isSynced) {
+                                                Text("☁️", fontSize = 11.sp, modifier = Modifier.padding(start = 8.dp, top = 2.dp))
                                             }
                                         }
 
@@ -1017,17 +1012,32 @@ fun MainScreen() {
                                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            // View Button
-                                            Button(
-                                                onClick = { openDocumentFile(context, doc, repository) },
+                                            // View Button: Tap to open directly, Long-press to choose a different viewer app
+                                            @OptIn(ExperimentalFoundationApi::class)
+                                            Surface(
                                                 shape = RoundedCornerShape(8.dp),
-                                                colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
-                                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
-                                                modifier = Modifier.weight(1f).height(34.dp)
+                                                color = AccentColor,
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .height(34.dp)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .combinedClickable(
+                                                        onClick = { openDocumentFile(context, doc, repository, forceChooser = false) },
+                                                        onLongClick = {
+                                                            Toast.makeText(context, "Choose viewer app...", Toast.LENGTH_SHORT).show()
+                                                            openDocumentFile(context, doc, repository, forceChooser = true)
+                                                        }
+                                                    )
                                             ) {
-                                                Icon(Icons.Filled.Visibility, contentDescription = "View", modifier = Modifier.size(15.dp))
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text("View", fontSize = 11.sp)
+                                                Row(
+                                                    modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp, vertical = 2.dp),
+                                                    horizontalArrangement = Arrangement.Center,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Icon(Icons.Filled.Visibility, contentDescription = "View", tint = Color.White, modifier = Modifier.size(15.dp))
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text("View", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                                }
                                             }
 
                                             // Classic Download Arrow Button
@@ -1087,7 +1097,7 @@ fun MainScreen() {
     }
 }
 
-fun openDocumentFile(context: Context, doc: VaultDocument, repository: VaultRepository) {
+fun openDocumentFile(context: Context, doc: VaultDocument, repository: VaultRepository, forceChooser: Boolean = false) {
     try {
         var file = File(doc.filePath)
         // If file missing locally, attempt on-demand retrieval or drive URL fallback
@@ -1121,8 +1131,16 @@ fun openDocumentFile(context: Context, doc: VaultDocument, repository: VaultRepo
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        // Direct launch without createChooser so Android saves user's "Always" preference
-        context.startActivity(intent)
+        if (forceChooser) {
+            val chooserIntent = Intent.createChooser(intent, "Open with...").apply {
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(chooserIntent)
+        } else {
+            // Direct launch so Android uses default or shows choice if not set
+            context.startActivity(intent)
+        }
     } catch (e: Exception) {
         Toast.makeText(context, "No app found to open this file", Toast.LENGTH_SHORT).show()
     }
