@@ -852,12 +852,6 @@
       </div>
     </header>
 
-    <!-- Quick Pinned Access Row (if any pinned) -->
-    <div id="pinnedSection" class="pinned-section hidden">
-      <div class="pinned-label">📌 Pinned Access</div>
-      <div id="pinnedChipsContainer" class="pinned-chips"></div>
-    </div>
-
     <!-- ============================================== -->
     <!-- CARD 1: FILE                                   -->
     <!-- ============================================== -->
@@ -894,62 +888,26 @@
         Choose file (Photo, PDF, Doc)
       </button>
 
-      <!-- Dictate or Type Context -->
-      <div class="dictate-bar">
+      <!-- Document Name Input Field -->
+      <div style="margin-top:10px;">
+        <input type="text" id="docNameInput" placeholder="Document Name (e.g. Costco receipt, Lease contract)..." class="form-input" style="width:100%; font-weight:600; font-size:0.88rem; background:rgba(7,9,19,0.7); border-color:var(--border-highlight);">
+      </div>
+
+      <!-- Separate Notes / Dictation Bar -->
+      <div class="dictate-bar" style="margin-top:8px;">
         <button id="btnVoiceDictate" type="button" class="btn-mic" title="Dictate note">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
         </button>
-        <input type="text" id="voiceNoteText" placeholder="Dictate or type quick notes..." class="input-field">
+        <input type="text" id="voiceNoteText" placeholder="Notes (dictate or type)..." class="input-field">
       </div>
 
-      <!-- AI Extraction Review -->
-      <div id="extractionBox" class="extraction-box hidden">
-        <div class="fields-grid">
-          <div class="form-group">
-            <label class="form-label">Vendor / Document</label>
-            <input type="text" id="metaVendor" class="form-input">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Date</label>
-            <input type="date" id="metaDate" class="form-input mono">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Amount</label>
-            <input type="number" step="0.01" id="metaAmount" class="form-input mono" placeholder="0.00">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Currency</label>
-            <select id="metaCurrency" class="form-select mono">
-              <option value="USD">USD ($)</option>
-              <option value="EUR">EUR (€)</option>
-              <option value="GBP">GBP (£)</option>
-              <option value="ILS">ILS (₪)</option>
-              <option value="CAD">CAD ($)</option>
-              <option value="AUD">AUD ($)</option>
-            </select>
-          </div>
-          <div class="form-group full">
-            <label class="form-label">Category</label>
-            <select id="metaCategory" class="form-select">
-              <option value="Groceries">Groceries</option>
-              <option value="Dining">Dining</option>
-              <option value="Business">Business</option>
-              <option value="Office & Tech">Office & Tech</option>
-              <option value="Travel & Transport">Travel</option>
-              <option value="Utilities">Utilities</option>
-              <option value="Medical & Health">Medical</option>
-              <option value="Official / Legal">Official / Legal Documents</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-          <div class="form-group full">
-            <label class="pin-checkbox-label">
-              <input type="checkbox" id="checkPinDocument">
-              <span>📌 Pin this document for permanent quick access</span>
-            </label>
-          </div>
-        </div>
-
+      <!-- Optional Pin & Save action button -->
+      <div style="margin-top:10px; display:flex; flex-direction:column; gap:8px;">
+        <label class="pin-checkbox-label">
+          <input type="checkbox" id="checkPinDocument">
+          <span>📌 Pin this document for permanent quick access</span>
+        </label>
+        
         <button id="btnSubmitFile" class="btn-file-submit">
           <span id="btnSubmitSpinner" class="spinner hidden"></span>
           <span id="btnSubmitText">Save to Vault</span>
@@ -1000,6 +958,11 @@
           </span>
           <span id="cabinetCountBadge" class="cabinet-badge">0 documents</span>
         </button>
+
+        <!-- Pinned Quick Access Row (under File Cabinet button) -->
+        <div id="pinnedSection" class="pinned-section hidden" style="margin-top:4px;">
+          <div id="pinnedChipsContainer" class="pinned-chips"></div>
+        </div>
       </div>
     </section>
 
@@ -1096,13 +1059,8 @@
     const btnRemovePreview = document.getElementById('btnRemovePreview');
 
     const btnVoiceDictate = document.getElementById('btnVoiceDictate');
+    const docNameInput = document.getElementById('docNameInput');
     const voiceNoteText = document.getElementById('voiceNoteText');
-    const extractionBox = document.getElementById('extractionBox');
-    const metaVendor = document.getElementById('metaVendor');
-    const metaDate = document.getElementById('metaDate');
-    const metaAmount = document.getElementById('metaAmount');
-    const metaCurrency = document.getElementById('metaCurrency');
-    const metaCategory = document.getElementById('metaCategory');
     const checkPinDocument = document.getElementById('checkPinDocument');
     const btnSubmitFile = document.getElementById('btnSubmitFile');
     const btnSubmitText = document.getElementById('btnSubmitText');
@@ -1230,11 +1188,10 @@
           if (isPdf) {
             analyzeDocumentWithGemini(state.activeFileBase64, 'application/pdf');
           } else {
-            // General doc: user fills fields directly
-            metaVendor.value = file.name.replace(/\.[^/.]+$/, "");
-            metaDate.value = new Date().toISOString().slice(0, 10);
-            metaCategory.value = 'Official / Legal';
-            extractionBox.classList.remove('hidden');
+            // General doc: set file name as suggested doc name
+            if (!docNameInput.value.trim()) {
+              docNameInput.value = file.name.replace(/\.[^/.]+$/, "");
+            }
           }
         }
       };
@@ -1255,7 +1212,8 @@
       pdfPreviewBox.classList.add('hidden');
       cameraIconWrap.classList.remove('hidden');
       btnRemovePreview.classList.add('hidden');
-      extractionBox.classList.add('hidden');
+      docNameInput.value = '';
+      voiceNoteText.value = '';
       checkPinDocument.checked = false;
       cameraInput.value = '';
       docFileInput.value = '';
@@ -1294,18 +1252,17 @@
       if (state.isListeningQuery) recQuery.stop(); else recQuery.start();
     });
 
-    // Gemini Multimodal Extraction (Image or PDF)
+    // Gemini Multimodal Name & Context Extraction
     async function analyzeDocumentWithGemini(dataUrl, mimeType) {
-      if (!state.apiKey) {
-        showToast("Set your Gemini API Key in Settings (⚙️)", "error");
-        openSettings();
-        return;
-      }
-
-      showToast("Gemini AI analyzing document...", "normal");
+      if (!state.apiKey) return;
 
       const rawBase64 = dataUrl.split(',')[1];
-      const prompt = `Analyze this document or receipt. User notes: "${voiceNoteText.value}". Extract structured details. If no amount exists, use 0.`;
+      const prompt = `Look at this document or receipt image. Based on the document and the user's notes ("${voiceNoteText.value}"), suggest a clean, short Document Name (e.g. "Costco Grocery Receipt", "Health Insurance Policy", "Dentist Bill").
+Return JSON:
+{
+  "documentName": "Short descriptive name",
+  "category": "e.g. Groceries, Medical, Utilities, Tech, Legal, or General"
+}`;
 
       const payload = {
         contents: [{
@@ -1315,19 +1272,7 @@
           ]
         }],
         generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              date: { type: "STRING" },
-              vendor: { type: "STRING" },
-              totalAmount: { type: "NUMBER" },
-              currency: { type: "STRING" },
-              category: { type: "STRING" },
-              itemsSummary: { type: "STRING" }
-            },
-            required: ["date", "vendor", "totalAmount", "currency", "category"]
-          }
+          responseMimeType: "application/json"
         }
       };
 
@@ -1340,26 +1285,22 @@
 
         const data = await res.json();
         const extracted = JSON.parse(data.candidates[0].content.parts[0].text);
-        state.extractedData = extracted;
-
-        metaVendor.value = extracted.vendor || '';
-        metaDate.value = extracted.date || new Date().toISOString().slice(0, 10);
-        metaAmount.value = extracted.totalAmount || '';
-        if (extracted.currency) metaCurrency.value = extracted.currency.toUpperCase();
-        if (extracted.category) metaCategory.value = extracted.category;
-
-        extractionBox.classList.remove('hidden');
-        showToast("Document analyzed - tap Save", "success");
+        if (extracted.documentName && !docNameInput.value.trim()) {
+          docNameInput.value = extracted.documentName;
+          showToast(`Identified: "${extracted.documentName}"`, "success");
+        }
       } catch (err) {
-        console.error(err);
-        metaDate.value = new Date().toISOString().slice(0, 10);
-        extractionBox.classList.remove('hidden');
-        showToast("Ready to save", "normal");
+        console.warn("AI naming fallback:", err);
       }
     }
 
     // Save to Google Apps Script
     btnSubmitFile.addEventListener('click', async () => {
+      if (!state.activeFileBase64) {
+        showToast("Please snap or choose a file first", "error");
+        return;
+      }
+
       if (!state.scriptUrl) {
         showToast("Set your Apps Script URL in Settings (⚙️)", "error");
         openSettings();
@@ -1370,13 +1311,17 @@
       btnSubmitText.textContent = "Saving...";
       btnSubmitFile.disabled = true;
 
+      // Document name priority: user typed > AI extracted > notes fallback > default
+      const finalDocName = docNameInput.value.trim() || 
+                           (voiceNoteText.value.trim() ? voiceNoteText.value.trim().slice(0, 40) : '') || 
+                           state.activeFileName || 
+                           'Receipt Document';
+
       const metadata = {
-        vendor: metaVendor.value.trim() || 'Document',
-        date: metaDate.value || new Date().toISOString().slice(0, 10),
-        totalAmount: parseFloat(metaAmount.value) || 0,
-        currency: metaCurrency.value || 'USD',
-        category: metaCategory.value || 'General',
+        vendor: finalDocName,
+        date: new Date().toISOString().slice(0, 10),
         notes: voiceNoteText.value.trim(),
+        category: 'Vault File',
         pinned: checkPinDocument.checked
       };
 
@@ -1388,15 +1333,14 @@
             action: 'save_receipt',
             fileBase64: state.activeFileBase64,
             mimeType: state.activeMimeType,
-            fileName: state.activeFileName,
+            fileName: state.activeFileName || `${finalDocName.replace(/\s+/g, '_')}.jpg`,
             metadata: metadata
           })
         });
 
         const result = await res.json();
         if (result.status === 'success') {
-          showToast("Saved to Google Drive & Cabinet!", "success");
-          voiceNoteText.value = '';
+          showToast("Saved to File Cabinet!", "success");
           resetIntake();
           syncLedger();
         } else {
@@ -1504,13 +1448,11 @@
             </div>
             <div class="receipt-meta">
               <span>📅 ${escapeHtml(r.date || '')}</span>
-              <span class="receipt-tag">${escapeHtml(r.category || 'General')}</span>
             </div>
-            ${r.notes ? `<div style="font-size:0.72rem; color:var(--text-faint); margin-top:2px;">💬 ${escapeHtml(r.notes)}</div>` : ''}
+            ${r.notes ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:3px;">💬 ${escapeHtml(r.notes)}</div>` : ''}
           </div>
           <div style="text-align:right;">
-            ${r.totalAmount ? `<div class="receipt-amount">${Number(r.totalAmount||0).toFixed(2)} ${r.currency||'USD'}</div>` : ''}
-            ${r.driveFileUrl ? `<a href="${escapeHtml(r.driveFileUrl)}" target="_blank" class="btn-drive-link">Drive ↗</a>` : ''}
+            ${r.driveFileUrl ? `<a href="${escapeHtml(r.driveFileUrl)}" target="_blank" class="btn-drive-link" style="font-size:0.75rem;">Open ↗</a>` : ''}
           </div>
         </div>
       `).join('');
