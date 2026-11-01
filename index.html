@@ -510,18 +510,48 @@
       margin-top: 4px;
     }
 
+    /* Streamlined Save Row with discrete pin */
+    .save-action-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .btn-pin-toggle-intake {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-md);
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      color: var(--text-faint);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+
+    .btn-pin-toggle-intake.active {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: var(--amber);
+      color: var(--amber);
+      box-shadow: 0 0 12px var(--amber-glow);
+    }
+
     .btn-file-submit {
-      margin-top: 8px;
-      width: 100%;
-      padding: 12px 18px;
-      border-radius: var(--radius-lg);
+      flex: 1;
+      padding: 10px 16px;
+      border-radius: var(--radius-md);
       background: var(--gradient);
       color: #FFFFFF;
-      font-size: 0.92rem;
+      font-size: 0.88rem;
       font-weight: 700;
       border: none;
       cursor: pointer;
-      box-shadow: 0 4px 20px var(--accent-glow);
+      box-shadow: 0 4px 16px var(--accent-glow);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -938,13 +968,11 @@
         <input type="text" id="voiceNoteText" placeholder="Notes / labels (e.g. taxes, car, medical)..." class="input-field">
       </div>
 
-      <!-- Optional Pin & Save action button -->
-      <div style="margin-top:10px; display:flex; flex-direction:column; gap:8px;">
-        <label class="pin-checkbox-label">
-          <input type="checkbox" id="checkPinDocument">
-          <span>📌 Pin this document for permanent quick access</span>
-        </label>
-        
+      <!-- Streamlined Save Row: Discreet Pin button + Compact Save -->
+      <div class="save-action-row">
+        <button id="btnPinToggleIntake" type="button" class="btn-pin-toggle-intake" title="Pin document for quick access">
+          📌
+        </button>
         <button id="btnSubmitFile" class="btn-file-submit">
           <span id="btnSubmitSpinner" class="spinner hidden"></span>
           <span id="btnSubmitText">Save to Vault</span>
@@ -1131,7 +1159,8 @@
     const btnVoiceDictate = document.getElementById('btnVoiceDictate');
     const docNameInput = document.getElementById('docNameInput');
     const voiceNoteText = document.getElementById('voiceNoteText');
-    const checkPinDocument = document.getElementById('checkPinDocument');
+    const btnPinToggleIntake = document.getElementById('btnPinToggleIntake');
+    let isPinnedForIntake = false;
     const btnSubmitFile = document.getElementById('btnSubmitFile');
     const btnSubmitText = document.getElementById('btnSubmitText');
     const btnSubmitSpinner = document.getElementById('btnSubmitSpinner');
@@ -1285,6 +1314,12 @@
       resetIntake();
     });
 
+    btnPinToggleIntake.addEventListener('click', () => {
+      isPinnedForIntake = !isPinnedForIntake;
+      btnPinToggleIntake.classList.toggle('active', isPinnedForIntake);
+      showToast(isPinnedForIntake ? "Document will be pinned 📌" : "Unpinned", "normal");
+    });
+
     function resetIntake() {
       state.activeFileBase64 = null;
       state.activeFileName = '';
@@ -1295,7 +1330,8 @@
       btnRemovePreview.classList.add('hidden');
       docNameInput.value = '';
       voiceNoteText.value = '';
-      checkPinDocument.checked = false;
+      isPinnedForIntake = false;
+      btnPinToggleIntake.classList.remove('active');
       cameraInput.value = '';
       docFileInput.value = '';
     }
@@ -1419,7 +1455,7 @@ Return JSON:
         date: new Date().toISOString().slice(0, 10),
         notes: voiceNoteText.value.trim(),
         category: 'Vault File',
-        pinned: checkPinDocument.checked
+        pinned: isPinnedForIntake
       };
 
       try {
@@ -1536,31 +1572,31 @@ Return JSON:
         return;
       }
 
-      function getDirectPreviewUrl(driveUrl, fileId) {
-        if (!fileId && driveUrl) {
-          const match = driveUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || driveUrl.match(/id=([a-zA-Z0-9_-]+)/);
-          if (match) fileId = match[1];
-        }
-        if (fileId) {
-          return `https://drive.google.com/uc?export=view&id=${fileId}`;
-        }
-        return driveUrl;
-      }
+    // Extract Clean Google Drive File ID and Direct URLs
+    function getDriveFileId(doc) {
+      if (doc.fileId && doc.fileId.trim()) return doc.fileId.trim();
+      const url = doc.driveFileUrl || '';
+      const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || 
+                    url.match(/\/d\/([a-zA-Z0-9_-]+)/) || 
+                    url.match(/id=([a-zA-Z0-9_-]+)/);
+      return match ? match[1] : '';
+    }
 
-      function getDirectDownloadUrl(driveUrl, fileId) {
-        if (!fileId && driveUrl) {
-          const match = driveUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || driveUrl.match(/id=([a-zA-Z0-9_-]+)/);
-          if (match) fileId = match[1];
-        }
-        if (fileId) {
-          return `https://drive.google.com/uc?export=download&id=${fileId}`;
-        }
-        return driveUrl;
-      }
+    function getDriveWebUrl(doc) {
+      const fileId = getDriveFileId(doc);
+      if (fileId) return `https://drive.google.com/file/d/${fileId}/view?usp=sharing`;
+      return doc.driveFileUrl || '';
+    }
+
+    function getDriveDirectDownloadUrl(doc) {
+      const fileId = getDriveFileId(doc);
+      if (fileId) return `https://drive.google.com/uc?export=download&id=${fileId}`;
+      return doc.driveFileUrl || '';
+    }
 
       cabinetList.innerHTML = records.map(r => {
-        const directUrl = getDirectPreviewUrl(r.driveFileUrl, r.fileId);
-        const downloadUrl = getDirectDownloadUrl(r.driveFileUrl, r.fileId);
+        const webUrl = getDriveWebUrl(r);
+        const downloadUrl = getDriveDirectDownloadUrl(r);
 
         return `
         <div class="receipt-item ${r.pinned ? 'is-pinned' : ''}">
@@ -1582,7 +1618,7 @@ Return JSON:
               <button type="button" class="btn-doc-action" onclick="shareDocument(${r.rowId})">
                 📤 Share
               </button>
-              <a href="${escapeHtml(downloadUrl)}" target="_blank" download class="btn-doc-action">
+              <a href="${escapeHtml(downloadUrl)}" target="_blank" rel="noopener noreferrer" download class="btn-doc-action">
                 ⬇️ Download
               </a>
             </div>
@@ -1621,28 +1657,20 @@ Return JSON:
       viewerTitle.textContent = doc.vendor || 'Document';
       viewerNotes.textContent = doc.notes ? `Notes: ${doc.notes}` : '';
 
-      const driveUrl = doc.driveFileUrl || '';
-      btnViewerDrive.href = driveUrl;
+      const fileId = getDriveFileId(doc);
+      const webUrl = getDriveWebUrl(doc);
+      const downloadDirect = getDriveDirectDownloadUrl(doc);
 
-      // Extract fileId
-      let fileId = doc.fileId || '';
-      if (!fileId && driveUrl) {
-        const m = driveUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || driveUrl.match(/id=([a-zA-Z0-9_-]+)/);
-        if (m) fileId = m[1];
-      }
-
-      const previewDirect = fileId ? `https://drive.google.com/uc?export=view&id=${fileId}` : driveUrl;
-      const downloadDirect = fileId ? `https://drive.google.com/uc?export=download&id=${fileId}` : driveUrl;
+      btnViewerDrive.href = webUrl;
       btnViewerDownload.href = downloadDirect;
 
-      // Check if image vs PDF
-      const isImg = !driveUrl.includes('.pdf') && !doc.vendor?.toLowerCase().endsWith('.pdf');
-      if (isImg && previewDirect) {
-        viewerContent.innerHTML = `<img src="${escapeHtml(previewDirect)}" alt="Preview" style="max-width:100%; max-height:55vh; object-fit:contain; border-radius:8px;">`;
-      } else if (fileId) {
-        viewerContent.innerHTML = `<iframe src="https://drive.google.com/file/d/${fileId}/preview" style="width:100%; height:50vh; border:none; border-radius:8px;"></iframe>`;
+      if (fileId) {
+        // Embed Google Drive official preview iframe which renders images, PDFs, docs reliably
+        viewerContent.innerHTML = `<iframe src="https://drive.google.com/file/d/${fileId}/preview" style="width:100%; height:52vh; border:none; border-radius:8px;" allow="autoplay"></iframe>`;
+      } else if (doc.driveFileUrl) {
+        viewerContent.innerHTML = `<iframe src="${escapeHtml(doc.driveFileUrl)}" style="width:100%; height:52vh; border:none; border-radius:8px;"></iframe>`;
       } else {
-        viewerContent.innerHTML = `<div style="color:var(--text-faint); padding:20px; text-align:center;">No direct preview. Tap "Open in Drive" below.</div>`;
+        viewerContent.innerHTML = `<div style="color:var(--text-faint); padding:30px; text-align:center;">No direct preview available.</div>`;
       }
 
       docViewerModal.classList.remove('hidden');
@@ -1657,10 +1685,12 @@ Return JSON:
       const doc = state.cachedLedger.find(r => r.rowId === rowId);
       if (!doc) return;
 
+      const webUrl = getDriveWebUrl(doc);
+
       const shareData = {
         title: doc.vendor || 'Vault Document',
         text: doc.notes ? `${doc.vendor} - ${doc.notes}` : doc.vendor,
-        url: doc.driveFileUrl || window.location.href
+        url: webUrl
       };
 
       if (navigator.share) {
@@ -1668,11 +1698,11 @@ Return JSON:
           await navigator.share(shareData);
           showToast("Shared!", "success");
         } catch (e) {}
-      } else if (navigator.clipboard && doc.driveFileUrl) {
-        navigator.clipboard.writeText(doc.driveFileUrl);
+      } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(webUrl);
         showToast("Drive link copied to clipboard!", "success");
       } else {
-        alert(`Document Link:\n${doc.driveFileUrl}`);
+        alert(`Document Link:\n${webUrl}`);
       }
     };
 
