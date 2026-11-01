@@ -1,6 +1,30 @@
 # Clean Vault 🗄️⚡
-> **Autonomous AI Mobile Document & Receipt Vault**  
-> Snap a receipt, dictate a note, and let Gemini AI file it automatically into your personal Google Drive and Sheets ledger. Retrieve everything with natural voice or text queries.
+> **Autonomous Mobile Document & Receipt Vault**  
+> Native Android app & PWA for fast, offline-first document organizing with zero-lag storage, speech dictation, and optional automatic Google Drive backup and shared multi-device sync.
+
+---
+
+## 📱 Download the Native Android App
+
+- **[Download CleanVault.apk](https://github.com/ezshap-rgb/Clean-Vault/raw/main/CleanVault.apk)**
+- **[Step-by-Step Setup & Sharing Guide](CLEAN_VAULT_SETUP_GUIDE.md)**
+
+---
+
+## ⚡ Standalone (Local-Only) vs Cloud Backup
+
+1. **Standalone (Local-Only)**:
+   - Clean Vault works **100% out of the box with zero configuration**.
+   - All documents, photos, PDFs, and notes are saved to your device's internal storage.
+   - Built-in on-device speech dictation for document names and labels.
+   - 0ms latency viewing, downloading, searching, pinning, and sharing.
+   - No internet connection or accounts required.
+
+2. **Personal Google Drive Backup & Multi-Device Sync (Optional)**:
+   - Free personal cloud backup to your own Google Drive (`Clean_Vault_Files`) and Google Sheets (`Clean_Vault_Ledger`).
+   - Syncs on app open and close.
+   - Allows spouses or family members to share the exact same synchronized cabinet across multiple phones!
+   - Follow the **[Setup Guide](CLEAN_VAULT_SETUP_GUIDE.md)** to connect in under 3 minutes.
 
 ---
 
