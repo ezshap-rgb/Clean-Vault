@@ -4,14 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Clean Vault</title>
-  <link rel="icon" type="image/png" href="icon.png">
-  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="manifest" href="manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Clean Vault">
   <meta name="theme-color" content="#070913">
 
-  <!-- Google Fonts: Outfit & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
@@ -27,14 +28,9 @@
       --border-highlight: #2F3E6C;
       --accent: #5C4FEE;
       --accent-mid: #A816DF;
-      --accent-hover: #6D61FF;
       --accent-glow: rgba(92, 79, 238, 0.4);
-      --warning: #F50ACE;
-      --magenta-glow: rgba(245, 10, 206, 0.4);
       --amber: #F59E0B;
-      --amber-hover: #FBBF24;
       --amber-glow: rgba(245, 158, 11, 0.45);
-      --blue-indigo: #4F68FF;
       --rose: #F43F5E;
       --emerald: #10B981;
       --text-main: #FFFFFF;
@@ -158,7 +154,6 @@
       box-shadow: 0 0 8px var(--rose);
     }
 
-    /* Settings Wheel Button (no words, clean icon) */
     .btn-settings-wheel {
       width: 38px;
       height: 38px;
@@ -216,7 +211,56 @@
       color: var(--amber);
     }
 
-    /* Clean Camera Tap Area (icon only, minimal words) */
+    /* Pinned Quick Access Row on Home Page */
+    .pinned-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .pinned-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--amber);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .pinned-chips {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-bottom: 4px;
+    }
+
+    .pinned-chips::-webkit-scrollbar { display: none; }
+
+    .pinned-chip {
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      border-radius: var(--radius-pill);
+      padding: 5px 12px;
+      font-size: 0.74rem;
+      color: #FFFFFF;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s;
+    }
+
+    .pinned-chip:hover {
+      background: rgba(245, 158, 11, 0.25);
+    }
+
+    /* Clean Camera Tap Area */
     .camera-box {
       position: relative;
       border: 2px dashed var(--border-highlight);
@@ -230,7 +274,7 @@
       text-align: center;
       cursor: pointer;
       overflow: hidden;
-      min-height: 140px;
+      min-height: 130px;
       transition: border-color 0.2s, background 0.2s;
     }
 
@@ -240,8 +284,8 @@
     }
 
     .camera-circle {
-      width: 54px;
-      height: 54px;
+      width: 52px;
+      height: 52px;
       border-radius: 18px;
       background: var(--gradient);
       box-shadow: 0 4px 16px var(--accent-glow);
@@ -263,6 +307,20 @@
       height: 100%;
       object-fit: cover;
       border-radius: var(--radius-lg);
+    }
+
+    .pdf-preview-box {
+      position: absolute;
+      inset: 0;
+      background: var(--surface-raised);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #F8FAFC;
+      font-size: 0.82rem;
+      font-weight: 600;
     }
 
     .btn-remove-preview {
@@ -428,9 +486,19 @@
       border-color: var(--accent);
     }
 
-    /* Primary CTA */
+    .pin-checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+      color: var(--amber);
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+
     .btn-file-submit {
-      margin-top: 12px;
+      margin-top: 8px;
       width: 100%;
       padding: 12px 18px;
       border-radius: var(--radius-lg);
@@ -459,7 +527,7 @@
       box-shadow: none;
     }
 
-    /* Retrieve Card with two fields: AI Ask + Ledger Button */
+    /* Retrieve Card with two fields: AI Ask + File Cabinet Button */
     .retrieval-grid {
       display: flex;
       flex-direction: column;
@@ -499,14 +567,14 @@
       transform: scale(0.95);
     }
 
-    .btn-open-ledger {
+    .btn-open-cabinet {
       width: 100%;
-      padding: 11px 16px;
+      padding: 12px 16px;
       border-radius: var(--radius-md);
       background: var(--surface-raised);
       border: 1px solid var(--border);
       color: var(--text-main);
-      font-size: 0.86rem;
+      font-size: 0.88rem;
       font-weight: 600;
       display: flex;
       align-items: center;
@@ -515,12 +583,12 @@
       transition: all 0.15s;
     }
 
-    .btn-open-ledger:active {
+    .btn-open-cabinet:active {
       transform: scale(0.98);
       background: var(--surface-hover);
     }
 
-    .ledger-badge {
+    .cabinet-badge {
       font-family: 'JetBrains Mono', monospace;
       font-size: 0.72rem;
       font-weight: 700;
@@ -531,7 +599,7 @@
       color: var(--amber);
     }
 
-    /* Modal / Popups for Ledger and Settings */
+    /* Modal / Popups */
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -605,7 +673,7 @@
       gap: 12px;
     }
 
-    /* Ledger List items */
+    /* File Cabinet Items */
     .receipt-item {
       background: var(--surface-raised);
       border: 1px solid var(--border);
@@ -615,6 +683,12 @@
       justify-content: space-between;
       align-items: flex-start;
       gap: 10px;
+      position: relative;
+    }
+
+    .receipt-item.is-pinned {
+      border-color: rgba(245, 158, 11, 0.45);
+      background: linear-gradient(145deg, rgba(21, 28, 51, 0.95), rgba(30, 24, 15, 0.4));
     }
 
     .receipt-vendor {
@@ -649,6 +723,20 @@
       text-align: right;
     }
 
+    .btn-pin-toggle {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      opacity: 0.4;
+      transition: opacity 0.15s, transform 0.15s;
+    }
+
+    .btn-pin-toggle.active {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+
     .btn-drive-link {
       display: inline-block;
       margin-top: 4px;
@@ -677,9 +765,7 @@
       padding-bottom: 2px;
     }
 
-    .chips-row::-webkit-scrollbar {
-      display: none;
-    }
+    .chips-row::-webkit-scrollbar { display: none; }
 
     .query-chip {
       padding: 4px 10px;
@@ -711,10 +797,7 @@
       pointer-events: none;
     }
 
-    .status-toast.show {
-      transform: translateX(-50%) translateY(0);
-    }
-
+    .status-toast.show { transform: translateX(-50%) translateY(0); }
     .status-toast.success { border-color: var(--emerald); }
     .status-toast.error { border-color: var(--rose); }
 
@@ -742,23 +825,28 @@
 
   <div class="app-shell">
 
-    <!-- Clean Header with Settings Wheel (no text) -->
+    <!-- Clean Header with Settings Wheel -->
     <header>
       <div class="brand">
-        <img src="icon.png" alt="Clean Vault" class="brand-logo-img">
+        <img src="icon-192.png" alt="Clean Vault" class="brand-logo-img">
         <h1 class="brand-title">Clean Vault</h1>
       </div>
       <div class="header-actions">
         <div id="syncIndicator" class="sync-indicator" title="Cloud Sync Status"></div>
         <button id="btnOpenSettings" class="btn-settings-wheel" title="Settings">
-          <!-- Clean Settings Gear Icon -->
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>
       </div>
     </header>
 
+    <!-- Quick Pinned Access Row (if any pinned) -->
+    <div id="pinnedSection" class="pinned-section hidden">
+      <div class="pinned-label">📌 Pinned Access</div>
+      <div id="pinnedChipsContainer" class="pinned-chips"></div>
+    </div>
+
     <!-- ============================================== -->
-    <!-- CARD 1: FILE (Streamlined Intake)              -->
+    <!-- CARD 1: FILE                                   -->
     <!-- ============================================== -->
     <section class="card">
       <div class="card-title-bar">
@@ -768,9 +856,13 @@
         </span>
       </div>
 
-      <!-- Camera Tap Zone (Simple camera icon, no extra clutter) -->
+      <!-- Camera Tap Zone -->
       <div id="cameraBox" class="camera-box" title="Tap to snap photo">
-        <img id="imagePreview" class="preview-img hidden" alt="Receipt">
+        <img id="imagePreview" class="preview-img hidden" alt="Preview">
+        <div id="pdfPreviewBox" class="pdf-preview-box hidden">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          <span id="pdfFileName">Document.pdf</span>
+        </div>
         
         <div id="cameraIconWrap" class="camera-circle">
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -779,14 +871,14 @@
         <button id="btnRemovePreview" class="btn-remove-preview hidden" title="Remove">✕</button>
       </div>
 
-      <!-- Hidden inputs -->
+      <!-- File Inputs: Supports Photos, PDFs, Docs -->
       <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
-      <input type="file" id="galleryInput" accept="image/*" class="hidden">
+      <input type="file" id="docFileInput" accept="image/*,application/pdf,.pdf,.doc,.docx,.txt" class="hidden">
 
-      <!-- Choose File Option below the camera box -->
+      <!-- Choose File Button (Photos, PDFs, Docs) -->
       <button id="btnChooseFile" type="button" class="btn-choose-file">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-        Choose file
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Choose file (Photo, PDF, Doc)
       </button>
 
       <!-- Dictate or Type Context -->
@@ -797,11 +889,11 @@
         <input type="text" id="voiceNoteText" placeholder="Dictate or type quick notes..." class="input-field">
       </div>
 
-      <!-- AI Extraction Review (auto-revealed after photo analysis) -->
+      <!-- AI Extraction Review -->
       <div id="extractionBox" class="extraction-box hidden">
         <div class="fields-grid">
           <div class="form-group">
-            <label class="form-label">Vendor</label>
+            <label class="form-label">Vendor / Document</label>
             <input type="text" id="metaVendor" class="form-input">
           </div>
           <div class="form-group">
@@ -810,7 +902,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">Amount</label>
-            <input type="number" step="0.01" id="metaAmount" class="form-input mono">
+            <input type="number" step="0.01" id="metaAmount" class="form-input mono" placeholder="0.00">
           </div>
           <div class="form-group">
             <label class="form-label">Currency</label>
@@ -833,8 +925,15 @@
               <option value="Travel & Transport">Travel</option>
               <option value="Utilities">Utilities</option>
               <option value="Medical & Health">Medical</option>
+              <option value="Official / Legal">Official / Legal Documents</option>
               <option value="Other">Other</option>
             </select>
+          </div>
+          <div class="form-group full">
+            <label class="pin-checkbox-label">
+              <input type="checkbox" id="checkPinDocument">
+              <span>📌 Pin this document for permanent quick access</span>
+            </label>
           </div>
         </div>
 
@@ -846,7 +945,7 @@
     </section>
 
     <!-- ============================================== -->
-    <!-- CARD 2: RETRIEVE (Ask + Ledger Button)         -->
+    <!-- CARD 2: RETRIEVE (Ask + File Cabinet Button)   -->
     <!-- ============================================== -->
     <section class="card">
       <div class="card-title-bar">
@@ -857,36 +956,36 @@
       </div>
 
       <div class="retrieval-grid">
-        <!-- Field 1: Retrieval Ask (voice or text) -->
+        <!-- Field 1: Retrieval Ask -->
         <div class="ask-row">
           <button id="btnVoiceQuery" type="button" class="btn-mic" style="width:34px; height:34px; border-radius:10px;" title="Dictate query">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
           </button>
-          <input type="text" id="queryInput" placeholder="Ask: 'Groceries in March?', 'Monitor receipt'..." class="input-field">
+          <input type="text" id="queryInput" placeholder="Ask: 'Passport copy', 'Groceries in March'..." class="input-field">
           <button id="btnAskQuery" type="button" class="btn-ask-submit">Ask</button>
         </div>
 
         <!-- Suggestion chips -->
         <div class="chips-row">
+          <div class="query-chip" onclick="quickAsk('Show my pinned and essential documents')">📌 Pinned Docs</div>
           <div class="query-chip" onclick="quickAsk('How much spent on groceries?')">🛒 Groceries</div>
-          <div class="query-chip" onclick="quickAsk('Show recent hardware and tech receipts')">💻 Hardware</div>
+          <div class="query-chip" onclick="quickAsk('Find tech and hardware receipts')">💻 Tech</div>
           <div class="query-chip" onclick="quickAsk('Dining expenses this month?')">🍽️ Dining</div>
-          <div class="query-chip" onclick="quickAsk('Highest receipt in the vault?')">💎 Highest</div>
         </div>
 
-        <!-- AI Query Answer (shown if answered) -->
+        <!-- AI Query Answer -->
         <div id="aiReplyCard" class="ai-reply-card hidden">
           <div id="aiReplyContent"></div>
           <div id="aiReplyMatches" style="margin-top:10px; display:flex; flex-direction:column; gap:6px;"></div>
         </div>
 
-        <!-- Field 2: Ledger Button (opens ledger tab/modal) -->
-        <button id="btnOpenLedgerModal" type="button" class="btn-open-ledger">
+        <!-- Field 2: File Cabinet Button -->
+        <button id="btnOpenCabinetModal" type="button" class="btn-open-cabinet">
           <span style="display:flex; align-items:center; gap:8px;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-            Open Ledger
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><circle cx="12" cy="6" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="18" r="1"/></svg>
+            File Cabinet
           </span>
-          <span id="ledgerCountBadge" class="ledger-badge">0 records</span>
+          <span id="cabinetCountBadge" class="cabinet-badge">0 documents</span>
         </button>
       </div>
     </section>
@@ -894,28 +993,26 @@
   </div>
 
   <!-- ============================================== -->
-  <!-- MODAL: LEDGER                                  -->
+  <!-- MODAL: FILE CABINET                            -->
   <!-- ============================================== -->
-  <div id="ledgerModal" class="modal-overlay hidden">
+  <div id="cabinetModal" class="modal-overlay hidden">
     <div class="modal-dialog">
       <div class="modal-header">
         <div class="modal-title">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-          Vault Ledger
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/></svg>
+          File Cabinet
         </div>
-        <button id="btnCloseLedger" class="btn-close-modal">✕</button>
+        <button id="btnCloseCabinet" class="btn-close-modal">✕</button>
       </div>
       <div class="modal-body">
-        <input type="text" id="ledgerSearchInput" class="form-input" placeholder="Filter receipts by vendor or notes...">
-        <div id="ledgerList" style="display:flex; flex-direction:column; gap:8px;">
-          <!-- Loaded dynamically -->
-        </div>
+        <input type="text" id="cabinetSearchInput" class="form-input" placeholder="Filter by document name, vendor, category or notes...">
+        <div id="cabinetList" style="display:flex; flex-direction:column; gap:8px;"></div>
       </div>
     </div>
   </div>
 
   <!-- ============================================== -->
-  <!-- MODAL: SETTINGS (Opened via header wheel)      -->
+  <!-- MODAL: SETTINGS                                -->
   <!-- ============================================== -->
   <div id="settingsModal" class="modal-overlay hidden">
     <div class="modal-dialog">
@@ -956,14 +1053,15 @@
     </div>
   </div>
 
-  <!-- Script -->
   <script>
     const state = {
       apiKey: localStorage.getItem('VAULT_GEMINI_KEY') || '',
       model: localStorage.getItem('VAULT_GEMINI_MODEL') || 'gemini-2.5-flash',
       scriptUrl: localStorage.getItem('VAULT_SCRIPT_URL') || '',
       cachedLedger: JSON.parse(localStorage.getItem('VAULT_CACHED_LEDGER') || '[]'),
-      activeImageBase64: null,
+      activeFileBase64: null,
+      activeMimeType: 'image/jpeg',
+      activeFileName: '',
       extractedData: null,
       isListeningDictate: false,
       isListeningQuery: false
@@ -972,9 +1070,11 @@
     // DOM
     const cameraBox = document.getElementById('cameraBox');
     const cameraInput = document.getElementById('cameraInput');
-    const galleryInput = document.getElementById('galleryInput');
+    const docFileInput = document.getElementById('docFileInput');
     const btnChooseFile = document.getElementById('btnChooseFile');
     const imagePreview = document.getElementById('imagePreview');
+    const pdfPreviewBox = document.getElementById('pdfPreviewBox');
+    const pdfFileName = document.getElementById('pdfFileName');
     const cameraIconWrap = document.getElementById('cameraIconWrap');
     const btnRemovePreview = document.getElementById('btnRemovePreview');
 
@@ -986,9 +1086,13 @@
     const metaAmount = document.getElementById('metaAmount');
     const metaCurrency = document.getElementById('metaCurrency');
     const metaCategory = document.getElementById('metaCategory');
+    const checkPinDocument = document.getElementById('checkPinDocument');
     const btnSubmitFile = document.getElementById('btnSubmitFile');
     const btnSubmitText = document.getElementById('btnSubmitText');
     const btnSubmitSpinner = document.getElementById('btnSubmitSpinner');
+
+    const pinnedSection = document.getElementById('pinnedSection');
+    const pinnedChipsContainer = document.getElementById('pinnedChipsContainer');
 
     const queryInput = document.getElementById('queryInput');
     const btnVoiceQuery = document.getElementById('btnVoiceQuery');
@@ -997,12 +1101,12 @@
     const aiReplyContent = document.getElementById('aiReplyContent');
     const aiReplyMatches = document.getElementById('aiReplyMatches');
 
-    const btnOpenLedgerModal = document.getElementById('btnOpenLedgerModal');
-    const ledgerModal = document.getElementById('ledgerModal');
-    const btnCloseLedger = document.getElementById('btnCloseLedger');
-    const ledgerList = document.getElementById('ledgerList');
-    const ledgerSearchInput = document.getElementById('ledgerSearchInput');
-    const ledgerCountBadge = document.getElementById('ledgerCountBadge');
+    const btnOpenCabinetModal = document.getElementById('btnOpenCabinetModal');
+    const cabinetModal = document.getElementById('cabinetModal');
+    const btnCloseCabinet = document.getElementById('btnCloseCabinet');
+    const cabinetList = document.getElementById('cabinetList');
+    const cabinetSearchInput = document.getElementById('cabinetSearchInput');
+    const cabinetCountBadge = document.getElementById('cabinetCountBadge');
 
     const btnOpenSettings = document.getElementById('btnOpenSettings');
     const settingsModal = document.getElementById('settingsModal');
@@ -1022,55 +1126,102 @@
       inputGeminiKey.value = state.apiKey;
       selectGeminiModel.value = state.model;
       inputScriptUrl.value = state.scriptUrl;
-      updateBadge();
+      updateCabinetCount();
+      renderPinnedChips();
       if (state.scriptUrl) syncLedger(true);
     });
 
-    function updateBadge() {
-      ledgerCountBadge.textContent = `${state.cachedLedger.length} records`;
+    function updateCabinetCount() {
+      cabinetCountBadge.textContent = `${state.cachedLedger.length} documents`;
     }
 
-    // Camera & Photo Handling
+    function renderPinnedChips() {
+      const pinned = state.cachedLedger.filter(r => r.pinned);
+      if (!pinned.length) {
+        pinnedSection.classList.add('hidden');
+        return;
+      }
+      pinnedSection.classList.remove('hidden');
+      pinnedChipsContainer.innerHTML = pinned.map(r => `
+        <div class="pinned-chip" onclick="openDriveUrl('${escapeHtml(r.driveFileUrl)}')">
+          <span>📌</span>
+          <span>${escapeHtml(r.vendor || 'Document')}</span>
+          ${r.totalAmount ? `<span style="color:var(--emerald); font-family:'JetBrains Mono';">${r.totalAmount} ${r.currency}</span>` : ''}
+        </div>
+      `).join('');
+    }
+
+    window.openDriveUrl = (url) => {
+      if (url) window.open(url, '_blank');
+      else showToast("No file URL linked", "normal");
+    };
+
+    // Camera & File Picker Handling
     cameraBox.addEventListener('click', (e) => {
       if (e.target.closest('#btnRemovePreview')) return;
-      if (!state.activeImageBase64) cameraInput.click();
+      if (!state.activeFileBase64) cameraInput.click();
     });
 
-    btnChooseFile.addEventListener('click', () => galleryInput.click());
-    cameraInput.addEventListener('change', handleFile);
-    galleryInput.addEventListener('change', handleFile);
+    btnChooseFile.addEventListener('click', () => docFileInput.click());
+    cameraInput.addEventListener('change', (e) => handleFileSelected(e.target.files[0]));
+    docFileInput.addEventListener('change', (e) => handleFileSelected(e.target.files[0]));
 
-    function handleFile(e) {
-      const file = e.target.files && e.target.files[0];
+    function handleFileSelected(file) {
       if (!file) return;
 
-      showToast("Optimizing photo...", "normal");
+      state.activeMimeType = file.type || 'application/octet-stream';
+      state.activeFileName = file.name;
+
+      const isImage = file.type.startsWith('image/');
+      const isPdf = file.type.includes('pdf');
+
+      showToast("Loading document...", "normal");
 
       const reader = new FileReader();
       reader.onload = (evt) => {
-        const img = new Image();
-        img.onload = () => {
-          const maxDim = 1600;
-          let w = img.width, h = img.height;
-          if (w > h && w > maxDim) { h = Math.round((h * maxDim) / w); w = maxDim; }
-          else if (h > maxDim) { w = Math.round((w * maxDim) / h); h = maxDim; }
+        if (isImage) {
+          const img = new Image();
+          img.onload = () => {
+            const maxDim = 1600;
+            let w = img.width, h = img.height;
+            if (w > h && w > maxDim) { h = Math.round((h * maxDim) / w); w = maxDim; }
+            else if (h > maxDim) { w = Math.round((w * maxDim) / h); h = maxDim; }
 
-          const canvas = document.createElement('canvas');
-          canvas.width = w; canvas.height = h;
-          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
 
-          const compressed = canvas.toDataURL('image/jpeg', 0.82);
-          state.activeImageBase64 = compressed;
+            state.activeFileBase64 = canvas.toDataURL('image/jpeg', 0.82);
+            imagePreview.src = state.activeFileBase64;
+            imagePreview.classList.remove('hidden');
+            pdfPreviewBox.classList.add('hidden');
+            cameraIconWrap.classList.add('hidden');
+            btnRemovePreview.classList.remove('hidden');
 
-          imagePreview.src = compressed;
-          imagePreview.classList.remove('hidden');
+            analyzeDocumentWithGemini(state.activeFileBase64, 'image/jpeg');
+          };
+          img.src = evt.target.result;
+        } else {
+          // PDF or other document format
+          state.activeFileBase64 = evt.target.result;
+          imagePreview.classList.add('hidden');
+          pdfPreviewBox.classList.remove('hidden');
+          pdfFileName.textContent = file.name;
           cameraIconWrap.classList.add('hidden');
           btnRemovePreview.classList.remove('hidden');
 
-          analyzeReceipt();
-        };
-        img.src = evt.target.result;
+          if (isPdf) {
+            analyzeDocumentWithGemini(state.activeFileBase64, 'application/pdf');
+          } else {
+            // General doc: user fills fields directly
+            metaVendor.value = file.name.replace(/\.[^/.]+$/, "");
+            metaDate.value = new Date().toISOString().slice(0, 10);
+            metaCategory.value = 'Official / Legal';
+            extractionBox.classList.remove('hidden');
+          }
+        }
       };
+
       reader.readAsDataURL(file);
     }
 
@@ -1080,15 +1231,17 @@
     });
 
     function resetIntake() {
-      state.activeImageBase64 = null;
-      state.extractedData = null;
+      state.activeFileBase64 = null;
+      state.activeFileName = '';
       imagePreview.src = '';
       imagePreview.classList.add('hidden');
+      pdfPreviewBox.classList.add('hidden');
       cameraIconWrap.classList.remove('hidden');
       btnRemovePreview.classList.add('hidden');
       extractionBox.classList.add('hidden');
+      checkPinDocument.checked = false;
       cameraInput.value = '';
-      galleryInput.value = '';
+      docFileInput.value = '';
     }
 
     // Web Speech API
@@ -1124,24 +1277,24 @@
       if (state.isListeningQuery) recQuery.stop(); else recQuery.start();
     });
 
-    // Gemini Vision Analysis
-    async function analyzeReceipt() {
+    // Gemini Multimodal Extraction (Image or PDF)
+    async function analyzeDocumentWithGemini(dataUrl, mimeType) {
       if (!state.apiKey) {
         showToast("Set your Gemini API Key in Settings (⚙️)", "error");
         openSettings();
         return;
       }
 
-      showToast("Gemini AI analyzing receipt...", "normal");
+      showToast("Gemini AI analyzing document...", "normal");
 
-      const rawBase64 = state.activeImageBase64.split(',')[1];
-      const prompt = `Analyze this receipt. User note: "${voiceNoteText.value}". Extract structured details.`;
+      const rawBase64 = dataUrl.split(',')[1];
+      const prompt = `Analyze this document or receipt. User notes: "${voiceNoteText.value}". Extract structured details. If no amount exists, use 0.`;
 
       const payload = {
         contents: [{
           parts: [
             { text: prompt },
-            { inlineData: { mimeType: "image/jpeg", data: rawBase64 } }
+            { inlineData: { mimeType: mimeType, data: rawBase64 } }
           ]
         }],
         generationConfig: {
@@ -1179,7 +1332,7 @@
         if (extracted.category) metaCategory.value = extracted.category;
 
         extractionBox.classList.remove('hidden');
-        showToast("Receipt extracted - tap Save", "success");
+        showToast("Document analyzed - tap Save", "success");
       } catch (err) {
         console.error(err);
         metaDate.value = new Date().toISOString().slice(0, 10);
@@ -1188,7 +1341,7 @@
       }
     }
 
-    // Save Receipt to Apps Script
+    // Save to Google Apps Script
     btnSubmitFile.addEventListener('click', async () => {
       if (!state.scriptUrl) {
         showToast("Set your Apps Script URL in Settings (⚙️)", "error");
@@ -1201,12 +1354,13 @@
       btnSubmitFile.disabled = true;
 
       const metadata = {
-        vendor: metaVendor.value.trim() || 'Unknown',
+        vendor: metaVendor.value.trim() || 'Document',
         date: metaDate.value || new Date().toISOString().slice(0, 10),
         totalAmount: parseFloat(metaAmount.value) || 0,
         currency: metaCurrency.value || 'USD',
         category: metaCategory.value || 'General',
-        notes: voiceNoteText.value.trim()
+        notes: voiceNoteText.value.trim(),
+        pinned: checkPinDocument.checked
       };
 
       try {
@@ -1215,14 +1369,16 @@
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({
             action: 'save_receipt',
-            imageBase64: state.activeImageBase64,
+            fileBase64: state.activeFileBase64,
+            mimeType: state.activeMimeType,
+            fileName: state.activeFileName,
             metadata: metadata
           })
         });
 
         const result = await res.json();
         if (result.status === 'success') {
-          showToast("Saved to Google Drive & Sheets!", "success");
+          showToast("Saved to Google Drive & Cabinet!", "success");
           voiceNoteText.value = '';
           resetIntake();
           syncLedger();
@@ -1248,13 +1404,13 @@
       if (!q) return;
 
       if (!state.apiKey) { showToast("Set Gemini API key in Settings (⚙️)", "error"); openSettings(); return; }
-      if (!state.cachedLedger.length) { showToast("Ledger is empty.", "normal"); return; }
+      if (!state.cachedLedger.length) { showToast("Cabinet is empty.", "normal"); return; }
 
       aiReplyCard.classList.remove('hidden');
-      aiReplyContent.innerHTML = `<span class="spinner" style="display:inline-block; vertical-align:middle; margin-right:6px;"></span> Searching vault...`;
+      aiReplyContent.innerHTML = `<span class="spinner" style="display:inline-block; vertical-align:middle; margin-right:6px;"></span> Searching cabinet...`;
       aiReplyMatches.innerHTML = '';
 
-      const sys = `User document ledger: ${JSON.stringify(state.cachedLedger)}. Answer user question with calculations. Return JSON: {"answer":"...", "matchingRowIds":[1,2]}`;
+      const sys = `User document ledger: ${JSON.stringify(state.cachedLedger)}. Answer question accurately. If asking about pinned documents, filter pinned:true. Return JSON: {"answer":"...", "matchingRowIds":[1,2]}`;
 
       try {
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${state.model}:generateContent?key=${state.apiKey}`, {
@@ -1274,11 +1430,11 @@
         aiReplyMatches.innerHTML = matches.map(r => `
           <div class="receipt-item" style="padding:8px; font-size:0.8rem;">
             <div>
-              <div style="font-weight:700; color:#FFF;">${escapeHtml(r.vendor || 'Unknown')}</div>
+              <div style="font-weight:700; color:#FFF;">${r.pinned ? '📌 ' : ''}${escapeHtml(r.vendor || 'Unknown')}</div>
               <div style="font-size:0.68rem; color:var(--text-faint);">${r.date} • ${r.category}</div>
             </div>
             <div style="text-align:right;">
-              <div style="font-weight:700; color:var(--emerald);">${r.totalAmount} ${r.currency}</div>
+              ${r.totalAmount ? `<div style="font-weight:700; color:var(--emerald);">${r.totalAmount} ${r.currency}</div>` : ''}
               ${r.driveFileUrl ? `<a href="${r.driveFileUrl}" target="_blank" class="btn-drive-link">Drive ↗</a>` : ''}
             </div>
           </div>
@@ -1288,7 +1444,7 @@
       }
     }
 
-    // Ledger Sync & Modal
+    // File Cabinet Sync & Modal
     async function syncLedger(silent = false) {
       if (!state.scriptUrl) { syncIndicator.className = "sync-indicator error"; return; }
       syncIndicator.className = "sync-indicator syncing";
@@ -1299,32 +1455,36 @@
         if (data.status === 'success') {
           state.cachedLedger = data.records || [];
           localStorage.setItem('VAULT_CACHED_LEDGER', JSON.stringify(state.cachedLedger));
-          updateBadge();
-          renderLedger();
+          updateCabinetCount();
+          renderPinnedChips();
+          renderCabinet();
           syncIndicator.className = "sync-indicator";
-          if (!silent) showToast(`Synced ${state.cachedLedger.length} records`, "success");
+          if (!silent) showToast(`Synced ${state.cachedLedger.length} documents`, "success");
         }
       } catch (e) {
         syncIndicator.className = "sync-indicator error";
       }
     }
 
-    function renderLedger() {
-      const q = (ledgerSearchInput.value || '').toLowerCase().trim();
+    function renderCabinet() {
+      const q = (cabinetSearchInput.value || '').toLowerCase().trim();
       let records = state.cachedLedger;
       if (q) {
         records = records.filter(r => (r.vendor||'').toLowerCase().includes(q) || (r.category||'').toLowerCase().includes(q) || (r.notes||'').toLowerCase().includes(q));
       }
 
       if (!records.length) {
-        ledgerList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-faint); font-size:0.82rem;">No receipts found</div>`;
+        cabinetList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-faint); font-size:0.82rem;">No documents found</div>`;
         return;
       }
 
-      ledgerList.innerHTML = records.map(r => `
-        <div class="receipt-item">
-          <div>
-            <div class="receipt-vendor">${escapeHtml(r.vendor || 'Unknown')}</div>
+      cabinetList.innerHTML = records.map(r => `
+        <div class="receipt-item ${r.pinned ? 'is-pinned' : ''}">
+          <div style="flex:1;">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <button class="btn-pin-toggle ${r.pinned ? 'active' : ''}" onclick="togglePinRecord(${r.rowId})" title="${r.pinned ? 'Unpin' : 'Pin'}">📌</button>
+              <span class="receipt-vendor">${escapeHtml(r.vendor || 'Document')}</span>
+            </div>
             <div class="receipt-meta">
               <span>📅 ${escapeHtml(r.date || '')}</span>
               <span class="receipt-tag">${escapeHtml(r.category || 'General')}</span>
@@ -1332,20 +1492,38 @@
             ${r.notes ? `<div style="font-size:0.72rem; color:var(--text-faint); margin-top:2px;">💬 ${escapeHtml(r.notes)}</div>` : ''}
           </div>
           <div style="text-align:right;">
-            <div class="receipt-amount">${Number(r.totalAmount||0).toFixed(2)} ${r.currency||'USD'}</div>
+            ${r.totalAmount ? `<div class="receipt-amount">${Number(r.totalAmount||0).toFixed(2)} ${r.currency||'USD'}</div>` : ''}
             ${r.driveFileUrl ? `<a href="${escapeHtml(r.driveFileUrl)}" target="_blank" class="btn-drive-link">Drive ↗</a>` : ''}
           </div>
         </div>
       `).join('');
     }
 
-    ledgerSearchInput.addEventListener('input', renderLedger);
+    window.togglePinRecord = async (rowId) => {
+      const target = state.cachedLedger.find(r => r.rowId === rowId);
+      if (target) {
+        target.pinned = !target.pinned;
+        localStorage.setItem('VAULT_CACHED_LEDGER', JSON.stringify(state.cachedLedger));
+        renderCabinet();
+        renderPinnedChips();
+      }
 
-    btnOpenLedgerModal.addEventListener('click', () => {
-      renderLedger();
-      ledgerModal.classList.remove('hidden');
+      if (state.scriptUrl) {
+        fetch(state.scriptUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'toggle_pin', rowId: rowId })
+        }).catch(console.warn);
+      }
+    };
+
+    cabinetSearchInput.addEventListener('input', renderCabinet);
+
+    btnOpenCabinetModal.addEventListener('click', () => {
+      renderCabinet();
+      cabinetModal.classList.remove('hidden');
     });
-    btnCloseLedger.addEventListener('click', () => ledgerModal.classList.add('hidden'));
+    btnCloseCabinet.addEventListener('click', () => cabinetModal.classList.add('hidden'));
 
     // Settings Modal
     function openSettings() { settingsModal.classList.remove('hidden'); }
@@ -1395,13 +1573,13 @@
       if (confirm("Clear local cache?")) {
         localStorage.removeItem('VAULT_CACHED_LEDGER');
         state.cachedLedger = [];
-        updateBadge();
-        renderLedger();
+        updateCabinetCount();
+        renderCabinet();
+        renderPinnedChips();
         showToast("Cache cleared", "normal");
       }
     });
 
-    // Helpers
     function escapeHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
     let toastTimer;
     function showToast(msg, type="normal") {
