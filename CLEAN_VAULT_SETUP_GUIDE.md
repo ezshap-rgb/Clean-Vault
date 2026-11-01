@@ -437,3 +437,4 @@ Your phone is now connected!
 - **Sharing Across Multiple Devices:** If you and your spouse or siblings want to share the exact same file cabinet, simply install the APK on both phones and paste the **same** Web App URL into both!
 
 Enjoy Clean Vault! 🗄️✨
+

@@ -2,45 +2,37 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Clean Vault</title>
-  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clean Vault — Desktop File Cabinet</title>
+  <link rel="icon" type="image/png" href="icon-192.png">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="manifest" href="manifest.json">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Clean Vault">
-  <meta name="theme-color" content="#070913">
 
+  <!-- Google Fonts: Outfit & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 
   <style>
     :root {
       --bg-base: #070913;
       --surface: #0E1324;
-      --surface-card: #10172B;
+      --surface-card: #101530;
       --surface-raised: #151C33;
-      --surface-hover: #1E284A;
+      --surface-hover: #1A2340;
       --border: #1E2746;
       --border-highlight: #2F3E6C;
       --accent: #5C4FEE;
       --accent-mid: #A816DF;
-      --accent-glow: rgba(92, 79, 238, 0.4);
+      --accent-gradient: linear-gradient(135deg, #5C4FEE 0%, #A816DF 50%, #F50ACE 100%);
       --amber: #F59E0B;
-      --amber-glow: rgba(245, 158, 11, 0.45);
-      --rose: #F43F5E;
       --emerald: #10B981;
+      --rose: #EF4444;
       --text-main: #FFFFFF;
-      --text-muted: #CBD5E1;
-      --text-faint: #94A3B8;
-      --gradient: linear-gradient(135deg, #5C4FEE 0%, #A816DF 50%, #F50ACE 100%);
+      --text-muted: #94A3B8;
+      --text-faint: #64748B;
       --radius-sm: 8px;
       --radius-md: 12px;
       --radius-lg: 18px;
-      --radius-card: 22px;
       --radius-pill: 9999px;
     }
 
@@ -48,1760 +40,1251 @@
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
     }
 
     body {
       font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background-color: var(--bg-base);
       color: var(--text-main);
-      min-height: 100dvh;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
       overflow-x: hidden;
-      padding-bottom: calc(24px + env(safe-area-inset-bottom, 16px));
-      -webkit-font-smoothing: antialiased;
+      background-image: 
+        radial-gradient(circle at 50% -20%, rgba(92, 79, 238, 0.15) 0%, transparent 60%),
+        radial-gradient(circle at 100% 40%, rgba(168, 22, 223, 0.08) 0%, transparent 50%);
+      background-attachment: fixed;
     }
 
-    body::before {
-      content: "";
-      position: fixed;
-      top: -150px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 600px;
-      height: 400px;
-      background: radial-gradient(circle, rgba(92, 79, 238, 0.16) 0%, rgba(245, 10, 206, 0.08) 50%, transparent 70%);
-      z-index: -1;
-      pointer-events: none;
-    }
-
-    .app-shell {
-      max-width: 640px;
+    /* Container */
+    .container {
+      max-width: 1280px;
       width: 100%;
       margin: 0 auto;
-      padding: 12px 16px;
+      padding: 20px 24px 40px;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 20px;
     }
 
-    /* Top Streamlined Header */
+    /* Header */
     header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 10px 16px;
+      padding: 12px 20px;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: var(--radius-card);
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
-      position: sticky;
-      top: env(safe-area-inset-top, 8px);
-      z-index: 40;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
     }
 
-    .brand-logo-img {
-      width: 38px;
-      height: 38px;
+    .brand-icon {
+      width: 40px;
+      height: 40px;
       border-radius: 12px;
-      object-fit: cover;
-      box-shadow: 0 4px 14px var(--accent-glow);
-      border: 1px solid rgba(245, 10, 206, 0.35);
-      flex-shrink: 0;
+      background: var(--accent-gradient);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 15px rgba(92, 79, 238, 0.4);
+    }
+
+    .brand-icon img {
+      width: 26px;
+      height: 26px;
+      object-fit: contain;
     }
 
     .brand-title {
-      font-size: 1.15rem;
+      font-size: 1.25rem;
       font-weight: 700;
       letter-spacing: -0.02em;
-      color: #FFFFFF;
-      line-height: 1.1;
+    }
+
+    .brand-subtitle {
+      font-size: 0.75rem;
+      color: var(--emerald);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .brand-subtitle.offline {
+      color: var(--amber);
     }
 
     .header-actions {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
 
-    .sync-indicator {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--emerald);
-      box-shadow: 0 0 8px var(--emerald);
-      transition: all 0.2s;
-    }
-
-    .sync-indicator.syncing {
-      background: var(--amber);
-      box-shadow: 0 0 8px var(--amber);
-      animation: pulse 1s infinite;
-    }
-
-    .sync-indicator.error {
-      background: var(--rose);
-      box-shadow: 0 0 8px var(--rose);
-    }
-
-    .btn-settings-wheel {
+    .btn-icon {
       width: 38px;
       height: 38px;
-      border-radius: 12px;
+      border-radius: 10px;
       background: var(--surface-raised);
       border: 1px solid var(--border);
       color: var(--text-muted);
+      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.2s ease;
     }
 
-    .btn-settings-wheel:active {
-      transform: scale(0.92) rotate(45deg);
+    .btn-icon:hover {
+      background: var(--surface-hover);
+      color: var(--text-main);
+      border-color: var(--border-highlight);
     }
 
-    .btn-settings-wheel svg {
-      width: 19px;
-      height: 19px;
-      stroke-width: 2;
+    .btn-icon.syncing svg {
+      animation: spin 1s linear infinite;
+      color: var(--amber);
+    }
+
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Main Desktop Grid Layout */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     /* Cards */
     .card {
-      background: var(--surface-card);
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: var(--radius-card);
-      padding: 16px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-      position: relative;
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
     }
 
-    /* Distinct Dark Tinted Backgrounds for File vs Retrieve */
-    .card-file {
-      background: linear-gradient(160deg, #101530 0%, #0c1024 100%);
-      border: 1px solid rgba(92, 79, 238, 0.4);
-      box-shadow: 0 8px 28px rgba(92, 79, 238, 0.12), 0 4px 12px rgba(0, 0, 0, 0.4);
-    }
-
-    .card-retrieve {
-      background: linear-gradient(160deg, #1c1028 0%, #120b1c 100%);
-      border: 1px solid rgba(245, 10, 206, 0.4);
-      box-shadow: 0 8px 28px rgba(245, 10, 206, 0.12), 0 4px 12px rgba(0, 0, 0, 0.4);
-    }
-
-    .card-title-bar {
+    .card-title {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 12px;
-    }
-
-    .card-heading {
-      font-size: 0.95rem;
+      font-size: 1rem;
       font-weight: 700;
-      letter-spacing: 0.02em;
-      color: #FFFFFF;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      color: var(--text-main);
     }
 
-    .card-heading svg {
-      width: 18px;
-      height: 18px;
+    .card-title .tag {
+      font-size: 0.75rem;
       color: var(--amber);
-    }
-
-    /* Pinned Quick Access Row on Home Page */
-    .pinned-section {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .pinned-label {
-      font-size: 0.7rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--amber);
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .pinned-chips {
-      display: flex;
-      gap: 8px;
-      overflow-x: auto;
-      scrollbar-width: none;
-      padding-bottom: 4px;
-    }
-
-    .pinned-chips::-webkit-scrollbar { display: none; }
-
-    .pinned-chip {
       background: rgba(245, 158, 11, 0.12);
-      border: 1px solid rgba(245, 158, 11, 0.4);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      padding: 3px 8px;
       border-radius: var(--radius-pill);
-      padding: 5px 12px;
-      font-size: 0.74rem;
-      color: #FFFFFF;
-      font-weight: 600;
-      white-space: nowrap;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: background 0.15s;
     }
 
-    .pinned-chip:hover {
-      background: rgba(245, 158, 11, 0.25);
-    }
-
-    /* Clean Camera Tap Area */
-    .camera-box {
-      position: relative;
+    /* Drop Zone / Intake */
+    .drop-zone {
       border: 2px dashed var(--border-highlight);
-      border-radius: var(--radius-lg);
-      background: rgba(14, 19, 36, 0.6);
+      border-radius: var(--radius-md);
       padding: 24px 16px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
       text-align: center;
+      background: rgba(14, 19, 36, 0.6);
       cursor: pointer;
-      overflow: hidden;
-      min-height: 130px;
-      transition: border-color 0.2s, background 0.2s;
-    }
-
-    .camera-box:hover {
-      border-color: var(--accent);
-      background: rgba(21, 28, 51, 0.7);
-    }
-
-    .camera-circle {
-      width: 52px;
-      height: 52px;
-      border-radius: 18px;
-      background: var(--gradient);
-      box-shadow: 0 4px 16px var(--accent-glow);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #FFFFFF;
-      transition: transform 0.15s;
-    }
-
-    .camera-box:active .camera-circle {
-      transform: scale(0.92);
-    }
-
-    .preview-img {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      border-radius: var(--radius-lg);
-    }
-
-    .pdf-preview-box {
-      position: absolute;
-      inset: 0;
-      background: var(--surface-raised);
+      transition: all 0.2s ease;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
       gap: 8px;
-      color: #F8FAFC;
-      font-size: 0.82rem;
-      font-weight: 600;
     }
 
-    .btn-remove-preview {
-      position: absolute;
-      top: 10px;
-      right: 10px;
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(92, 79, 238, 0.08);
+    }
+
+    .drop-zone svg {
       width: 32px;
       height: 32px;
-      border-radius: 50%;
-      background: rgba(7, 9, 19, 0.85);
-      border: 1px solid rgba(244, 63, 94, 0.5);
-      color: var(--rose);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      backdrop-filter: blur(8px);
-      z-index: 10;
+      color: var(--accent);
     }
 
-    .btn-choose-file {
-      margin-top: 10px;
-      width: 100%;
-      padding: 9px 14px;
-      border-radius: var(--radius-md);
-      background: var(--surface-raised);
-      border: 1px solid var(--border);
+    .drop-zone-text {
+      font-size: 0.85rem;
       color: var(--text-muted);
+    }
+
+    .file-preview {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface-raised);
+      border: 1px solid var(--border-highlight);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      font-size: 0.85rem;
+    }
+
+    .file-preview.active {
+      display: flex;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .input-label {
       font-size: 0.8rem;
       font-weight: 600;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-
-    .btn-choose-file:active {
-      transform: scale(0.98);
-      background: var(--surface-hover);
-    }
-
-    /* Dictate / Note Bar */
-    .dictate-bar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: var(--surface-raised);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 6px 10px;
-      margin-top: 12px;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-
-    .dictate-bar:focus-within {
-      border-color: var(--accent);
-      box-shadow: 0 0 14px var(--accent-glow);
-    }
-
-    .btn-mic {
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
-      background: var(--surface-hover);
-      border: 1px solid var(--border-highlight);
       color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      flex-shrink: 0;
-      transition: all 0.2s;
     }
 
-    .btn-mic:active {
-      transform: scale(0.92);
-    }
-
-    .btn-mic.recording {
-      background: var(--rose);
-      color: #FFFFFF;
-      border-color: var(--rose);
-      animation: pulseMic 1.3s infinite;
-    }
-
-    @keyframes pulseMic {
-      0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7); }
-      70% { box-shadow: 0 0 0 10px rgba(244, 63, 94, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
-    }
-
-    .input-field {
-      flex: 1;
-      background: transparent;
-      border: none;
-      outline: none;
-      color: #FFFFFF;
-      font-size: 0.88rem;
-      font-family: inherit;
-      user-select: text;
-    }
-
-    .input-field::placeholder {
-      color: var(--text-faint);
-    }
-
-    /* Extraction card */
-    .extraction-box {
-      margin-top: 12px;
-      padding: 14px;
-      border-radius: var(--radius-lg);
+    .text-input {
+      width: 100%;
       background: var(--surface-raised);
-      border: 1px solid rgba(168, 22, 223, 0.4);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      animation: fadeIn 0.2s ease-out;
-    }
-
-    .fields-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
-
-    .form-group.full {
-      grid-column: span 2;
-    }
-
-    .form-label {
-      font-size: 0.68rem;
-      font-weight: 600;
-      color: var(--text-faint);
-      text-transform: uppercase;
-    }
-
-    .form-input, .form-select {
-      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 7px 10px;
-      font-size: 0.82rem;
-      color: #FFFFFF;
-      outline: none;
-      font-family: inherit;
-      user-select: text;
-    }
-
-    .form-input.mono {
-      font-family: 'JetBrains Mono', monospace;
-      font-weight: 600;
-    }
-
-    .form-input:focus, .form-select:focus {
-      border-color: var(--accent);
-    }
-
-    .pin-checkbox-label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.78rem;
-      color: var(--amber);
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 4px;
-    }
-
-    /* Streamlined Save Row with discrete pin */
-    .save-action-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-top: 10px;
-    }
-
-    .btn-pin-toggle-intake {
-      width: 40px;
-      height: 40px;
       border-radius: var(--radius-md);
-      background: var(--surface-raised);
-      border: 1px solid var(--border);
-      color: var(--text-faint);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      font-size: 1.1rem;
-      flex-shrink: 0;
-      transition: all 0.2s;
-    }
-
-    .btn-pin-toggle-intake.active {
-      background: rgba(245, 158, 11, 0.2);
-      border-color: var(--amber);
-      color: var(--amber);
-      box-shadow: 0 0 12px var(--amber-glow);
-    }
-
-    .btn-file-submit {
-      flex: 1;
-      padding: 10px 16px;
-      border-radius: var(--radius-md);
-      background: var(--gradient);
-      color: #FFFFFF;
-      font-size: 0.88rem;
-      font-weight: 700;
-      border: none;
-      cursor: pointer;
-      box-shadow: 0 4px 16px var(--accent-glow);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: transform 0.15s, opacity 0.15s;
-    }
-
-    .btn-file-submit:active {
-      transform: scale(0.98);
-    }
-
-    .btn-file-submit:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-    }
-
-    /* Retrieve Card with two fields: AI Ask + File Cabinet Button */
-    .retrieval-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .ask-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--surface-raised);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 6px 10px;
+      padding: 10px 14px;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.9rem;
+      outline: none;
       transition: border-color 0.2s;
     }
 
-    .ask-row:focus-within {
+    .text-input:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 12px var(--accent-glow);
     }
 
-    .btn-ask-submit {
-      padding: 8px 14px;
-      border-radius: var(--radius-md);
-      background: var(--gradient);
-      border: none;
-      color: #FFFFFF;
-      font-size: 0.82rem;
-      font-weight: 700;
-      cursor: pointer;
-      flex-shrink: 0;
-      transition: transform 0.15s;
+    .intake-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    .btn-ask-submit:active {
-      transform: scale(0.95);
-    }
-
-    .btn-open-cabinet {
-      width: 100%;
-      padding: 12px 16px;
+    .btn-pin-toggle {
+      width: 44px;
+      height: 44px;
       border-radius: var(--radius-md);
       background: var(--surface-raised);
       border: 1px solid var(--border);
-      color: var(--text-main);
-      font-size: 0.88rem;
-      font-weight: 600;
+      cursor: pointer;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      cursor: pointer;
-      transition: all 0.15s;
+      justify-content: center;
+      font-size: 1.1rem;
+      transition: all 0.2s;
     }
 
-    .btn-open-cabinet:active {
-      transform: scale(0.98);
-      background: var(--surface-hover);
+    .btn-pin-toggle.active {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: var(--amber);
     }
 
-    .cabinet-badge {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.72rem;
+    .btn-primary {
+      flex: 1;
+      height: 44px;
+      background: var(--accent-gradient);
+      color: white;
+      border: none;
+      border-radius: var(--radius-md);
+      font-family: inherit;
       font-weight: 700;
-      background: var(--surface);
-      border: 1px solid var(--border-highlight);
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 15px rgba(92, 79, 238, 0.35);
+      transition: opacity 0.2s;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.92;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Cabinet View Section */
+    .cabinet-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .search-bar-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-bar-wrap svg {
+      position: absolute;
+      left: 14px;
+      width: 18px;
+      height: 18px;
+      color: var(--text-faint);
+    }
+
+    .search-input {
+      width: 100%;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px 14px 12px 42px;
+      color: var(--text-main);
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-input:focus {
+      border-color: var(--accent);
+    }
+
+    /* Pinned Quick Access Pills */
+    .pinned-scroll-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .pinned-pill {
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: var(--text-main);
+      padding: 6px 12px;
+      border-radius: var(--radius-pill);
+      font-size: 0.8rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .pinned-pill:hover {
+      background: rgba(245, 158, 11, 0.22);
+      border-color: var(--amber);
+    }
+
+    /* Documents List */
+    .documents-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 14px;
+      max-height: calc(100vh - 240px);
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .doc-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+
+    .doc-card:hover {
+      border-color: var(--border-highlight);
+      transform: translateY(-2px);
+    }
+
+    .doc-card.pinned {
+      border-color: rgba(245, 158, 11, 0.4);
+      background: #141026;
+    }
+
+    .doc-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .doc-name-group {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .btn-pin-sm {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 2px 0 0 0;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+    }
+
+    .btn-pin-sm:hover, .doc-card.pinned .btn-pin-sm {
+      opacity: 1;
+    }
+
+    .doc-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-main);
+      word-break: break-word;
+      line-height: 1.35;
+    }
+
+    .doc-meta {
+      font-size: 0.75rem;
+      color: var(--text-faint);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .doc-labels {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .label-badge {
+      background: rgba(168, 22, 223, 0.15);
+      border: 1px solid rgba(168, 22, 223, 0.35);
+      color: #D8B4FE;
       padding: 2px 8px;
       border-radius: var(--radius-pill);
-      color: var(--amber);
+      font-size: 0.72rem;
     }
 
-    /* Modal / Popups */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(7, 9, 19, 0.88);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      z-index: 100;
+    .doc-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .btn-action {
+      flex: 1;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface-raised);
+      color: var(--text-main);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .btn-action.view {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    .btn-action:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-highlight);
+    }
+
+    .btn-action.view:hover {
+      opacity: 0.9;
+    }
+
+    .btn-action-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface-raised);
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .btn-action-icon:hover {
+      background: var(--surface-hover);
+      color: var(--text-main);
+    }
+
+    .btn-action-icon.delete:hover {
+      color: var(--rose);
+      border-color: var(--rose);
+    }
+
+    .btn-action-icon.edit:hover {
+      color: var(--amber);
+      border-color: var(--amber);
+    }
+
+    /* Empty state */
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-faint);
       display: flex;
       flex-direction: column;
-      justify-content: flex-end;
-      padding: 12px;
-      animation: fadeIn 0.2s ease-out;
+      align-items: center;
+      gap: 12px;
     }
 
-    @media (min-width: 640px) {
-      .modal-overlay {
-        justify-content: center;
-        align-items: center;
-        padding: 20px;
-      }
+    .empty-state svg {
+      width: 48px;
+      height: 48px;
+      opacity: 0.4;
     }
 
-    .modal-dialog {
+    /* Modal / Dialog */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-backdrop.active {
+      display: flex;
+    }
+
+    .modal-box {
       background: var(--surface);
       border: 1px solid var(--border-highlight);
-      border-radius: var(--radius-card);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      max-width: 500px;
       width: 100%;
-      max-width: 600px;
-      max-height: 85vh;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
       display: flex;
       flex-direction: column;
-      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
-      overflow: hidden;
+      gap: 16px;
     }
 
     .modal-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 14px 18px;
-      border-bottom: 1px solid var(--border);
     }
 
     .modal-title {
-      font-size: 1rem;
+      font-size: 1.1rem;
       font-weight: 700;
-      color: #FFFFFF;
-      display: flex;
-      align-items: center;
-      gap: 8px;
     }
 
-    .btn-close-modal {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      background: var(--surface-raised);
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-    }
-
-    .modal-body {
-      padding: 16px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    /* File Cabinet Items */
-    .receipt-item {
-      background: var(--surface-raised);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 10px;
-      position: relative;
-    }
-
-    .receipt-item.is-pinned {
-      border-color: rgba(245, 158, 11, 0.45);
-      background: linear-gradient(145deg, rgba(21, 28, 51, 0.95), rgba(30, 24, 15, 0.4));
-    }
-
-    .receipt-vendor {
-      font-size: 0.9rem;
-      font-weight: 700;
-      color: #FFFFFF;
-    }
-
-    .receipt-meta {
-      font-size: 0.72rem;
-      color: var(--text-faint);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-top: 2px;
-    }
-
-    .receipt-tag {
-      padding: 2px 6px;
-      border-radius: var(--radius-pill);
-      background: var(--surface);
-      font-size: 0.65rem;
-      color: var(--amber);
-      font-weight: 600;
-    }
-
-    .receipt-amount {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.98rem;
-      font-weight: 700;
-      color: var(--emerald);
-      text-align: right;
-    }
-
-    .btn-pin-toggle {
-      background: transparent;
+    .btn-close {
+      background: none;
       border: none;
+      color: var(--text-faint);
       cursor: pointer;
-      font-size: 1rem;
-      opacity: 0.4;
-      transition: opacity 0.15s, transform 0.15s;
+      font-size: 1.25rem;
     }
 
-    .btn-pin-toggle.active {
-      opacity: 1;
-      transform: scale(1.1);
+    .btn-close:hover {
+      color: var(--text-main);
     }
 
-    /* Document Actions (View, Share, Download) */
-    .doc-actions-row {
+    .modal-actions {
       display: flex;
-      align-items: center;
-      gap: 6px;
+      gap: 10px;
+      justify-content: flex-end;
       margin-top: 8px;
-      flex-wrap: wrap;
     }
 
-    .btn-doc-action {
-      padding: 5px 10px;
-      border-radius: var(--radius-sm);
-      background: var(--surface);
-      border: 1px solid var(--border-highlight);
-      color: var(--text-muted);
-      font-size: 0.72rem;
-      font-weight: 600;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-
-    .btn-doc-action:hover, .btn-doc-action:active {
-      background: var(--surface-hover);
-      color: #FFFFFF;
-      border-color: var(--accent);
-    }
-
-    .btn-doc-action.primary {
-      background: rgba(92, 79, 238, 0.2);
-      border-color: rgba(92, 79, 238, 0.5);
-      color: #A816DF;
-    }
-
-    .btn-doc-action.primary:hover {
-      background: var(--accent);
-      color: #FFFFFF;
-    }
-
-    /* AI Response Card */
-    .ai-reply-card {
-      margin-top: 10px;
-      padding: 14px;
-      border-radius: var(--radius-md);
-      background: rgba(92, 79, 238, 0.12);
-      border: 1px solid rgba(168, 22, 223, 0.4);
-      font-size: 0.86rem;
-      line-height: 1.45;
-      color: #F8FAFC;
-    }
-
-    .chips-row {
-      display: flex;
-      gap: 6px;
-      overflow-x: auto;
-      scrollbar-width: none;
-      padding-bottom: 2px;
-    }
-
-    .chips-row::-webkit-scrollbar { display: none; }
-
-    .query-chip {
-      padding: 4px 10px;
-      border-radius: var(--radius-pill);
+    .btn-secondary {
+      height: 38px;
+      padding: 0 16px;
       background: var(--surface-raised);
       border: 1px solid var(--border);
-      font-size: 0.7rem;
-      color: var(--text-muted);
+      border-radius: var(--radius-md);
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.85rem;
       cursor: pointer;
-      white-space: nowrap;
     }
 
-    /* Toast */
-    .status-toast {
+    /* Toast notification */
+    .toast {
       position: fixed;
-      top: 16px;
-      left: 50%;
-      transform: translateX(-50%) translateY(-100px);
-      padding: 10px 18px;
-      border-radius: var(--radius-pill);
+      bottom: 24px;
+      right: 24px;
       background: var(--surface-raised);
       border: 1px solid var(--border-highlight);
-      color: #FFFFFF;
-      font-size: 0.82rem;
-      font-weight: 600;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
-      z-index: 200;
-      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      color: var(--text-main);
+      padding: 12px 20px;
+      border-radius: var(--radius-md);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 2000;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s ease;
       pointer-events: none;
     }
 
-    .status-toast.show { transform: translateX(-50%) translateY(0); }
-    .status-toast.success { border-color: var(--emerald); }
-    .status-toast.error { border-color: var(--rose); }
-
-    .spinner {
-      width: 16px;
-      height: 16px;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-top-color: #FFFFFF;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
+    .toast.active {
+      opacity: 1;
+      transform: translateY(0);
     }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-    .hidden { display: none !important; }
   </style>
 </head>
 <body>
 
-  <!-- Toast -->
-  <div id="statusToast" class="status-toast">
-    <span id="toastMsg">Saved</span>
-  </div>
-
-  <div class="app-shell">
-
-    <!-- Clean Header with Settings Wheel -->
+  <div class="container">
+    <!-- Header -->
     <header>
       <div class="brand">
-        <img src="icon-192.png" alt="Clean Vault" class="brand-logo-img">
-        <h1 class="brand-title">Clean Vault</h1>
+        <div class="brand-icon">
+          <img src="favicon.png" alt="Clean Vault">
+        </div>
+        <div>
+          <h1 class="brand-title">Clean Vault</h1>
+          <div id="connectionStatus" class="brand-subtitle offline">
+            <span>●</span> <span id="statusText">Local / Not Connected</span>
+          </div>
+        </div>
       </div>
+
       <div class="header-actions">
-        <div id="syncIndicator" class="sync-indicator" title="Cloud Sync Status"></div>
-        <button id="btnOpenSettings" class="btn-settings-wheel" title="Settings">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <!-- Sync button -->
+        <button id="btnSync" class="btn-icon" title="Sync with Google Drive">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+          </svg>
+        </button>
+
+        <!-- Settings button -->
+        <button id="btnSettings" class="btn-icon" title="Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
         </button>
       </div>
     </header>
 
-    <!-- ============================================== -->
-    <!-- CARD 1: FILE                                   -->
-    <!-- ============================================== -->
-    <section class="card card-file">
-      <div class="card-title-bar">
-        <span class="card-heading">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-          File
-        </span>
-      </div>
-
-      <!-- Camera Tap Zone -->
-      <div id="cameraBox" class="camera-box" title="Tap to snap photo">
-        <img id="imagePreview" class="preview-img hidden" alt="Preview">
-        <div id="pdfPreviewBox" class="pdf-preview-box hidden">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-          <span id="pdfFileName">Document.pdf</span>
-        </div>
-        
-        <div id="cameraIconWrap" class="camera-circle">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+    <!-- Main Grid -->
+    <div class="dashboard-grid">
+      <!-- Left: File Document on Desktop (Optional Drag & Drop) -->
+      <div class="card">
+        <div class="card-title">
+          <span>File Document</span>
+          <span class="tag">Desktop Intake</span>
         </div>
 
-        <button id="btnRemovePreview" class="btn-remove-preview hidden" title="Remove">✕</button>
-      </div>
+        <input type="file" id="fileInput" style="display: none;" accept="image/*,application/pdf,.doc,.docx">
 
-      <!-- File Inputs: Supports Photos, PDFs, Docs -->
-      <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
-      <input type="file" id="docFileInput" accept="image/*,application/pdf,.pdf,.doc,.docx,.txt" class="hidden">
+        <div id="dropZone" class="drop-zone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <div class="drop-zone-text"><strong>Drag & drop file</strong> or click to browse</div>
+          <div style="font-size: 0.72rem; color: var(--text-faint);">Photos, PDFs, Word docs</div>
+        </div>
 
-      <!-- Choose File Button (Photos, PDFs, Docs) -->
-      <button id="btnChooseFile" type="button" class="btn-choose-file">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        Choose file (Photo, PDF, Doc)
-      </button>
+        <div id="filePreview" class="file-preview">
+          <span id="filePreviewName" style="max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+          <button id="btnClearFile" style="background: none; border: none; color: var(--rose); cursor: pointer;">✕</button>
+        </div>
 
-      <!-- Document Name Input Field with Dictation Mic -->
-      <div class="dictate-bar" style="margin-top:10px;">
-        <button id="btnVoiceName" type="button" class="btn-mic" title="Dictate document name">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-        </button>
-        <input type="text" id="docNameInput" placeholder="Document name (dictate or type)..." class="input-field" style="font-weight:600; font-size:0.9rem;">
-      </div>
+        <div class="input-group">
+          <label class="input-label">Document Name</label>
+          <input type="text" id="inputDocName" class="text-input" placeholder="e.g. Health Insurance, Car Repair...">
+        </div>
 
-      <!-- Separate Notes / Labels Input Field with Dictation Mic -->
-      <div class="dictate-bar" style="margin-top:8px;">
-        <button id="btnVoiceDictate" type="button" class="btn-mic" title="Dictate notes">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-        </button>
-        <input type="text" id="voiceNoteText" placeholder="Notes / labels (e.g. taxes, car, medical)..." class="input-field">
-      </div>
+        <div class="input-group">
+          <label class="input-label">Labels</label>
+          <input type="text" id="inputLabels" class="text-input" placeholder="e.g. taxes, medical, 2026...">
+        </div>
 
-      <!-- Streamlined Save Row: Discreet Pin button + Compact Save -->
-      <div class="save-action-row">
-        <button id="btnPinToggleIntake" type="button" class="btn-pin-toggle-intake" title="Pin document for quick access">
-          📌
-        </button>
-        <button id="btnSubmitFile" class="btn-file-submit">
-          <span id="btnSubmitSpinner" class="spinner hidden"></span>
-          <span id="btnSubmitText">Save to Vault</span>
-        </button>
-      </div>
-    </section>
-
-    <!-- ============================================== -->
-    <!-- CARD 2: RETRIEVE (Ask + File Cabinet Button)   -->
-    <!-- ============================================== -->
-    <section class="card card-retrieve">
-      <div class="card-title-bar">
-        <span class="card-heading">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          Retrieve
-        </span>
-      </div>
-
-      <div class="retrieval-grid">
-        <!-- Field 1: Retrieval Ask -->
-        <div class="ask-row">
-          <button id="btnVoiceQuery" type="button" class="btn-mic" style="width:34px; height:34px; border-radius:10px;" title="Dictate query">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        <div class="intake-actions">
+          <button id="btnPinToggle" class="btn-pin-toggle" title="Toggle Pin">📌</button>
+          <button id="btnSaveToVault" class="btn-primary" disabled>
+            Save to Vault
           </button>
-          <input type="text" id="queryInput" placeholder="Ask: 'Passport copy', 'Groceries in March'..." class="input-field">
-          <button id="btnAskQuery" type="button" class="btn-ask-submit">Ask</button>
-        </div>
-
-        <!-- Suggestion chips -->
-        <div class="chips-row">
-          <div class="query-chip" onclick="quickAsk('Show my pinned and essential documents')">📌 Pinned Docs</div>
-          <div class="query-chip" onclick="quickAsk('How much spent on groceries?')">🛒 Groceries</div>
-          <div class="query-chip" onclick="quickAsk('Find tech and hardware receipts')">💻 Tech</div>
-          <div class="query-chip" onclick="quickAsk('Dining expenses this month?')">🍽️ Dining</div>
-        </div>
-
-        <!-- AI Query Answer -->
-        <div id="aiReplyCard" class="ai-reply-card hidden">
-          <div id="aiReplyContent"></div>
-          <div id="aiReplyMatches" style="margin-top:10px; display:flex; flex-direction:column; gap:6px;"></div>
-        </div>
-
-        <!-- Field 2: File Cabinet Button -->
-        <button id="btnOpenCabinetModal" type="button" class="btn-open-cabinet">
-          <span style="display:flex; align-items:center; gap:8px;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><circle cx="12" cy="6" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="18" r="1"/></svg>
-            File Cabinet
-          </span>
-          <span id="cabinetCountBadge" class="cabinet-badge">0 documents</span>
-        </button>
-
-        <!-- Pinned Quick Access Row (under File Cabinet button) -->
-        <div id="pinnedSection" class="pinned-section hidden" style="margin-top:4px;">
-          <div id="pinnedChipsContainer" class="pinned-chips"></div>
         </div>
       </div>
-    </section>
 
-  </div>
-
-  <!-- MODAL: DOCUMENT PREVIEW & ACTIONS           -->
-  <!-- ============================================== -->
-  <div id="docViewerModal" class="modal-overlay hidden">
-    <div class="modal-dialog" style="max-height:92vh;">
-      <div class="modal-header">
-        <div class="modal-title" id="viewerTitle">Document View</div>
-        <button id="btnCloseViewer" class="btn-close-modal">✕</button>
-      </div>
-      <div class="modal-body" style="padding:12px; gap:10px;">
-        <!-- Viewer Content: Image or PDF Iframe -->
-        <div id="viewerContent" style="width:100%; min-height:300px; max-height:55vh; border-radius:12px; overflow:hidden; background:#000; display:flex; align-items:center; justify-content:center;">
-          <!-- Loaded dynamically -->
+      <!-- Right: Shared File Cabinet -->
+      <div class="card" style="min-height: 540px;">
+        <div class="card-title">
+          <span>File Cabinet</span>
+          <span id="docCountBadge" class="tag">0 documents</span>
         </div>
 
-        <div id="viewerNotes" style="font-size:0.8rem; color:var(--text-muted); padding:4px;"></div>
+        <div class="cabinet-controls">
+          <div class="search-bar-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="cabinetSearch" class="search-input" placeholder="Filter by name or labels...">
+          </div>
 
-        <!-- Action Buttons: View in Drive, Share, Download -->
-        <div style="display:flex; gap:8px; margin-top:4px;">
-          <a id="btnViewerDrive" href="#" target="_blank" rel="noopener noreferrer" class="btn-choose-file" style="flex:1; background:rgba(92,79,238,0.25); color:#FFFFFF; border-color:var(--accent);">
-            👁️ Open in Drive
-          </a>
-          <button id="btnViewerShare" type="button" class="btn-choose-file" style="flex:1;">
-            📤 Share
-          </button>
-          <a id="btnViewerDownload" href="#" target="_blank" download class="btn-choose-file" style="flex:1;">
-            ⬇️ Download
-          </a>
+          <!-- Pinned Bar -->
+          <div id="pinnedBar" class="pinned-scroll-bar" style="display: none;"></div>
+        </div>
+
+        <!-- Documents Grid -->
+        <div id="documentsContainer" class="documents-grid">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <div>No documents found. Connect your Google Apps Script in Settings ⚙️ to sync your cabinet.</div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ============================================== -->
-  <!-- MODAL: FILE CABINET                            -->
-  <!-- ============================================== -->
-  <div id="cabinetModal" class="modal-overlay hidden">
-    <div class="modal-dialog">
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="modal-backdrop">
+    <div class="modal-box">
       <div class="modal-header">
-        <div class="modal-title">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/></svg>
-          File Cabinet
-        </div>
-        <button id="btnCloseCabinet" class="btn-close-modal">✕</button>
+        <h3 class="modal-title">Shared Google Drive Backend</h3>
+        <button class="btn-close" onclick="closeModal('settingsModal')">✕</button>
       </div>
-      <div class="modal-body">
-        <input type="text" id="cabinetSearchInput" class="form-input" placeholder="Filter by document name, vendor, category or notes...">
-        <div id="cabinetList" style="display:flex; flex-direction:column; gap:8px;"></div>
+
+      <div style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5;">
+        Paste your Google Apps Script Web App URL below. Clean Vault on your desktop will use the exact same Google Drive files & cabinet as your Android phone!
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">Apps Script Web App URL</label>
+        <input type="url" id="inputScriptUrl" class="text-input" placeholder="https://script.google.com/macros/s/.../exec">
+      </div>
+
+      <div id="testStatusMessage" style="font-size: 0.8rem; display: none; padding: 8px 12px; border-radius: var(--radius-sm);"></div>
+
+      <div class="modal-actions">
+        <button id="btnTestUrl" class="btn-secondary">Test Link</button>
+        <button id="btnSaveUrl" class="btn-primary" style="flex: 0 0 auto; padding: 0 20px;">Save & Sync</button>
       </div>
     </div>
   </div>
 
-  <!-- ============================================== -->
-  <!-- MODAL: SETTINGS                                -->
-  <!-- ============================================== -->
-  <div id="settingsModal" class="modal-overlay hidden">
-    <div class="modal-dialog">
+  <!-- Rename Document Modal -->
+  <div id="renameModal" class="modal-backdrop">
+    <div class="modal-box">
       <div class="modal-header">
-        <div class="modal-title">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          Settings
-        </div>
-        <button id="btnCloseSettings" class="btn-close-modal">✕</button>
+        <h3 class="modal-title">Rename & Edit Labels</h3>
+        <button class="btn-close" onclick="closeModal('renameModal')">✕</button>
       </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label class="form-label">Gemini API Key</label>
-          <input type="password" id="inputGeminiKey" class="form-input mono" placeholder="AIzaSy...">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Model</label>
-          <select id="selectGeminiModel" class="form-select mono">
-            <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-            <option value="gemini-2.5-pro">gemini-2.5-pro</option>
-            <option value="gemini-1.5-flash">gemini-1.5-flash</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Apps Script Web App URL</label>
-          <input type="url" id="inputScriptUrl" class="form-input mono" placeholder="https://script.google.com/macros/s/.../exec">
-        </div>
-        
-        <button id="btnSaveSettings" class="btn-file-submit" style="margin-top:6px;">Save Settings</button>
 
-        <div style="display:flex; gap:8px; margin-top:4px;">
-          <button id="btnTestConn" class="btn-choose-file" style="flex:1;">🔍 Test Connection</button>
-          <button id="btnClearData" class="btn-choose-file" style="color:var(--rose);">Clear Cache</button>
-        </div>
+      <input type="hidden" id="editDocId">
+      <input type="hidden" id="editFileId">
 
-        <button id="btnForceInstallPrompt" class="btn-choose-file" style="margin-top:6px; color:#A816DF; border-color:rgba(168,22,223,0.5);">
-          📲 Add App Icon to Home Screen
-        </button>
+      <div class="input-group">
+        <label class="input-label">Document Name</label>
+        <input type="text" id="editDocName" class="text-input">
+      </div>
 
-        <div id="testFeedback" class="hidden" style="padding:10px; border-radius:8px; background:var(--surface-raised); font-size:0.75rem; line-height:1.4;"></div>
+      <div class="input-group">
+        <label class="input-label">Labels</label>
+        <input type="text" id="editLabels" class="text-input">
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal('renameModal')">Cancel</button>
+        <button id="btnSaveRename" class="btn-primary" style="flex: 0 0 auto; padding: 0 20px;">Save</button>
       </div>
     </div>
   </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
 
   <script>
+    // App State
     const state = {
-      apiKey: localStorage.getItem('VAULT_GEMINI_KEY') || '',
-      model: localStorage.getItem('VAULT_GEMINI_MODEL') || 'gemini-2.5-flash',
-      scriptUrl: localStorage.getItem('VAULT_SCRIPT_URL') || '',
-      cachedLedger: JSON.parse(localStorage.getItem('VAULT_CACHED_LEDGER') || '[]'),
-      activeFileBase64: null,
-      activeMimeType: 'image/jpeg',
-      activeFileName: '',
-      extractedData: null,
-      isListeningDictate: false,
-      isListeningQuery: false
+      scriptUrl: localStorage.getItem('CLEAN_VAULT_SCRIPT_URL') || '',
+      documents: JSON.parse(localStorage.getItem('CLEAN_VAULT_DOCS') || '[]'),
+      selectedFile: null,
+      selectedBase64: '',
+      selectedMimeType: '',
+      isIntakePinned: false,
+      isSyncing: false
     };
 
-    // DOM
-    const cameraBox = document.getElementById('cameraBox');
-    const cameraInput = document.getElementById('cameraInput');
-    const docFileInput = document.getElementById('docFileInput');
-    const btnChooseFile = document.getElementById('btnChooseFile');
-    const imagePreview = document.getElementById('imagePreview');
-    const pdfPreviewBox = document.getElementById('pdfPreviewBox');
-    const pdfFileName = document.getElementById('pdfFileName');
-    const cameraIconWrap = document.getElementById('cameraIconWrap');
-    const btnRemovePreview = document.getElementById('btnRemovePreview');
+    // DOM Elements
+    const connectionStatus = document.getElementById('connectionStatus');
+    const statusText = document.getElementById('statusText');
+    const btnSync = document.getElementById('btnSync');
+    const btnSettings = document.getElementById('btnSettings');
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const filePreview = document.getElementById('filePreview');
+    const filePreviewName = document.getElementById('filePreviewName');
+    const btnClearFile = document.getElementById('btnClearFile');
+    const inputDocName = document.getElementById('inputDocName');
+    const inputLabels = document.getElementById('inputLabels');
+    const btnPinToggle = document.getElementById('btnPinToggle');
+    const btnSaveToVault = document.getElementById('btnSaveToVault');
+    const cabinetSearch = document.getElementById('cabinetSearch');
+    const docCountBadge = document.getElementById('docCountBadge');
+    const pinnedBar = document.getElementById('pinnedBar');
+    const documentsContainer = document.getElementById('documentsContainer');
 
-    const btnVoiceName = document.getElementById('btnVoiceName');
-    const btnVoiceDictate = document.getElementById('btnVoiceDictate');
-    const docNameInput = document.getElementById('docNameInput');
-    const voiceNoteText = document.getElementById('voiceNoteText');
-    const btnPinToggleIntake = document.getElementById('btnPinToggleIntake');
-    let isPinnedForIntake = false;
-    const btnSubmitFile = document.getElementById('btnSubmitFile');
-    const btnSubmitText = document.getElementById('btnSubmitText');
-    const btnSubmitSpinner = document.getElementById('btnSubmitSpinner');
-
-    // Viewer Modal DOM
-    const docViewerModal = document.getElementById('docViewerModal');
-    const btnCloseViewer = document.getElementById('btnCloseViewer');
-    const viewerTitle = document.getElementById('viewerTitle');
-    const viewerContent = document.getElementById('viewerContent');
-    const viewerNotes = document.getElementById('viewerNotes');
-    const btnViewerDrive = document.getElementById('btnViewerDrive');
-    const btnViewerShare = document.getElementById('btnViewerShare');
-    const btnViewerDownload = document.getElementById('btnViewerDownload');
-    let currentViewingDoc = null;
-
-    const pinnedSection = document.getElementById('pinnedSection');
-    const pinnedChipsContainer = document.getElementById('pinnedChipsContainer');
-
-    const queryInput = document.getElementById('queryInput');
-    const btnVoiceQuery = document.getElementById('btnVoiceQuery');
-    const btnAskQuery = document.getElementById('btnAskQuery');
-    const aiReplyCard = document.getElementById('aiReplyCard');
-    const aiReplyContent = document.getElementById('aiReplyContent');
-    const aiReplyMatches = document.getElementById('aiReplyMatches');
-
-    const btnOpenCabinetModal = document.getElementById('btnOpenCabinetModal');
-    const cabinetModal = document.getElementById('cabinetModal');
-    const btnCloseCabinet = document.getElementById('btnCloseCabinet');
-    const cabinetList = document.getElementById('cabinetList');
-    const cabinetSearchInput = document.getElementById('cabinetSearchInput');
-    const cabinetCountBadge = document.getElementById('cabinetCountBadge');
-
-    const btnOpenSettings = document.getElementById('btnOpenSettings');
     const settingsModal = document.getElementById('settingsModal');
-    const btnCloseSettings = document.getElementById('btnCloseSettings');
-    const inputGeminiKey = document.getElementById('inputGeminiKey');
-    const selectGeminiModel = document.getElementById('selectGeminiModel');
     const inputScriptUrl = document.getElementById('inputScriptUrl');
-    const btnSaveSettings = document.getElementById('btnSaveSettings');
-    const btnTestConn = document.getElementById('btnTestConn');
-    const btnClearData = document.getElementById('btnClearData');
-    const testFeedback = document.getElementById('testFeedback');
-    const syncIndicator = document.getElementById('syncIndicator');
+    const btnTestUrl = document.getElementById('btnTestUrl');
+    const btnSaveUrl = document.getElementById('btnSaveUrl');
+    const testStatusMessage = document.getElementById('testStatusMessage');
 
-    // Init
-    window.addEventListener('DOMContentLoaded', () => {
-      if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
-      inputGeminiKey.value = state.apiKey;
-      selectGeminiModel.value = state.model;
-      inputScriptUrl.value = state.scriptUrl;
-      updateCabinetCount();
-      renderPinnedChips();
-      if (state.scriptUrl) syncLedger(true);
-    });
+    const renameModal = document.getElementById('renameModal');
+    const editDocId = document.getElementById('editDocId');
+    const editFileId = document.getElementById('editFileId');
+    const editDocName = document.getElementById('editDocName');
+    const editLabels = document.getElementById('editLabels');
+    const btnSaveRename = document.getElementById('btnSaveRename');
 
-    function updateCabinetCount() {
-      cabinetCountBadge.textContent = `${state.cachedLedger.length} documents`;
+    const toast = document.getElementById('toast');
+
+    // Utility: Toast notification
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('active');
+      setTimeout(() => toast.classList.remove('active'), 3200);
     }
 
-    function renderPinnedChips() {
-      const pinned = state.cachedLedger.filter(r => r.pinned);
-      if (!pinned.length) {
-        pinnedSection.classList.add('hidden');
-        return;
+    // Modal helpers
+    function openModal(id) { document.getElementById(id).classList.add('active'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    // Init UI
+    function init() {
+      if (state.scriptUrl) {
+        inputScriptUrl.value = state.scriptUrl;
+        connectionStatus.className = "brand-subtitle";
+        statusText.textContent = "Google Drive Connected";
+        fetchCloudRecords(true);
+      } else {
+        renderDocuments();
       }
-      pinnedSection.classList.remove('hidden');
-      pinnedChipsContainer.innerHTML = pinned.map(r => `
-        <div class="pinned-chip" onclick="openDriveUrl('${escapeHtml(r.driveFileUrl)}')">
-          <span>📌</span>
-          <span>${escapeHtml(r.vendor || 'Document')}</span>
-          ${r.totalAmount ? `<span style="color:var(--emerald); font-family:'JetBrains Mono';">${r.totalAmount} ${r.currency}</span>` : ''}
-        </div>
-      `).join('');
     }
 
-    window.openDriveUrl = (url) => {
-      if (url) window.open(url, '_blank');
-      else showToast("No file URL linked", "normal");
-    };
-
-    // Camera & File Picker Handling
-    cameraBox.addEventListener('click', (e) => {
-      if (e.target.closest('#btnRemovePreview')) return;
-      if (!state.activeFileBase64) cameraInput.click();
+    // Toggle Intake Pin
+    btnPinToggle.addEventListener('click', () => {
+      state.isIntakePinned = !state.isIntakePinned;
+      btnPinToggle.classList.toggle('active', state.isIntakePinned);
     });
 
-    btnChooseFile.addEventListener('click', () => docFileInput.click());
-    cameraInput.addEventListener('change', (e) => handleFileSelected(e.target.files[0]));
-    docFileInput.addEventListener('change', (e) => handleFileSelected(e.target.files[0]));
+    // File Drag & Drop
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) handleFileSelection(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) handleFileSelection(e.target.files[0]);
+    });
 
-    function handleFileSelected(file) {
-      if (!file) return;
+    btnClearFile.addEventListener('click', () => {
+      state.selectedFile = null;
+      state.selectedBase64 = '';
+      state.selectedMimeType = '';
+      filePreview.classList.remove('active');
+      dropZone.style.display = 'flex';
+      btnSaveToVault.disabled = true;
+    });
 
-      state.activeMimeType = file.type || 'application/octet-stream';
-      state.activeFileName = file.name;
+    function handleFileSelection(file) {
+      state.selectedFile = file;
+      state.selectedMimeType = file.type || 'application/octet-stream';
+      filePreviewName.textContent = file.name;
+      filePreview.classList.add('active');
+      dropZone.style.display = 'none';
+      btnSaveToVault.disabled = false;
 
-      const isImage = file.type.startsWith('image/');
-      const isPdf = file.type.includes('pdf');
-
-      showToast("Loading document...", "normal");
+      if (!inputDocName.value.trim()) {
+        inputDocName.value = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+      }
 
       const reader = new FileReader();
-      reader.onload = (evt) => {
-        if (isImage) {
-          const img = new Image();
-          img.onload = () => {
-            const maxDim = 1600;
-            let w = img.width, h = img.height;
-            if (w > h && w > maxDim) { h = Math.round((h * maxDim) / w); w = maxDim; }
-            else if (h > maxDim) { w = Math.round((w * maxDim) / h); h = maxDim; }
-
-            const canvas = document.createElement('canvas');
-            canvas.width = w; canvas.height = h;
-            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-
-            state.activeFileBase64 = canvas.toDataURL('image/jpeg', 0.82);
-            imagePreview.src = state.activeFileBase64;
-            imagePreview.classList.remove('hidden');
-            pdfPreviewBox.classList.add('hidden');
-            cameraIconWrap.classList.add('hidden');
-            btnRemovePreview.classList.remove('hidden');
-
-            analyzeDocumentWithGemini(state.activeFileBase64, 'image/jpeg');
-          };
-          img.src = evt.target.result;
-        } else {
-          // PDF or other document format
-          state.activeFileBase64 = evt.target.result;
-          imagePreview.classList.add('hidden');
-          pdfPreviewBox.classList.remove('hidden');
-          pdfFileName.textContent = file.name;
-          cameraIconWrap.classList.add('hidden');
-          btnRemovePreview.classList.remove('hidden');
-
-          if (isPdf) {
-            analyzeDocumentWithGemini(state.activeFileBase64, 'application/pdf');
-          } else {
-            // General doc: set file name as suggested doc name
-            if (!docNameInput.value.trim()) {
-              docNameInput.value = file.name.replace(/\.[^/.]+$/, "");
-            }
-          }
-        }
+      reader.onload = () => {
+        state.selectedBase64 = reader.result;
       };
-
       reader.readAsDataURL(file);
     }
 
-    btnRemovePreview.addEventListener('click', (e) => {
-      e.stopPropagation();
-      resetIntake();
-    });
+    // Save Document from Desktop Intake
+    btnSaveToVault.addEventListener('click', async () => {
+      if (!state.selectedBase64) {
+        showToast('Please select a file first');
+        return;
+      }
+      if (!state.scriptUrl) {
+        showToast('Please set your Apps Script URL in Settings ⚙️ first');
+        openModal('settingsModal');
+        return;
+      }
 
-    btnPinToggleIntake.addEventListener('click', () => {
-      isPinnedForIntake = !isPinnedForIntake;
-      btnPinToggleIntake.classList.toggle('active', isPinnedForIntake);
-      showToast(isPinnedForIntake ? "Document will be pinned 📌" : "Unpinned", "normal");
-    });
-
-    function resetIntake() {
-      state.activeFileBase64 = null;
-      state.activeFileName = '';
-      imagePreview.src = '';
-      imagePreview.classList.add('hidden');
-      pdfPreviewBox.classList.add('hidden');
-      cameraIconWrap.classList.remove('hidden');
-      btnRemovePreview.classList.add('hidden');
-      docNameInput.value = '';
-      voiceNoteText.value = '';
-      isPinnedForIntake = false;
-      btnPinToggleIntake.classList.remove('active');
-      cameraInput.value = '';
-      docFileInput.value = '';
-    }
-
-    // Web Speech API
-    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recName = null, recDictate = null, recQuery = null;
-
-    if (SpeechRec) {
-      // 1. Dictate Document Name
-      recName = new SpeechRec();
-      recName.onstart = () => { btnVoiceName.classList.add('recording'); };
-      recName.onresult = (ev) => {
-        const txt = ev.results[0][0].transcript;
-        docNameInput.value = docNameInput.value ? `${docNameInput.value} ${txt}` : txt;
-      };
-      recName.onend = () => { btnVoiceName.classList.remove('recording'); };
-
-      // 2. Dictate Notes / Labels
-      recDictate = new SpeechRec();
-      recDictate.onstart = () => { state.isListeningDictate = true; btnVoiceDictate.classList.add('recording'); };
-      recDictate.onresult = (ev) => {
-        const txt = ev.results[0][0].transcript;
-        voiceNoteText.value = voiceNoteText.value ? `${voiceNoteText.value} ${txt}` : txt;
-      };
-      recDictate.onend = () => { state.isListeningDictate = false; btnVoiceDictate.classList.remove('recording'); };
-
-      // 3. Dictate Query
-      recQuery = new SpeechRec();
-      recQuery.onstart = () => { state.isListeningQuery = true; btnVoiceQuery.classList.add('recording'); };
-      recQuery.onresult = (ev) => {
-        const txt = ev.results[0][0].transcript;
-        queryInput.value = txt;
-        executeAsk();
-      };
-      recQuery.onend = () => { state.isListeningQuery = false; btnVoiceQuery.classList.remove('recording'); };
-    }
-
-    btnVoiceName.addEventListener('click', () => {
-      if (!recName) { showToast("Speech dictation not supported in this browser", "error"); return; }
-      try { recName.start(); } catch(e) { recName.stop(); }
-    });
-
-    btnVoiceDictate.addEventListener('click', () => {
-      if (!recDictate) { showToast("Speech dictation not supported in this browser", "error"); return; }
-      if (state.isListeningDictate) recDictate.stop(); else recDictate.start();
-    });
-
-    btnVoiceQuery.addEventListener('click', () => {
-      if (!recQuery) { showToast("Speech dictation not supported in this browser", "error"); return; }
-      if (state.isListeningQuery) recQuery.stop(); else recQuery.start();
-    });
-
-    // Gemini Multimodal Name & Context Extraction
-    async function analyzeDocumentWithGemini(dataUrl, mimeType) {
-      if (!state.apiKey) return;
-
-      const rawBase64 = dataUrl.split(',')[1];
-      const prompt = `Look at this document or receipt image. Based on the document and the user's notes ("${voiceNoteText.value}"), suggest a clean, short Document Name (e.g. "Costco Grocery Receipt", "Health Insurance Policy", "Dentist Bill").
-Return JSON:
-{
-  "documentName": "Short descriptive name",
-  "category": "e.g. Groceries, Medical, Utilities, Tech, Legal, or General"
-}`;
+      btnSaveToVault.disabled = true;
+      btnSaveToVault.textContent = 'Uploading to Drive...';
 
       const payload = {
-        contents: [{
-          parts: [
-            { text: prompt },
-            { inlineData: { mimeType: mimeType, data: rawBase64 } }
-          ]
-        }],
-        generationConfig: {
-          responseMimeType: "application/json"
+        action: 'save_receipt',
+        fileBase64: state.selectedBase64,
+        mimeType: state.selectedMimeType,
+        fileName: state.selectedFile ? state.selectedFile.name : `Vault_${Date.now()}.jpg`,
+        metadata: {
+          docId: 'desktop_' + Date.now(),
+          vendor: inputDocName.value.trim() || 'Document',
+          labels: inputLabels.value.trim(),
+          pinned: state.isIntakePinned,
+          date: new Date().toISOString().slice(0, 10)
         }
-      };
-
-      try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${state.model}:generateContent?key=${state.apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        const data = await res.json();
-        const extracted = JSON.parse(data.candidates[0].content.parts[0].text);
-        if (extracted.documentName && !docNameInput.value.trim()) {
-          docNameInput.value = extracted.documentName;
-          showToast(`Identified: "${extracted.documentName}"`, "success");
-        }
-      } catch (err) {
-        console.warn("AI naming fallback:", err);
-      }
-    }
-
-    // Save to Google Apps Script
-    btnSubmitFile.addEventListener('click', async () => {
-      if (!state.activeFileBase64) {
-        showToast("Please snap or choose a file first", "error");
-        return;
-      }
-
-      if (!state.scriptUrl) {
-        showToast("Set your Apps Script URL in Settings (⚙️)", "error");
-        openSettings();
-        return;
-      }
-
-      btnSubmitSpinner.classList.remove('hidden');
-      btnSubmitText.textContent = "Saving...";
-      btnSubmitFile.disabled = true;
-
-      // Document name priority: user typed > AI extracted > notes fallback > default
-      const finalDocName = docNameInput.value.trim() || 
-                           (voiceNoteText.value.trim() ? voiceNoteText.value.trim().slice(0, 40) : '') || 
-                           state.activeFileName || 
-                           'Receipt Document';
-
-      const metadata = {
-        vendor: finalDocName,
-        date: new Date().toISOString().slice(0, 10),
-        notes: voiceNoteText.value.trim(),
-        category: 'Vault File',
-        pinned: isPinnedForIntake
       };
 
       try {
         const res = await fetch(state.scriptUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({
-            action: 'save_receipt',
-            fileBase64: state.activeFileBase64,
-            mimeType: state.activeMimeType,
-            fileName: state.activeFileName || `${finalDocName.replace(/\s+/g, '_')}.jpg`,
-            metadata: metadata
-          })
+          body: JSON.stringify(payload)
         });
-
-        const result = await res.json();
-        if (result.status === 'success') {
-          showToast("Saved to File Cabinet!", "success");
-          resetIntake();
-          syncLedger();
+        const data = await res.json();
+        if (data.status === 'success') {
+          showToast('Document saved to Google Drive! 🗄️');
+          btnClearFile.click();
+          inputDocName.value = '';
+          inputLabels.value = '';
+          state.isIntakePinned = false;
+          btnPinToggle.classList.remove('active');
+          fetchCloudRecords(false);
         } else {
-          throw new Error(result.message || "Failed");
+          showToast('Upload error: ' + (data.message || 'Failed'));
         }
       } catch (err) {
-        showToast("Save failed: " + err.message, "error");
+        showToast('Network error: ' + err.message);
       } finally {
-        btnSubmitSpinner.classList.add('hidden');
-        btnSubmitText.textContent = "Save to Vault";
-        btnSubmitFile.disabled = false;
+        btnSaveToVault.disabled = false;
+        btnSaveToVault.textContent = 'Save to Vault';
       }
     });
 
-    // Ask Query
-    window.quickAsk = (q) => { queryInput.value = q; executeAsk(); };
-    btnAskQuery.addEventListener('click', executeAsk);
-    queryInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') executeAsk(); });
-
-    async function executeAsk() {
-      const q = queryInput.value.trim();
-      if (!q) return;
-
-      if (!state.apiKey) { showToast("Set Gemini API key in Settings (⚙️)", "error"); openSettings(); return; }
-      if (!state.cachedLedger.length) { showToast("Cabinet is empty.", "normal"); return; }
-
-      aiReplyCard.classList.remove('hidden');
-      aiReplyContent.innerHTML = `<span class="spinner" style="display:inline-block; vertical-align:middle; margin-right:6px;"></span> Searching cabinet...`;
-      aiReplyMatches.innerHTML = '';
-
-      const sys = `User document ledger: ${JSON.stringify(state.cachedLedger)}. Answer question accurately. If asking about pinned documents, filter pinned:true. Return JSON: {"answer":"...", "matchingRowIds":[1,2]}`;
-
-      try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${state.model}:generateContent?key=${state.apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: q }] }],
-            systemInstruction: { parts: [{ text: sys }] },
-            generationConfig: { responseMimeType: "application/json" }
-          })
-        });
-        const data = await res.json();
-        const parsed = JSON.parse(data.candidates[0].content.parts[0].text);
-
-        aiReplyContent.textContent = parsed.answer;
-        const matches = state.cachedLedger.filter(r => (parsed.matchingRowIds || []).includes(r.rowId));
-        aiReplyMatches.innerHTML = matches.map(r => `
-          <div class="receipt-item" style="padding:8px; font-size:0.8rem;">
-            <div>
-              <div style="font-weight:700; color:#FFF;">${r.pinned ? '📌 ' : ''}${escapeHtml(r.vendor || 'Unknown')}</div>
-              <div style="font-size:0.68rem; color:var(--text-faint);">${r.date} • ${r.category}</div>
-            </div>
-            <div style="text-align:right;">
-              ${r.totalAmount ? `<div style="font-weight:700; color:var(--emerald);">${r.totalAmount} ${r.currency}</div>` : ''}
-              ${r.driveFileUrl ? `<a href="${r.driveFileUrl}" target="_blank" class="btn-drive-link">Drive ↗</a>` : ''}
-            </div>
-          </div>
-        `).join('');
-      } catch (err) {
-        aiReplyContent.innerHTML = `<span style="color:var(--rose);">Error: ${escapeHtml(err.message)}</span>`;
-      }
-    }
-
-    // File Cabinet Sync & Modal
-    async function syncLedger(silent = false) {
-      if (!state.scriptUrl) { syncIndicator.className = "sync-indicator error"; return; }
-      syncIndicator.className = "sync-indicator syncing";
+    // Cloud Records Fetching
+    async function fetchCloudRecords(silent = false) {
+      if (!state.scriptUrl) return;
+      state.isSyncing = true;
+      btnSync.classList.add('syncing');
 
       try {
         const res = await fetch(`${state.scriptUrl}?action=get_records&_t=${Date.now()}`);
         const data = await res.json();
+
         if (data.status === 'success') {
-          state.cachedLedger = data.records || [];
-          localStorage.setItem('VAULT_CACHED_LEDGER', JSON.stringify(state.cachedLedger));
-          updateCabinetCount();
-          renderPinnedChips();
-          renderCabinet();
-          syncIndicator.className = "sync-indicator";
-          if (!silent) showToast(`Synced ${state.cachedLedger.length} documents`, "success");
+          state.documents = data.records || [];
+          localStorage.setItem('CLEAN_VAULT_DOCS', JSON.stringify(state.documents));
+          renderDocuments();
+          if (!silent) showToast(`Cabinet synced: ${state.documents.length} documents`);
         }
-      } catch (e) {
-        syncIndicator.className = "sync-indicator error";
+      } catch (err) {
+        if (!silent) showToast('Sync failed: ' + err.message);
+      } finally {
+        state.isSyncing = false;
+        btnSync.classList.remove('syncing');
       }
     }
 
-    function renderCabinet() {
-      const q = (cabinetSearchInput.value || '').toLowerCase().trim();
-      let records = state.cachedLedger;
-      if (q) {
-        records = records.filter(r => (r.vendor||'').toLowerCase().includes(q) || (r.category||'').toLowerCase().includes(q) || (r.notes||'').toLowerCase().includes(q));
+    btnSync.addEventListener('click', () => fetchCloudRecords(false));
+
+    // Render Cabinet Documents
+    function renderDocuments() {
+      const query = cabinetSearch.value.trim().toLowerCase();
+      const filtered = state.documents.filter(doc => {
+        const name = (doc.name || doc.vendor || '').toLowerCase();
+        const labels = (doc.labels || doc.notes || '').toLowerCase();
+        return !query || name.includes(query) || labels.includes(query);
+      });
+
+      docCountBadge.textContent = `${state.documents.length} documents`;
+
+      // Render Pinned Bar
+      const pinned = state.documents.filter(d => d.pinned === true);
+      if (pinned.length > 0) {
+        pinnedBar.style.display = 'flex';
+        pinnedBar.innerHTML = pinned.map(doc => `
+          <div class="pinned-pill" onclick="viewDocUrl('${doc.fileUrl || doc.driveFileUrl || ''}')">
+            <span>📌</span>
+            <span>${escapeHtml(doc.name || doc.vendor || 'Document')}</span>
+          </div>
+        `).join('');
+      } else {
+        pinnedBar.style.display = 'none';
       }
 
-      if (!records.length) {
-        cabinetList.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-faint); font-size:0.82rem;">No documents found</div>`;
+      // Render Grid Cards
+      if (filtered.length === 0) {
+        documentsContainer.innerHTML = `
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <div>${state.documents.length === 0 ? 'No documents in cloud. File one above or sync from phone!' : 'No matching documents found.'}</div>
+          </div>
+        `;
         return;
       }
 
-    // Extract Clean Google Drive File ID and Direct URLs
-    function getDriveFileId(doc) {
-      if (doc.fileId && doc.fileId.trim()) return doc.fileId.trim();
-      const url = doc.driveFileUrl || '';
-      const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || 
-                    url.match(/\/d\/([a-zA-Z0-9_-]+)/) || 
-                    url.match(/id=([a-zA-Z0-9_-]+)/);
-      return match ? match[1] : '';
-    }
-
-    function getDriveWebUrl(doc) {
-      const fileId = getDriveFileId(doc);
-      if (fileId) return `https://drive.google.com/file/d/${fileId}/view?usp=sharing`;
-      return doc.driveFileUrl || '';
-    }
-
-    function getDriveDirectDownloadUrl(doc) {
-      const fileId = getDriveFileId(doc);
-      if (fileId) return `https://drive.google.com/uc?export=download&id=${fileId}`;
-      return doc.driveFileUrl || '';
-    }
-
-      cabinetList.innerHTML = records.map(r => {
-        const webUrl = getDriveWebUrl(r);
-        const downloadUrl = getDriveDirectDownloadUrl(r);
+      documentsContainer.innerHTML = filtered.map(doc => {
+        const name = escapeHtml(doc.name || doc.vendor || 'Document');
+        const labels = doc.labels || doc.notes || '';
+        const date = doc.date || '';
+        const fileUrl = doc.fileUrl || doc.driveFileUrl || '';
+        const fileId = doc.fileId || '';
+        const isPinned = doc.pinned === true;
 
         return `
-        <div class="receipt-item ${r.pinned ? 'is-pinned' : ''}">
-          <div style="flex:1; min-width:0;">
-            <div style="display:flex; align-items:center; gap:6px;">
-              <button class="btn-pin-toggle ${r.pinned ? 'active' : ''}" onclick="togglePinRecord(${r.rowId})" title="${r.pinned ? 'Unpin' : 'Pin'}">📌</button>
-              <span class="receipt-vendor" style="cursor:pointer;" onclick="openDocViewer(${r.rowId})">${escapeHtml(r.vendor || 'Document')}</span>
+          <div class="doc-card ${isPinned ? 'pinned' : ''}">
+            <div class="doc-header">
+              <div class="doc-name-group">
+                <button class="btn-pin-sm" onclick="togglePin('${doc.docId || ''}', '${fileId}', ${isPinned})">
+                  ${isPinned ? '📌' : '📍'}
+                </button>
+                <div class="doc-name">${name}</div>
+              </div>
+              <div class="doc-meta">
+                <span>☁️</span>
+                <span>${date}</span>
+              </div>
             </div>
-            <div class="receipt-meta">
-              <span>📅 ${escapeHtml(r.date || '')}</span>
-            </div>
-            ${r.notes ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:3px;">💬 ${escapeHtml(r.notes)}</div>` : ''}
 
-            <!-- View, Share, Download Actions -->
-            <div class="doc-actions-row">
-              <button type="button" class="btn-doc-action primary" onclick="openDocViewer(${r.rowId})">
+            ${labels ? `
+              <div class="doc-labels">
+                ${labels.split(',').map(l => `<span class="label-badge">🏷️ ${escapeHtml(l.trim())}</span>`).join('')}
+              </div>
+            ` : ''}
+
+            <div class="doc-actions">
+              <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="btn-action view">
                 👁️ View
-              </button>
-              <button type="button" class="btn-doc-action" onclick="shareDocument(${r.rowId})">
-                📤 Share
-              </button>
-              <a href="${escapeHtml(downloadUrl)}" target="_blank" rel="noopener noreferrer" download class="btn-doc-action">
-                ⬇️ Download
               </a>
+              ${fileId ? `
+                <a href="https://drive.google.com/uc?export=download&id=${fileId}" target="_blank" class="btn-action">
+                  📥 Download
+                </a>
+              ` : ''}
+              <button class="btn-action-icon edit" title="Rename" onclick="openRename('${doc.docId || ''}', '${fileId}', '${escapeAttr(doc.name || doc.vendor || '')}', '${escapeAttr(labels)}')">
+                ✏️
+              </button>
+              <button class="btn-action-icon delete" title="Delete" onclick="deleteDocument('${doc.docId || ''}', '${fileId}')">
+                🗑️
+              </button>
             </div>
           </div>
-        </div>
-      `;
+        `;
       }).join('');
     }
 
-    window.togglePinRecord = async (rowId) => {
-      const target = state.cachedLedger.find(r => r.rowId === rowId);
-      if (target) {
-        target.pinned = !target.pinned;
-        localStorage.setItem('VAULT_CACHED_LEDGER', JSON.stringify(state.cachedLedger));
-        renderCabinet();
-        renderPinnedChips();
-      }
+    cabinetSearch.addEventListener('input', renderDocuments);
 
-      if (state.scriptUrl) {
-        fetch(state.scriptUrl, {
+    // Document Actions
+    function viewDocUrl(url) {
+      if (url) window.open(url, '_blank');
+    }
+
+    async function togglePin(docId, fileId, currentPinned) {
+      if (!state.scriptUrl) return;
+      try {
+        await fetch(state.scriptUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'toggle_pin', rowId: rowId })
-        }).catch(console.warn);
+          body: JSON.stringify({ action: 'toggle_pin', docId: docId, fileId: fileId, pinned: !currentPinned })
+        });
+        fetchCloudRecords(true);
+      } catch (err) {
+        showToast('Pin error: ' + err.message);
       }
-    };
-
-    cabinetSearchInput.addEventListener('input', renderCabinet);
-
-    // Document Viewer & Share Logic
-    window.openDocViewer = (rowId) => {
-      const doc = state.cachedLedger.find(r => r.rowId === rowId);
-      if (!doc) return;
-      currentViewingDoc = doc;
-
-      viewerTitle.textContent = doc.vendor || 'Document';
-      viewerNotes.textContent = doc.notes ? `Notes: ${doc.notes}` : '';
-
-      const fileId = getDriveFileId(doc);
-      const webUrl = getDriveWebUrl(doc);
-      const downloadDirect = getDriveDirectDownloadUrl(doc);
-
-      btnViewerDrive.href = webUrl;
-      btnViewerDownload.href = downloadDirect;
-
-      if (fileId) {
-        // Embed Google Drive official preview iframe which renders images, PDFs, docs reliably
-        viewerContent.innerHTML = `<iframe src="https://drive.google.com/file/d/${fileId}/preview" style="width:100%; height:52vh; border:none; border-radius:8px;" allow="autoplay"></iframe>`;
-      } else if (doc.driveFileUrl) {
-        viewerContent.innerHTML = `<iframe src="${escapeHtml(doc.driveFileUrl)}" style="width:100%; height:52vh; border:none; border-radius:8px;"></iframe>`;
-      } else {
-        viewerContent.innerHTML = `<div style="color:var(--text-faint); padding:30px; text-align:center;">No direct preview available.</div>`;
-      }
-
-      docViewerModal.classList.remove('hidden');
-    };
-
-    btnCloseViewer.addEventListener('click', () => {
-      docViewerModal.classList.add('hidden');
-      viewerContent.innerHTML = '';
-    });
-
-    window.shareDocument = async (rowId) => {
-      const doc = state.cachedLedger.find(r => r.rowId === rowId);
-      if (!doc) return;
-
-      const webUrl = getDriveWebUrl(doc);
-
-      const shareData = {
-        title: doc.vendor || 'Vault Document',
-        text: doc.notes ? `${doc.vendor} - ${doc.notes}` : doc.vendor,
-        url: webUrl
-      };
-
-      if (navigator.share) {
-        try {
-          await navigator.share(shareData);
-          showToast("Shared!", "success");
-        } catch (e) {}
-      } else if (navigator.clipboard) {
-        navigator.clipboard.writeText(webUrl);
-        showToast("Drive link copied to clipboard!", "success");
-      } else {
-        alert(`Document Link:\n${webUrl}`);
-      }
-    };
-
-    btnViewerShare.addEventListener('click', () => {
-      if (currentViewingDoc) shareDocument(currentViewingDoc.rowId);
-    });
-
-    btnOpenCabinetModal.addEventListener('click', () => {
-      renderCabinet();
-      cabinetModal.classList.remove('hidden');
-    });
-    btnCloseCabinet.addEventListener('click', () => cabinetModal.classList.add('hidden'));
-
-    // Settings Modal
-    function openSettings() { settingsModal.classList.remove('hidden'); }
-    btnOpenSettings.addEventListener('click', openSettings);
-    btnCloseSettings.addEventListener('click', () => settingsModal.classList.add('hidden'));
-
-    btnSaveSettings.addEventListener('click', () => {
-      const key = inputGeminiKey.value.trim();
-      const model = selectGeminiModel.value;
-      const url = inputScriptUrl.value.trim();
-
-      localStorage.setItem('VAULT_GEMINI_KEY', key);
-      localStorage.setItem('VAULT_GEMINI_MODEL', model);
-      localStorage.setItem('VAULT_SCRIPT_URL', url);
-
-      state.apiKey = key;
-      state.model = model;
-      state.scriptUrl = url;
-
-      showToast("Settings saved!", "success");
-      settingsModal.classList.add('hidden');
-      if (url) syncLedger();
-    });
-
-    btnTestConn.addEventListener('click', async () => {
-      testFeedback.classList.remove('hidden');
-      testFeedback.innerHTML = `<span class="spinner" style="display:inline-block; vertical-align:middle; margin-right:4px;"></span> Testing...`;
-
-      const res = [];
-      if (inputGeminiKey.value.trim()) {
-        try {
-          const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${inputGeminiKey.value.trim()}`);
-          res.push(r.ok ? `✅ Gemini API connected` : `❌ Gemini key failed`);
-        } catch(e) { res.push(`❌ Gemini error: ${e.message}`); }
-      }
-      if (inputScriptUrl.value.trim()) {
-        try {
-          const r = await fetch(`${inputScriptUrl.value.trim()}?action=ping&_t=${Date.now()}`);
-          const d = await r.json();
-          res.push(d.status === 'success' ? `✅ Apps Script connected` : `⚠️ Backend: ${d.message}`);
-        } catch(e) { res.push(`❌ Apps Script ping failed`); }
-      }
-      testFeedback.innerHTML = res.join('<br>') || 'Enter keys first';
-    });
-
-    // Native Install Prompt Capture
-    let deferredPrompt = null;
-    const btnForceInstallPrompt = document.getElementById('btnForceInstallPrompt');
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-    });
-
-    btnForceInstallPrompt.addEventListener('click', async () => {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') {
-          showToast("Installing Clean Vault to home screen!", "success");
-        }
-        deferredPrompt = null;
-      } else {
-        alert("To add the icon to your home screen:\n\n1. Tap the 3 dots (⋮) in Chrome top right\n2. Tap 'Add to Home screen' or 'Install app'\n\nIf you previously added it, look in your phone's App Drawer for 'Clean Vault'.");
-      }
-    });
-
-    btnClearData.addEventListener('click', () => {
-      if (confirm("Clear local cache?")) {
-        localStorage.removeItem('VAULT_CACHED_LEDGER');
-        state.cachedLedger = [];
-        updateCabinetCount();
-        renderCabinet();
-        renderPinnedChips();
-        showToast("Cache cleared", "normal");
-      }
-    });
-
-    function escapeHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-    let toastTimer;
-    function showToast(msg, type="normal") {
-      const t = document.getElementById('statusToast');
-      document.getElementById('toastMsg').textContent = msg;
-      t.className = `status-toast show ${type}`;
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => { t.className = "status-toast"; }, 2800);
     }
+
+    function openRename(docId, fileId, name, labels) {
+      editDocId.value = docId;
+      editFileId.value = fileId;
+      editDocName.value = name;
+      editLabels.value = labels;
+      openModal('renameModal');
+    }
+
+    btnSaveRename.addEventListener('click', async () => {
+      const docId = editDocId.value;
+      const fileId = editFileId.value;
+      const name = editDocName.value.trim();
+      const labels = editLabels.value.trim();
+
+      if (!name) {
+        showToast('Document name cannot be blank');
+        return;
+      }
+
+      try {
+        closeModal('renameModal');
+        showToast('Updating document in cloud...');
+        const res = await fetch(state.scriptUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'update_receipt',
+            docId: docId,
+            fileId: fileId,
+            name: name,
+            labels: labels,
+            notes: labels
+          })
+        });
+        const d = await res.json();
+        if (d.status === 'success') {
+          showToast('Updated successfully!');
+          fetchCloudRecords(true);
+        } else {
+          showToast('Update failed: ' + (d.message || 'Error'));
+        }
+      } catch (err) {
+        showToast('Error: ' + err.message);
+      }
+    });
+
+    async function deleteDocument(docId, fileId) {
+      if (!confirm('Are you sure you want to delete this document from Google Drive & Cabinet?')) return;
+      if (!state.scriptUrl) return;
+
+      try {
+        showToast('Deleting from Google Drive...');
+        const res = await fetch(state.scriptUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'delete_receipt', docId: docId, fileId: fileId })
+        });
+        const d = await res.json();
+        if (d.status === 'success') {
+          showToast('Deleted');
+          fetchCloudRecords(true);
+        } else {
+          showToast('Delete error: ' + (d.message || 'Failed'));
+        }
+      } catch (err) {
+        showToast('Error: ' + err.message);
+      }
+    }
+
+    // Settings Modal Handlers
+    btnSettings.addEventListener('click', () => openModal('settingsModal'));
+
+    btnTestUrl.addEventListener('click', async () => {
+      const url = inputScriptUrl.value.trim();
+      if (!url) {
+        showTestStatus('Please enter URL first', false);
+        return;
+      }
+
+      btnTestUrl.disabled = true;
+      btnTestUrl.textContent = 'Testing...';
+
+      try {
+        const res = await fetch(`${url}?action=ping&_t=${Date.now()}`);
+        const d = await res.json();
+        if (d.status === 'success') {
+          showTestStatus('✓ Connected successfully to Google Apps Script!', true);
+        } else {
+          showTestStatus('Error: ' + (d.message || 'Invalid response'), false);
+        }
+      } catch (err) {
+        showTestStatus('Connection failed: ' + err.message, false);
+      } finally {
+        btnTestUrl.disabled = false;
+        btnTestUrl.textContent = 'Test Link';
+      }
+    });
+
+    btnSaveUrl.addEventListener('click', () => {
+      const url = inputScriptUrl.value.trim();
+      state.scriptUrl = url;
+      localStorage.setItem('CLEAN_VAULT_SCRIPT_URL', url);
+      closeModal('settingsModal');
+
+      if (url) {
+        connectionStatus.className = "brand-subtitle";
+        statusText.textContent = "Google Drive Connected";
+        showToast('Settings saved! Syncing cabinet...');
+        fetchCloudRecords(false);
+      } else {
+        connectionStatus.className = "brand-subtitle offline";
+        statusText.textContent = "Local / Not Connected";
+      }
+    });
+
+    function showTestStatus(msg, isSuccess) {
+      testStatusMessage.style.display = 'block';
+      testStatusMessage.style.background = isSuccess ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+      testStatusMessage.style.color = isSuccess ? 'var(--emerald)' : 'var(--rose)';
+      testStatusMessage.style.border = `1px solid ${isSuccess ? 'var(--emerald)' : 'var(--rose)'}`;
+      testStatusMessage.textContent = msg;
+    }
+
+    function escapeHtml(str) {
+      return (str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+    }
+
+    function escapeAttr(str) {
+      return (str || '').replace(/"/g, '&quot;');
+    }
+
+    // Start App
+    init();
   </script>
 </body>
 </html>
