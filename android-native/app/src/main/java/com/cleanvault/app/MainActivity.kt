@@ -1,6 +1,7 @@
 package com.cleanvault.app
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -11,6 +12,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -30,18 +32,24 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
 import com.cleanvault.app.data.VaultDocument
 import com.cleanvault.app.data.VaultRepository
 import com.cleanvault.app.theme.*
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 
@@ -61,7 +69,12 @@ class MainActivity : ComponentActivity() {
 fun MainScreen() {
     val context = LocalContext.current
     val repository = remember { VaultRepository(context) }
+    val scope = rememberCoroutineScope()
+    val lifecycleOwner = LocalLifecycleOwner.current
+
     var documents by remember { mutableStateOf(repository.getDocuments()) }
+    var isSyncing by remember { mutableStateOf(false) }
+    var syncStatusText by remember { mutableStateOf("") }
 
     var selectedTempFile by remember { mutableStateOf<File?>(null) }
     var selectedMimeType by remember { mutableStateOf("image/jpeg") }
@@ -71,7 +84,60 @@ fun MainScreen() {
     var isPinned by remember { mutableStateOf(false) }
 
     var showCabinetModal by remember { mutableStateOf(false) }
+    var showSettingsModal by remember { mutableStateOf(false) }
     var cabinetSearchQuery by remember { mutableStateOf("") }
+
+    // Cloud Sync Runner
+    fun triggerSync(silent: Boolean = false) {
+        if (isSyncing) return
+        val url = repository.getScriptUrl()
+        if (url.isBlank()) {
+            if (!silent) {
+                Toast.makeText(context, "Configure Google Drive in Settings ⚙️ to sync", Toast.LENGTH_SHORT).show()
+                showSettingsModal = true
+            }
+            return
+        }
+
+        isSyncing = true
+        scope.launch {
+            val result = repository.syncWithCloud()
+            isSyncing = false
+            result.onSuccess { summary ->
+                documents = repository.getDocuments()
+                val msg = if (summary.downloaded > 0 || summary.uploaded > 0) {
+                    "Synced: +${summary.downloaded} new, ^${summary.uploaded} uploaded (${summary.total} total)"
+                } else {
+                    "File Cabinet up to date (${summary.total} docs)"
+                }
+                syncStatusText = msg
+                if (!silent) Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            }.onFailure { err ->
+                if (!silent) Toast.makeText(context, "Sync error: ${err.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    // Auto sync on Open (ON_START) and on Close/Background (ON_STOP)
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> {
+                    triggerSync(silent = true)
+                }
+                Lifecycle.Event.ON_STOP -> {
+                    scope.launch {
+                        repository.syncWithCloud()
+                    }
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     // Speech recognition launchers
     val speechLauncherName = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
@@ -136,6 +202,18 @@ fun MainScreen() {
         }
     }
 
+    // Infinite rotation animation for syncing icon
+    val infiniteTransition = rememberInfiniteTransition(label = "sync")
+    val syncRotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotation"
+    )
+
     val gradientBrush = Brush.linearGradient(listOf(AccentColor, AccentMid, WarningColor))
     val fileCardBrush = Brush.linearGradient(listOf(Color(0xFF101530), Color(0xFF0C1024)))
     val retrieveCardBrush = Brush.linearGradient(listOf(Color(0xFF1C1028), Color(0xFF120B1C)))
@@ -151,7 +229,7 @@ fun MainScreen() {
                     .clip(RoundedCornerShape(20.dp))
                     .background(SurfaceColor)
                     .border(1.dp, BorderColor, RoundedCornerShape(20.dp))
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -165,13 +243,41 @@ fun MainScreen() {
                             Icon(Icons.Filled.Folder, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                         }
                     }
-                    Text(text = "Clean Vault", fontSize = 19.sp, fontWeight = FontWeight.Bold, color = TextMain)
+                    Column {
+                        Text(text = "Clean Vault", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextMain)
+                        val hasCloud = repository.getScriptUrl().isNotBlank()
+                        Text(
+                            text = if (hasCloud) "Google Drive Shared" else "Local only",
+                            fontSize = 11.sp,
+                            color = if (hasCloud) EmeraldGreen else TextFaint
+                        )
+                    }
                 }
-                Surface(
-                    shape = CircleShape,
-                    color = EmeraldGreen,
-                    modifier = Modifier.size(8.dp)
-                ) {}
+
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // Sync Button with animated rotation
+                    IconButton(
+                        onClick = { triggerSync(silent = false) },
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            Icons.Filled.Sync,
+                            contentDescription = "Sync",
+                            tint = if (isSyncing) AmberGold else TextMuted,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .then(if (isSyncing) Modifier.rotate(syncRotation) else Modifier)
+                        )
+                    }
+
+                    // Settings Button
+                    IconButton(
+                        onClick = { showSettingsModal = true },
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = TextMuted, modifier = Modifier.size(20.dp))
+                    }
+                }
             }
         }
     ) { padding ->
@@ -353,7 +459,7 @@ fun MainScreen() {
                                 Toast.makeText(context, "Please snap or choose a file first", Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
-                            repository.saveFileToVault(
+                            val doc = repository.saveFileToVault(
                                 name = docNameText,
                                 notes = notesText,
                                 isPinned = isPinned,
@@ -366,6 +472,12 @@ fun MainScreen() {
                             notesText = ""
                             isPinned = false
                             Toast.makeText(context, "Saved to File Cabinet! 🗄️", Toast.LENGTH_SHORT).show()
+
+                            // Auto-upload in background to Google Drive
+                            scope.launch {
+                                repository.uploadDocAsync(doc)
+                                documents = repository.getDocuments()
+                            }
                         },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
@@ -458,6 +570,126 @@ fun MainScreen() {
         }
     }
 
+    // SETTINGS MODAL (Google Drive Shared Backend Setup)
+    if (showSettingsModal) {
+        var inputUrl by remember { mutableStateOf(repository.getScriptUrl()) }
+        var testStatus by remember { mutableStateOf<String?>(null) }
+        var isTesting by remember { mutableStateOf(false) }
+
+        AlertDialog(
+            onDismissRequest = { showSettingsModal = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = SurfaceColor,
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight),
+                modifier = Modifier.fillMaxWidth(0.92f).padding(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Filled.CloudSync, contentDescription = null, tint = AccentMid)
+                            Text("Shared Cloud Cabinet", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextMain)
+                        }
+                        IconButton(onClick = { showSettingsModal = false }) {
+                            Icon(Icons.Filled.Close, contentDescription = null, tint = TextMuted)
+                        }
+                    }
+
+                    Text(
+                        text = "Both you and your wife can use this same Google Apps Script Web App URL to automatically share the exact same Google Drive files & cabinet.",
+                        color = TextMuted,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
+                    )
+
+                    OutlinedTextField(
+                        value = inputUrl,
+                        onValueChange = {
+                            inputUrl = it
+                            testStatus = null
+                        },
+                        placeholder = { Text("https://script.google.com/macros/s/.../exec", color = TextFaint, fontSize = 12.sp) },
+                        label = { Text("Apps Script Web App URL", color = TextMuted) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = SurfaceRaised,
+                            unfocusedContainerColor = SurfaceRaised,
+                            focusedBorderColor = AccentColor,
+                            unfocusedBorderColor = BorderColor,
+                            focusedTextColor = TextMain,
+                            unfocusedTextColor = TextMain
+                        ),
+                        singleLine = true
+                    )
+
+                    if (testStatus != null) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (testStatus!!.contains("Connected")) EmeraldGreen.copy(alpha = 0.15f) else RoseRed.copy(alpha = 0.15f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (testStatus!!.contains("Connected")) EmeraldGreen else RoseRed)
+                        ) {
+                            Text(
+                                text = testStatus!!,
+                                color = if (testStatus!!.contains("Connected")) EmeraldGreen else RoseRed,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                if (inputUrl.isBlank()) {
+                                    testStatus = "Please enter URL first"
+                                    return@OutlinedButton
+                                }
+                                isTesting = true
+                                scope.launch {
+                                    val (success, message) = repository.testConnection(inputUrl.trim())
+                                    isTesting = false
+                                    testStatus = message
+                                }
+                            },
+                            enabled = !isTesting,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(if (isTesting) "Testing..." else "Test Link", fontSize = 13.sp)
+                        }
+
+                        Button(
+                            onClick = {
+                                repository.setScriptUrl(inputUrl.trim())
+                                showSettingsModal = false
+                                Toast.makeText(context, "Saved! Syncing cabinet...", Toast.LENGTH_SHORT).show()
+                                triggerSync(silent = false)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Save & Sync", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 13.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // FILE CABINET FULL SCREEN MODAL / DIALOG
     if (showCabinetModal) {
         val filteredDocs = documents.filter {
@@ -485,7 +717,12 @@ fun MainScreen() {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("File Cabinet", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextMain)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("File Cabinet", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextMain)
+                            if (isSyncing) {
+                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = AmberGold)
+                            }
+                        }
                         IconButton(onClick = { showCabinetModal = false }) {
                             Icon(Icons.Filled.Close, contentDescription = null, tint = TextMuted)
                         }
@@ -528,14 +765,22 @@ fun MainScreen() {
                                         ) {
                                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                                 IconButton(
-                                                    onClick = { documents = repository.togglePin(doc.id) },
+                                                    onClick = {
+                                                        documents = repository.togglePin(doc.id)
+                                                        scope.launch { repository.togglePinRemoteAsync(doc.id) }
+                                                    },
                                                     modifier = Modifier.size(24.dp)
                                                 ) {
                                                     Text(if (doc.isPinned) "📌" else "📍", fontSize = 14.sp)
                                                 }
                                                 Text(doc.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextMain)
                                             }
-                                            Text(doc.date, color = TextFaint, fontSize = 11.sp)
+                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                if (doc.isSynced) {
+                                                    Text("☁️", fontSize = 11.sp)
+                                                }
+                                                Text(doc.date, color = TextFaint, fontSize = 11.sp)
+                                            }
                                         }
 
                                         if (doc.notes.isNotBlank()) {
@@ -565,6 +810,7 @@ fun MainScreen() {
                                             IconButton(
                                                 onClick = {
                                                     documents = repository.deleteDocument(doc.id)
+                                                    scope.launch { repository.deleteDocRemoteAsync(doc.id) }
                                                     Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show()
                                                 }
                                             ) {
@@ -582,11 +828,11 @@ fun MainScreen() {
     }
 }
 
-fun openDocumentFile(context: android.content.Context, doc: VaultDocument) {
+fun openDocumentFile(context: Context, doc: VaultDocument) {
     try {
         val file = File(doc.filePath)
         if (!file.exists()) {
-            Toast.makeText(context, "File not found", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "File not found locally", Toast.LENGTH_SHORT).show()
             return
         }
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
@@ -600,7 +846,7 @@ fun openDocumentFile(context: android.content.Context, doc: VaultDocument) {
     }
 }
 
-fun shareDocumentFile(context: android.content.Context, doc: VaultDocument) {
+fun shareDocumentFile(context: Context, doc: VaultDocument) {
     try {
         val file = File(doc.filePath)
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
@@ -616,4 +862,3 @@ fun shareDocumentFile(context: android.content.Context, doc: VaultDocument) {
         Toast.makeText(context, "Could not share file", Toast.LENGTH_SHORT).show()
     }
 }
-

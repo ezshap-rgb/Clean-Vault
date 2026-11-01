@@ -1,8 +1,8 @@
 /**
- * Clean Vault - Google Apps Script Backend
+ * Clean Vault - Google Apps Script Backend (Sync & Shared Cloud Vault)
  * --------------------------------------------------------------------------
- * Handles secure storage of receipt & document photos, PDFs, and files
- * in Google Drive and structured records in Google Sheets.
+ * Shared cloud backend enabling multiple devices (e.g. you and your wife)
+ * to sync to the exact same Google Drive folder and ledger.
  */
 
 const FOLDER_NAME = "Clean_Vault_Files";
@@ -19,8 +19,9 @@ const HEADERS = [
   "Notes", 
   "Raw OCR", 
   "Drive File URL", 
-  "File ID",
-  "Pinned"
+  "File ID", 
+  "Pinned",
+  "Doc ID"
 ];
 
 function doPost(e) {
@@ -50,7 +51,7 @@ function doPost(e) {
       });
     }
 
-    // 2. Action: Save Receipt / Document (supports JPEG, PNG, PDF, DOC, etc.)
+    // 2. Action: Save Receipt / Document
     if (action === "save_receipt") {
       const folder = getOrCreateFolder(FOLDER_NAME);
       const sheet = getOrCreateSheet(SHEET_NAME);
@@ -80,6 +81,7 @@ function doPost(e) {
       }
 
       const meta = payload.metadata || {};
+      const docId = meta.docId || Utilities.getUuid();
       const row = [
         new Date().toISOString(),
         meta.date || new Date().toISOString().slice(0, 10),
@@ -92,7 +94,8 @@ function doPost(e) {
         meta.rawOcr || "",
         fileUrl,
         fileId,
-        meta.pinned ? "true" : "false"
+        meta.pinned ? "true" : "false",
+        docId
       ];
 
       sheet.appendRow(row);
@@ -102,37 +105,40 @@ function doPost(e) {
         status: "success",
         fileUrl: fileUrl,
         fileId: fileId,
+        docId: docId,
         rowId: lastRow
       });
     }
 
     // 3. Action: Toggle Pin Status
     if (action === "toggle_pin") {
+      const docId = payload.docId;
       const rowId = parseInt(payload.rowId, 10);
-      if (!rowId || rowId < 2) return createJsonResponse({ status: "error", message: "Invalid rowId" }, 400);
-
       const sheet = getOrCreateSheet(SHEET_NAME);
-      if (rowId <= sheet.getLastRow()) {
-        const currentVal = String(sheet.getRange(rowId, 12).getValue()).toLowerCase() === "true";
+      const targetRow = findRowByDocIdOrRowId(sheet, docId, rowId);
+
+      if (targetRow > 1) {
+        const currentVal = String(sheet.getRange(targetRow, 12).getValue()).toLowerCase() === "true";
         const newVal = !currentVal;
-        sheet.getRange(rowId, 12).setValue(newVal ? "true" : "false");
-        return createJsonResponse({ status: "success", pinned: newVal, rowId: rowId });
+        sheet.getRange(targetRow, 12).setValue(newVal ? "true" : "false");
+        return createJsonResponse({ status: "success", pinned: newVal, rowId: targetRow });
       }
       return createJsonResponse({ status: "error", message: "Row not found" }, 404);
     }
 
     // 4. Action: Delete Receipt
     if (action === "delete_receipt") {
+      const docId = payload.docId;
       const rowId = parseInt(payload.rowId, 10);
-      if (!rowId || rowId < 2) return createJsonResponse({ status: "error", message: "Invalid rowId" }, 400);
-
       const sheet = getOrCreateSheet(SHEET_NAME);
-      if (rowId <= sheet.getLastRow()) {
-        const fileId = sheet.getRange(rowId, 11).getValue();
-        if (fileId && payload.deleteDriveFile) {
+      const targetRow = findRowByDocIdOrRowId(sheet, docId, rowId);
+
+      if (targetRow > 1) {
+        const fileId = sheet.getRange(targetRow, 11).getValue();
+        if (fileId) {
           try { DriveApp.getFileById(fileId).setTrashed(true); } catch (e) {}
         }
-        sheet.deleteRow(rowId);
+        sheet.deleteRow(targetRow);
         return createJsonResponse({ status: "success" });
       }
       return createJsonResponse({ status: "error", message: "Row not found" }, 404);
@@ -169,6 +175,7 @@ function doGet(e) {
           record[toCamelCase(header)] = row[colIdx];
         });
         record.pinned = String(record.pinned).toLowerCase() === "true";
+        if (!record.docId) record.docId = "row_" + (index + 2);
         return record;
       });
 
@@ -176,10 +183,37 @@ function doGet(e) {
       return createJsonResponse({ status: "success", records: records, count: records.length });
     }
 
+    // Download a file directly as base64 for native synchronization
+    if (action === "download_file") {
+      const fileId = e.parameter.fileId;
+      if (!fileId) return createJsonResponse({ status: "error", message: "Missing fileId" }, 400);
+
+      const file = DriveApp.getFileById(fileId);
+      const blob = file.getBlob();
+      const base64 = Utilities.base64Encode(blob.getBytes());
+      return createJsonResponse({
+        status: "success",
+        name: file.getName(),
+        mimeType: blob.getContentType(),
+        base64: base64
+      });
+    }
+
     return createJsonResponse({ status: "error", message: "Unknown action" }, 400);
   } catch (err) {
     return createJsonResponse({ status: "error", message: err.toString() }, 500);
   }
+}
+
+function findRowByDocIdOrRowId(sheet, docId, rowId) {
+  if (docId) {
+    const data = sheet.getDataRange().getValues();
+    for (let r = 1; r < data.length; r++) {
+      if (data[r][12] === docId) return r + 1;
+    }
+  }
+  if (rowId && rowId > 1 && rowId <= sheet.getLastRow()) return rowId;
+  return -1;
 }
 
 function getOrCreateFolder(folderName) {
@@ -200,9 +234,9 @@ function getOrCreateSheet(sheetName) {
     headerRange.setBackground("#151C33");
     headerRange.setFontColor("#FFFFFF");
     sheet.setFrozenRows(1);
-    sheet.getRange(2, 4, 1000, 1).setNumberFormat("#,##0.00");
   } else if (sheet.getLastColumn() < HEADERS.length) {
-    sheet.getRange(1, HEADERS.length).setValue("Pinned").setFontWeight("bold");
+    sheet.getRange(1, 12).setValue("Pinned").setFontWeight("bold");
+    sheet.getRange(1, 13).setValue("Doc ID").setFontWeight("bold");
   }
   return sheet;
 }
