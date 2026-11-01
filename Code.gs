@@ -116,6 +116,9 @@ function doPost(e) {
       const targetRow = findRowByPayload(sheet, payload);
 
       if (targetRow > 1) {
+        if (sheet.getLastColumn() < 12) {
+          sheet.getRange(1, 12).setValue("Pinned").setFontWeight("bold");
+        }
         const currentVal = String(sheet.getRange(targetRow, 12).getValue()).toLowerCase() === "true";
         const newVal = payload.pinned !== undefined ? (payload.pinned === true || payload.pinned === "true") : !currentVal;
         sheet.getRange(targetRow, 12).setValue(newVal ? "true" : "false");
@@ -299,6 +302,16 @@ function findRowByPayload(sheet, payload) {
   if (fileUrl) {
     for (let r = 1; r < data.length; r++) {
       if (data[r].length > 9 && String(data[r][9]).trim() === fileUrl) {
+        return r + 1;
+      }
+    }
+  }
+
+  // 6. Match by Document Name / Vendor (Col 3, index 2)
+  const name = (payload.name || payload.vendor || "").toString().trim().toLowerCase();
+  if (name) {
+    for (let r = data.length - 1; r >= 1; r--) {
+      if (data[r].length > 2 && String(data[r][2]).trim().toLowerCase() === name) {
         return r + 1;
       }
     }

@@ -321,15 +321,17 @@ class VaultRepository(private val context: Context) {
                     if (wasLocallyModified && (existing.name != remoteVendor || existing.notes != remoteNotes)) {
                         updateDocRemoteAsync(existing, existing.name, existing.notes)
                     }
-                    if (wasLocallyModified && existing.isPinned != remotePinned) {
-                        togglePinRemoteAsync(existing)
+                    if (existing.isPinned != remotePinned) {
+                        if (existing.isPinned) {
+                            togglePinRemoteAsync(existing)
+                        }
                     }
 
                     localList[existingIndex] = existing.copy(
                         id = if (existing.id.startsWith("row_") && !docId.startsWith("row_")) docId else existing.id,
                         name = finalName,
                         notes = finalNotes,
-                        isPinned = if (wasLocallyModified) existing.isPinned else remotePinned,
+                        isPinned = existing.isPinned || remotePinned,
                         driveFileId = remoteFileId.ifBlank { existing.driveFileId },
                         driveFileUrl = remoteFileUrl.ifBlank { existing.driveFileUrl },
                         filePath = actualPath,
@@ -432,6 +434,8 @@ class VaultRepository(private val context: Context) {
             val jsonPayload = JSONObject().apply {
                 put("action", "toggle_pin")
                 put("docId", doc.id)
+                put("name", doc.name)
+                put("vendor", doc.name)
                 if (!doc.driveFileId.isNullOrBlank()) put("fileId", doc.driveFileId)
                 if (!doc.driveFileUrl.isNullOrBlank()) put("driveFileUrl", doc.driveFileUrl)
                 put("pinned", doc.isPinned)

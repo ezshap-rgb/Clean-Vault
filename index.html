@@ -1035,6 +1035,7 @@
           localStorage.setItem('CLEAN_VAULT_DOCS', JSON.stringify(state.documents));
           renderDocuments();
           const pinnedCount = state.documents.filter(d => isDocPinned(d)).length;
+          console.log('[Clean Vault] Cloud records loaded:', state.documents);
           if (!silent) showToast(`Cabinet synced: ${state.documents.length} docs (${pinnedCount} pinned)`);
         }
       } catch (err) {
@@ -1116,7 +1117,7 @@
           <div class="doc-card ${isPinned ? 'pinned' : ''}">
             <div class="doc-header">
               <div class="doc-name-group">
-                <button class="btn-pin-sm" onclick="togglePin('${doc.docId || ''}', '${fileId}', ${isPinned})">
+                <button class="btn-pin-sm" onclick="togglePin('${doc.docId || ''}', '${fileId}', ${isPinned}, '${escapeAttr(doc.name || doc.vendor || '')}')">
                   ${isPinned ? '📌' : '📍'}
                 </button>
                 <div class="doc-name">${name}</div>
@@ -1160,12 +1161,13 @@
       if (url) window.open(url, '_blank');
     }
 
-    async function togglePin(docId, fileId, currentPinned) {
+    async function togglePin(docId, fileId, currentPinned, docName = '') {
       const nextPinned = !currentPinned;
       // Optimistic instant UI update
       const target = state.documents.find(d => 
         (docId && (d.docId === docId || d.id === docId)) || 
-        (fileId && (d.fileId === fileId || d.driveFileId === fileId))
+        (fileId && (d.fileId === fileId || d.driveFileId === fileId)) ||
+        (docName && (d.name === docName || d.vendor === docName))
       );
       if (target) {
         target.pinned = nextPinned;
@@ -1179,11 +1181,17 @@
         return;
       }
       try {
-        await fetch(state.scriptUrl, {
+        const res = await fetch(state.scriptUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'toggle_pin', docId: docId, fileId: fileId, pinned: nextPinned })
+          body: JSON.stringify({ action: 'toggle_pin', docId: docId, fileId: fileId, name: docName, vendor: docName, pinned: nextPinned })
         });
+        const data = await res.json();
+        if (data.status === 'success') {
+          showToast(nextPinned ? '📌 Document pinned!' : '📍 Document unpinned!');
+        } else {
+          showToast('Sync notice: ' + (data.message || 'Updated locally'));
+        }
         fetchCloudRecords(true);
       } catch (err) {
         showToast('Pin error: ' + err.message);
