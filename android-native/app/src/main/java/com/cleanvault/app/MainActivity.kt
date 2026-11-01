@@ -1022,6 +1022,24 @@ fun MainScreen() {
                                                 }
                                                 if (doc.isSynced) {
                                                     Text("☁️", fontSize = 11.sp, modifier = Modifier.padding(start = 8.dp, top = 2.dp))
+                                                } else {
+                                                    IconButton(
+                                                        onClick = {
+                                                            scope.launch {
+                                                                Toast.makeText(context, "Uploading to Google Drive...", Toast.LENGTH_SHORT).show()
+                                                                val uploaded = repository.uploadDocAsync(doc)
+                                                                documents = repository.getDocuments()
+                                                                if (uploaded != null) {
+                                                                    Toast.makeText(context, "Uploaded to Google Drive! ☁️", Toast.LENGTH_SHORT).show()
+                                                                } else {
+                                                                    Toast.makeText(context, "Upload failed. Check Google Drive settings ⚙️", Toast.LENGTH_SHORT).show()
+                                                                }
+                                                            }
+                                                        },
+                                                        modifier = Modifier.size(22.dp).padding(start = 4.dp)
+                                                    ) {
+                                                        Text("⬆️", fontSize = 11.sp)
+                                                    }
                                                 }
                                             }
 

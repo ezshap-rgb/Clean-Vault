@@ -373,7 +373,7 @@ class VaultRepository(private val context: Context) {
                 }
             }
 
-            // 3. Handle local docs that need initial upload
+            // 3. Handle local docs that need upload (any local doc missing from remote)
             val finalDocs = mutableListOf<VaultDocument>()
             for (doc in localList) {
                 if (deletedIds.contains(doc.id) || (!doc.driveFileId.isNullOrBlank() && deletedIds.contains(doc.driveFileId))) {
@@ -381,8 +381,19 @@ class VaultRepository(private val context: Context) {
                     continue
                 }
 
-                if (!doc.isSynced && doc.driveFileId.isNullOrBlank()) {
-                    // Newly created local file not yet uploaded
+                val existsRemotely = remoteMap.values.any { r ->
+                    val rFileId = r.optString("fileId").ifBlank { r.optString("fileID") }
+                    val rDocId = r.optString("docId").ifBlank { r.optString("docID") }
+                    val rUrl = r.optString("driveFileUrl").ifBlank { r.optString("fileUrl") }
+                    val rName = r.optString("name").ifBlank { r.optString("vendor") }
+                    (doc.id.isNotBlank() && doc.id == rDocId) ||
+                    (!doc.driveFileId.isNullOrBlank() && doc.driveFileId == rFileId) ||
+                    (!doc.driveFileUrl.isNullOrBlank() && doc.driveFileUrl == rUrl) ||
+                    (doc.name.isNotBlank() && doc.name.equals(rName, ignoreCase = true))
+                }
+
+                if (!existsRemotely) {
+                    // Local file missing from Google Drive/Sheet -> upload it now!
                     val uploadedDoc = uploadDocumentToCloud(scriptUrl, doc)
                     if (uploadedDoc != null) {
                         finalDocs.add(uploadedDoc)
@@ -391,7 +402,7 @@ class VaultRepository(private val context: Context) {
                         finalDocs.add(doc)
                     }
                 } else {
-                    finalDocs.add(doc)
+                    finalDocs.add(doc.copy(isSynced = true))
                 }
             }
 
@@ -402,14 +413,15 @@ class VaultRepository(private val context: Context) {
         }
     }
 
-    suspend fun uploadDocAsync(doc: VaultDocument) = withContext(Dispatchers.IO) {
+    suspend fun uploadDocAsync(doc: VaultDocument): VaultDocument? = withContext(Dispatchers.IO) {
         val scriptUrl = getScriptUrl()
-        if (scriptUrl.isBlank()) return@withContext
+        if (scriptUrl.isBlank()) return@withContext null
         val uploaded = uploadDocumentToCloud(scriptUrl, doc)
         if (uploaded != null) {
             val list = getDocuments().map { if (it.id == doc.id) uploaded else it }
             saveDocuments(list)
         }
+        uploaded
     }
 
     suspend fun deleteDocRemoteAsync(docId: String, fileId: String? = null) = withContext(Dispatchers.IO) {
