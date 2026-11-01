@@ -847,9 +847,11 @@ fun MainScreen() {
 
                         Button(
                             onClick = {
-                                documents = repository.renameDocument(target.id, editName.trim(), editLabels.trim())
+                                val updated = repository.renameDocument(target.id, editName.trim(), editLabels.trim())
+                                documents = updated
+                                val targetDoc = updated.find { it.id == target.id } ?: target
                                 scope.launch {
-                                    repository.updateDocRemoteAsync(target.id, editName.trim(), editLabels.trim())
+                                    repository.updateDocRemoteAsync(targetDoc, editName.trim(), editLabels.trim())
                                 }
                                 docToRename = null
                                 Toast.makeText(context, "Document updated", Toast.LENGTH_SHORT).show()
@@ -965,8 +967,10 @@ fun MainScreen() {
                                             ) {
                                                 IconButton(
                                                     onClick = {
-                                                        documents = repository.togglePin(doc.id)
-                                                        scope.launch { repository.togglePinRemoteAsync(doc.id) }
+                                                        val updated = repository.togglePin(doc.id)
+                                                        documents = updated
+                                                        val targetDoc = updated.find { it.id == doc.id } ?: doc
+                                                        scope.launch { repository.togglePinRemoteAsync(targetDoc) }
                                                     },
                                                     modifier = Modifier.size(22.dp).padding(top = 1.dp)
                                                 ) {
@@ -1051,8 +1055,10 @@ fun MainScreen() {
                                             // Classic Delete Trash Icon
                                             IconButton(
                                                 onClick = {
-                                                    documents = repository.deleteDocument(doc.id)
-                                                    scope.launch { repository.deleteDocRemoteAsync(doc.id) }
+                                                    val docIdToDelete = doc.id
+                                                    val fileIdToDelete = doc.driveFileId
+                                                    documents = repository.deleteDocument(docIdToDelete)
+                                                    scope.launch { repository.deleteDocRemoteAsync(docIdToDelete, fileIdToDelete) }
                                                     Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show()
                                                 },
                                                 modifier = Modifier.size(32.dp)

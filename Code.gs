@@ -112,26 +112,22 @@ function doPost(e) {
 
     // 3. Action: Toggle Pin Status
     if (action === "toggle_pin") {
-      const docId = payload.docId;
-      const rowId = parseInt(payload.rowId, 10);
       const sheet = getOrCreateSheet(SHEET_NAME);
-      const targetRow = findRowByDocIdOrRowId(sheet, docId, rowId);
+      const targetRow = findRowByPayload(sheet, payload);
 
       if (targetRow > 1) {
         const currentVal = String(sheet.getRange(targetRow, 12).getValue()).toLowerCase() === "true";
-        const newVal = !currentVal;
+        const newVal = payload.pinned !== undefined ? (payload.pinned === true || payload.pinned === "true") : !currentVal;
         sheet.getRange(targetRow, 12).setValue(newVal ? "true" : "false");
         return createJsonResponse({ status: "success", pinned: newVal, rowId: targetRow });
       }
-      return createJsonResponse({ status: "error", message: "Row not found" }, 404);
+      return createJsonResponse({ status: "error", message: "Row not found for toggle_pin" }, 404);
     }
 
     // 4. Action: Delete Receipt
     if (action === "delete_receipt") {
-      const docId = payload.docId;
-      const rowId = parseInt(payload.rowId, 10);
       const sheet = getOrCreateSheet(SHEET_NAME);
-      const targetRow = findRowByDocIdOrRowId(sheet, docId, rowId);
+      const targetRow = findRowByPayload(sheet, payload);
 
       if (targetRow > 1) {
         const fileId = sheet.getRange(targetRow, 11).getValue();
@@ -139,28 +135,31 @@ function doPost(e) {
           try { DriveApp.getFileById(fileId).setTrashed(true); } catch (e) {}
         }
         sheet.deleteRow(targetRow);
-        return createJsonResponse({ status: "success" });
+        return createJsonResponse({ status: "success", deletedRow: targetRow });
       }
-      return createJsonResponse({ status: "error", message: "Row not found" }, 404);
+      return createJsonResponse({ status: "error", message: "Row not found for delete_receipt" }, 404);
     }
 
     // 5. Action: Update / Rename Receipt
     if (action === "update_receipt" || action === "rename_receipt") {
-      const docId = payload.docId;
-      const rowId = parseInt(payload.rowId, 10);
       const sheet = getOrCreateSheet(SHEET_NAME);
-      const targetRow = findRowByDocIdOrRowId(sheet, docId, rowId);
+      const targetRow = findRowByPayload(sheet, payload);
 
       if (targetRow > 1) {
-        if (payload.name) {
+        if (payload.name !== undefined && String(payload.name).trim() !== "") {
           sheet.getRange(targetRow, 3).setValue(payload.name);
         }
         if (payload.labels !== undefined) {
           sheet.getRange(targetRow, 8).setValue(payload.labels);
+        } else if (payload.notes !== undefined) {
+          sheet.getRange(targetRow, 8).setValue(payload.notes);
+        }
+        if (payload.docId && sheet.getLastColumn() >= 13) {
+          sheet.getRange(targetRow, 13).setValue(payload.docId);
         }
         return createJsonResponse({ status: "success", rowId: targetRow });
       }
-      return createJsonResponse({ status: "error", message: "Row not found" }, 404);
+      return createJsonResponse({ status: "error", message: "Row not found for update_receipt" }, 404);
     }
 
     return createJsonResponse({ status: "error", message: "Unrecognized action" }, 400);
@@ -236,15 +235,61 @@ function doGet(e) {
   }
 }
 
-function findRowByDocIdOrRowId(sheet, docId, rowId) {
-  if (docId) {
-    const data = sheet.getDataRange().getValues();
-    for (let r = 1; r < data.length; r++) {
-      if (data[r][12] === docId) return r + 1;
+function findRowByPayload(sheet, payload) {
+  if (!payload) return -1;
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return -1;
+
+  const docId = payload.docId ? String(payload.docId).trim() : "";
+  const fileId = payload.fileId ? String(payload.fileId).trim() : "";
+  const rowId = parseInt(payload.rowId, 10);
+
+  // 1. Direct rowId match
+  if (!isNaN(rowId) && rowId > 1 && rowId <= sheet.getLastRow()) {
+    return rowId;
+  }
+
+  // 2. docId formatted as "row_X"
+  if (docId && docId.startsWith("row_")) {
+    const parsedRow = parseInt(docId.replace("row_", ""), 10);
+    if (!isNaN(parsedRow) && parsedRow > 1 && parsedRow <= sheet.getLastRow()) {
+      return parsedRow;
     }
   }
-  if (rowId && rowId > 1 && rowId <= sheet.getLastRow()) return rowId;
+
+  // 3. Match Col 13 (Doc ID)
+  if (docId) {
+    for (let r = 1; r < data.length; r++) {
+      if (data[r].length > 12 && String(data[r][12]).trim() === docId) {
+        return r + 1;
+      }
+    }
+  }
+
+  // 4. Match Col 11 (File ID)
+  if (fileId) {
+    for (let r = 1; r < data.length; r++) {
+      if (data[r].length > 10 && String(data[r][10]).trim() === fileId) {
+        return r + 1;
+      }
+    }
+  }
+
+  // 5. Match Col 10 (Drive URL)
+  const fileUrl = (payload.fileUrl || payload.driveFileUrl || "").toString().trim();
+  if (fileUrl) {
+    for (let r = 1; r < data.length; r++) {
+      if (data[r].length > 9 && String(data[r][9]).trim() === fileUrl) {
+        return r + 1;
+      }
+    }
+  }
+
   return -1;
+}
+
+function findRowByDocIdOrRowId(sheet, docId, rowId) {
+  return findRowByPayload(sheet, { docId: docId, rowId: rowId });
 }
 
 function getOrCreateFolder(folderName) {

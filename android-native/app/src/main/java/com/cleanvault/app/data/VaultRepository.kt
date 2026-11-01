@@ -30,7 +30,8 @@ data class VaultDocument(
     val timestamp: Long = System.currentTimeMillis(),
     val driveFileId: String? = null,
     val driveFileUrl: String? = null,
-    val isSynced: Boolean = false
+    val isSynced: Boolean = false,
+    val lastModified: Long = System.currentTimeMillis()
 )
 
 class VaultRepository(private val context: Context) {
@@ -54,6 +55,17 @@ class VaultRepository(private val context: Context) {
         prefs.edit().putString("apps_script_url", url.trim()).apply()
     }
 
+    fun getDeletedIds(): Set<String> {
+        return prefs.getStringSet("deleted_doc_ids", emptySet()) ?: emptySet()
+    }
+
+    private fun addDeletedId(id: String) {
+        if (id.isBlank()) return
+        val current = getDeletedIds().toMutableSet()
+        current.add(id)
+        prefs.edit().putStringSet("deleted_doc_ids", current).apply()
+    }
+
     fun getDocuments(): List<VaultDocument> {
         val jsonStr = prefs.getString("documents_list", "[]") ?: "[]"
         val array = JSONArray(jsonStr)
@@ -73,7 +85,8 @@ class VaultRepository(private val context: Context) {
                     timestamp = obj.optLong("timestamp", 0L),
                     driveFileId = obj.optString("driveFileId").takeIf { !it.isNullOrBlank() },
                     driveFileUrl = obj.optString("driveFileUrl").takeIf { !it.isNullOrBlank() },
-                    isSynced = obj.optBoolean("isSynced", false)
+                    isSynced = obj.optBoolean("isSynced", false),
+                    lastModified = obj.optLong("lastModified", obj.optLong("timestamp", 0L))
                 )
             )
         }
@@ -96,6 +109,7 @@ class VaultRepository(private val context: Context) {
                 put("driveFileId", doc.driveFileId ?: "")
                 put("driveFileUrl", doc.driveFileUrl ?: "")
                 put("isSynced", doc.isSynced)
+                put("lastModified", doc.lastModified)
             }
             array.put(obj)
         }
@@ -107,6 +121,7 @@ class VaultRepository(private val context: Context) {
         val targetFile = File(docsDir, "Vault_${System.currentTimeMillis()}.$ext")
         sourceFile.copyTo(targetFile, overwrite = true)
 
+        val now = System.currentTimeMillis()
         val doc = VaultDocument(
             name = name.ifBlank { targetFile.nameWithoutExtension },
             notes = notes,
@@ -114,7 +129,9 @@ class VaultRepository(private val context: Context) {
             filePath = targetFile.absolutePath,
             mimeType = mimeType,
             isPinned = isPinned,
-            isSynced = false
+            isSynced = false,
+            timestamp = now,
+            lastModified = now
         )
 
         val current = getDocuments().toMutableList()
@@ -125,7 +142,7 @@ class VaultRepository(private val context: Context) {
 
     fun togglePin(docId: String): List<VaultDocument> {
         val list = getDocuments().map {
-            if (it.id == docId) it.copy(isPinned = !it.isPinned) else it
+            if (it.id == docId) it.copy(isPinned = !it.isPinned, lastModified = System.currentTimeMillis()) else it
         }
         saveDocuments(list)
         return list
@@ -133,7 +150,13 @@ class VaultRepository(private val context: Context) {
 
     fun renameDocument(docId: String, newName: String, newNotes: String): List<VaultDocument> {
         val list = getDocuments().map {
-            if (it.id == docId) it.copy(name = newName.ifBlank { it.name }, notes = newNotes) else it
+            if (it.id == docId) {
+                it.copy(
+                    name = newName.ifBlank { it.name },
+                    notes = newNotes,
+                    lastModified = System.currentTimeMillis()
+                )
+            } else it
         }
         saveDocuments(list)
         return list
@@ -143,6 +166,10 @@ class VaultRepository(private val context: Context) {
         val list = getDocuments().toMutableList()
         val target = list.find { it.id == docId }
         if (target != null) {
+            addDeletedId(target.id)
+            if (!target.driveFileId.isNullOrBlank()) {
+                addDeletedId(target.driveFileId!!)
+            }
             try {
                 File(target.filePath).delete()
             } catch (_: Exception) {}
@@ -196,6 +223,8 @@ class VaultRepository(private val context: Context) {
 
             val records = json.optJSONArray("records") ?: JSONArray()
             val remoteMap = mutableMapOf<String, JSONObject>()
+            val deletedIds = getDeletedIds()
+
             for (i in 0 until records.length()) {
                 val r = records.getJSONObject(i)
                 val rawDocId = r.optString("docId").ifBlank { r.optString("docID") }
@@ -203,6 +232,13 @@ class VaultRepository(private val context: Context) {
                 val effectiveDocId = rawDocId.ifBlank {
                     if (remoteFileId.isNotBlank()) "file_$remoteFileId" else "row_${r.optInt("rowId")}"
                 }
+
+                // If document was deleted locally on this device, skip it and purge remote row!
+                if (deletedIds.contains(effectiveDocId) || (remoteFileId.isNotBlank() && deletedIds.contains(remoteFileId))) {
+                    deleteDocRemoteAsync(effectiveDocId, remoteFileId)
+                    continue
+                }
+
                 remoteMap[effectiveDocId] = r
             }
 
@@ -236,11 +272,22 @@ class VaultRepository(private val context: Context) {
                         existing.filePath
                     }
 
+                    // Check if local document was modified after creation
+                    val wasLocallyModified = (existing.lastModified > existing.timestamp + 3000)
+
+                    val finalName = if (wasLocallyModified) existing.name else remoteVendor
+                    val finalNotes = if (wasLocallyModified) existing.notes else remoteNotes
+
+                    // If local document was edited, push the local edits to the cloud
+                    if (wasLocallyModified && (existing.name != remoteVendor || existing.notes != remoteNotes)) {
+                        updateDocRemoteAsync(existing, existing.name, existing.notes)
+                    }
+
                     localList[existingIndex] = existing.copy(
                         id = if (existing.id.startsWith("row_") && !docId.startsWith("row_")) docId else existing.id,
-                        name = remoteVendor,
-                        notes = remoteNotes,
-                        isPinned = remotePinned,
+                        name = finalName,
+                        notes = finalNotes,
+                        isPinned = if (wasLocallyModified) existing.isPinned else remotePinned,
                         driveFileId = remoteFileId.ifBlank { existing.driveFileId },
                         driveFileUrl = remoteFileUrl.ifBlank { existing.driveFileUrl },
                         filePath = actualPath,
@@ -275,7 +322,8 @@ class VaultRepository(private val context: Context) {
                         isPinned = remotePinned,
                         driveFileId = remoteFileId,
                         driveFileUrl = remoteFileUrl,
-                        isSynced = true
+                        isSynced = true,
+                        lastModified = System.currentTimeMillis()
                     )
                     localList.add(newDoc)
                     addedCount++
@@ -285,6 +333,12 @@ class VaultRepository(private val context: Context) {
             // 3. Handle local docs not in remote records
             val updatedLocalList = mutableListOf<VaultDocument>()
             for (doc in localList) {
+                // Skip if doc was marked deleted
+                if (deletedIds.contains(doc.id) || (!doc.driveFileId.isNullOrBlank() && deletedIds.contains(doc.driveFileId))) {
+                    try { File(doc.filePath).delete() } catch (_: Exception) {}
+                    continue
+                }
+
                 val isInCloud = remoteMap.containsKey(doc.id) ||
                                 (doc.driveFileId != null && remoteMap.values.any { (it.optString("fileId").ifBlank { it.optString("fileID") }) == doc.driveFileId })
 
@@ -300,10 +354,9 @@ class VaultRepository(private val context: Context) {
                         updatedLocalList.add(doc) // Keep offline for next retry
                     }
                 } else {
-                    // Local document has a valid file on disk; keep it safe and never delete!
+                    // Local document has a valid file on disk; keep it safe and re-upload if needed!
                     val fileOnDisk = File(doc.filePath)
                     if (fileOnDisk.exists() && fileOnDisk.length() > 0) {
-                        // Re-upload to cloud in case it was missed
                         val uploadedDoc = uploadDocumentToCloud(scriptUrl, doc)
                         updatedLocalList.add(uploadedDoc ?: doc)
                     }
@@ -327,13 +380,14 @@ class VaultRepository(private val context: Context) {
         }
     }
 
-    suspend fun deleteDocRemoteAsync(docId: String) = withContext(Dispatchers.IO) {
+    suspend fun deleteDocRemoteAsync(docId: String, fileId: String? = null) = withContext(Dispatchers.IO) {
         val scriptUrl = getScriptUrl()
         if (scriptUrl.isBlank()) return@withContext
         try {
             val jsonPayload = JSONObject().apply {
                 put("action", "delete_receipt")
                 put("docId", docId)
+                if (!fileId.isNullOrBlank()) put("fileId", fileId)
             }
             val body = jsonPayload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
             val req = Request.Builder().url(scriptUrl).post(body).build()
@@ -341,13 +395,15 @@ class VaultRepository(private val context: Context) {
         } catch (_: Exception) {}
     }
 
-    suspend fun togglePinRemoteAsync(docId: String) = withContext(Dispatchers.IO) {
+    suspend fun togglePinRemoteAsync(doc: VaultDocument) = withContext(Dispatchers.IO) {
         val scriptUrl = getScriptUrl()
         if (scriptUrl.isBlank()) return@withContext
         try {
             val jsonPayload = JSONObject().apply {
                 put("action", "toggle_pin")
-                put("docId", docId)
+                put("docId", doc.id)
+                if (!doc.driveFileId.isNullOrBlank()) put("fileId", doc.driveFileId)
+                put("pinned", doc.isPinned)
             }
             val body = jsonPayload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
             val req = Request.Builder().url(scriptUrl).post(body).build()
@@ -355,15 +411,18 @@ class VaultRepository(private val context: Context) {
         } catch (_: Exception) {}
     }
 
-    suspend fun updateDocRemoteAsync(docId: String, newName: String, newNotes: String) = withContext(Dispatchers.IO) {
+    suspend fun updateDocRemoteAsync(doc: VaultDocument, newName: String, newNotes: String) = withContext(Dispatchers.IO) {
         val scriptUrl = getScriptUrl()
         if (scriptUrl.isBlank()) return@withContext
         try {
             val jsonPayload = JSONObject().apply {
                 put("action", "update_receipt")
-                put("docId", docId)
+                put("docId", doc.id)
+                if (!doc.driveFileId.isNullOrBlank()) put("fileId", doc.driveFileId)
+                if (!doc.driveFileUrl.isNullOrBlank()) put("driveFileUrl", doc.driveFileUrl)
                 put("name", newName)
                 put("labels", newNotes)
+                put("notes", newNotes)
             }
             val body = jsonPayload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
             val req = Request.Builder().url(scriptUrl).post(body).build()
