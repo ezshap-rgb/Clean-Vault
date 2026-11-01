@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -39,11 +40,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.Lifecycle
@@ -180,7 +184,7 @@ fun MainScreen() {
     var cameraTempFile by remember { mutableStateOf<File?>(null) }
 
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        if (success && cameraTempFile != null && cameraTempFile!!.length() > 0) {
+        if (success && cameraTempFile != null && cameraTempFile!!.exists() && cameraTempFile!!.length() > 0) {
             selectedTempFile = cameraTempFile
             selectedMimeType = "image/jpeg"
         }
@@ -335,7 +339,7 @@ fun MainScreen() {
                     .background(fileCardBrush)
                     .border(1.dp, AccentColor.copy(alpha = 0.4f), RoundedCornerShape(18.dp))
                     .padding(13.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(9.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -432,73 +436,69 @@ fun MainScreen() {
                     Text("Or choose file (Photo, PDF, Doc)", fontSize = 12.sp)
                 }
 
-                // Document Name (Concise One Line)
+                // Document Name Input (Concise One Line with Zero Margin Cutoff)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
                         .clip(RoundedCornerShape(11.dp))
                         .background(SurfaceRaised)
                         .border(1.dp, BorderColor, RoundedCornerShape(11.dp))
-                        .padding(horizontal = 4.dp),
+                        .padding(horizontal = 8.dp, vertical = 9.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = { startSpeech(isForName = true) }, modifier = Modifier.size(36.dp)) {
+                    IconButton(onClick = { startSpeech(isForName = true) }, modifier = Modifier.size(28.dp)) {
                         Icon(Icons.Filled.Mic, contentDescription = "Dictate Name", tint = AmberGold, modifier = Modifier.size(18.dp))
                     }
-                    TextField(
-                        value = docNameText,
-                        onValueChange = { docNameText = it },
-                        placeholder = { Text("Document name...", color = TextFaint, fontSize = 13.sp) },
-                        singleLine = true,
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            focusedTextColor = TextMain,
-                            unfocusedTextColor = TextMain
-                        ),
-                        modifier = Modifier.weight(1f)
-                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                        if (docNameText.isEmpty()) {
+                            Text("Document name...", color = TextFaint, fontSize = 13.sp)
+                        }
+                        BasicTextField(
+                            value = docNameText,
+                            onValueChange = { docNameText = it },
+                            singleLine = true,
+                            textStyle = TextStyle(color = TextMain, fontSize = 13.sp, fontWeight = FontWeight.Normal),
+                            cursorBrush = SolidColor(AmberGold),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                     if (docNameText.isNotEmpty()) {
-                        IconButton(onClick = { docNameText = "" }, modifier = Modifier.size(30.dp)) {
+                        IconButton(onClick = { docNameText = "" }, modifier = Modifier.size(24.dp)) {
                             Icon(Icons.Filled.Clear, contentDescription = "Clear", tint = TextFaint, modifier = Modifier.size(14.dp))
                         }
                     }
                 }
 
-                // Labels Field (Concise One Line)
+                // Labels Input (Concise One Line with Zero Margin Cutoff)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
                         .clip(RoundedCornerShape(11.dp))
                         .background(SurfaceRaised)
                         .border(1.dp, BorderColor, RoundedCornerShape(11.dp))
-                        .padding(horizontal = 4.dp),
+                        .padding(horizontal = 8.dp, vertical = 9.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = { startSpeech(isForName = false) }, modifier = Modifier.size(36.dp)) {
+                    IconButton(onClick = { startSpeech(isForName = false) }, modifier = Modifier.size(28.dp)) {
                         Icon(Icons.Filled.Mic, contentDescription = "Dictate Labels", tint = AccentMid, modifier = Modifier.size(18.dp))
                     }
-                    TextField(
-                        value = labelsText,
-                        onValueChange = { labelsText = it },
-                        placeholder = { Text("Labels (e.g. taxes, car, receipts)...", color = TextFaint, fontSize = 13.sp) },
-                        singleLine = true,
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                            focusedTextColor = TextMain,
-                            unfocusedTextColor = TextMain
-                        ),
-                        modifier = Modifier.weight(1f)
-                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                        if (labelsText.isEmpty()) {
+                            Text("Labels (e.g. taxes, car, receipts)...", color = TextFaint, fontSize = 13.sp)
+                        }
+                        BasicTextField(
+                            value = labelsText,
+                            onValueChange = { labelsText = it },
+                            singleLine = true,
+                            textStyle = TextStyle(color = TextMain, fontSize = 13.sp, fontWeight = FontWeight.Normal),
+                            cursorBrush = SolidColor(AccentMid),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                     if (labelsText.isNotEmpty()) {
-                        IconButton(onClick = { labelsText = "" }, modifier = Modifier.size(30.dp)) {
+                        IconButton(onClick = { labelsText = "" }, modifier = Modifier.size(24.dp)) {
                             Icon(Icons.Filled.Clear, contentDescription = "Clear", tint = TextFaint, modifier = Modifier.size(14.dp))
                         }
                     }
@@ -619,7 +619,7 @@ fun MainScreen() {
                                 shape = RoundedCornerShape(20.dp),
                                 color = AmberGold.copy(alpha = 0.15f),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, AmberGold.copy(alpha = 0.4f)),
-                                onClick = { openDocumentFile(context, doc) }
+                                onClick = { openDocumentFile(context, doc, repository) }
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
@@ -646,17 +646,18 @@ fun MainScreen() {
         var isTesting by remember { mutableStateOf(false) }
 
         BasicAlertDialog(
-            onDismissRequest = { showSettingsModal = false }
+            onDismissRequest = { showSettingsModal = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             Surface(
                 shape = RoundedCornerShape(22.dp),
                 color = SurfaceColor,
                 border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight),
-                modifier = Modifier.fillMaxWidth(0.92f).padding(16.dp)
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -679,26 +680,32 @@ fun MainScreen() {
                         lineHeight = 17.sp
                     )
 
-                    OutlinedTextField(
-                        value = inputUrl,
-                        onValueChange = {
-                            inputUrl = it
-                            testStatus = null
-                        },
-                        placeholder = { Text("https://script.google.com/macros/s/.../exec", color = TextFaint, fontSize = 12.sp) },
-                        label = { Text("Apps Script Web App URL", color = TextMuted, fontSize = 12.sp) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(11.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = SurfaceRaised,
-                            unfocusedContainerColor = SurfaceRaised,
-                            focusedBorderColor = AccentColor,
-                            unfocusedBorderColor = BorderColor,
-                            focusedTextColor = TextMain,
-                            unfocusedTextColor = TextMain
-                        ),
-                        singleLine = true
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(11.dp))
+                            .background(SurfaceRaised)
+                            .border(1.dp, BorderColor, RoundedCornerShape(11.dp))
+                            .padding(horizontal = 10.dp, vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                            if (inputUrl.isEmpty()) {
+                                Text("https://script.google.com/macros/s/.../exec", color = TextFaint, fontSize = 12.sp)
+                            }
+                            BasicTextField(
+                                value = inputUrl,
+                                onValueChange = {
+                                    inputUrl = it
+                                    testStatus = null
+                                },
+                                singleLine = true,
+                                textStyle = TextStyle(color = TextMain, fontSize = 12.sp),
+                                cursorBrush = SolidColor(AccentColor),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
 
                     if (testStatus != null) {
                         Surface(
@@ -765,55 +772,66 @@ fun MainScreen() {
         var editLabels by remember(target) { mutableStateOf(target.notes) }
 
         BasicAlertDialog(
-            onDismissRequest = { docToRename = null }
+            onDismissRequest = { docToRename = null },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = SurfaceColor,
                 border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight),
-                modifier = Modifier.fillMaxWidth(0.92f).padding(16.dp)
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Text("Rename & Edit Labels", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextMain)
 
                     // Edit Name
-                    OutlinedTextField(
-                        value = editName,
-                        onValueChange = { editName = it },
-                        label = { Text("Document Name", fontSize = 12.sp) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = SurfaceRaised,
-                            unfocusedContainerColor = SurfaceRaised,
-                            focusedBorderColor = AccentColor,
-                            unfocusedBorderColor = BorderColor,
-                            focusedTextColor = TextMain,
-                            unfocusedTextColor = TextMain
-                        )
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Document Name", fontSize = 12.sp, color = TextMuted)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(SurfaceRaised)
+                                .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
+                                .padding(horizontal = 10.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            BasicTextField(
+                                value = editName,
+                                onValueChange = { editName = it },
+                                singleLine = true,
+                                textStyle = TextStyle(color = TextMain, fontSize = 13.sp),
+                                cursorBrush = SolidColor(AmberGold),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
 
                     // Edit Labels
-                    OutlinedTextField(
-                        value = editLabels,
-                        onValueChange = { editLabels = it },
-                        label = { Text("Labels", fontSize = 12.sp) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = SurfaceRaised,
-                            unfocusedContainerColor = SurfaceRaised,
-                            focusedBorderColor = AccentColor,
-                            unfocusedBorderColor = BorderColor,
-                            focusedTextColor = TextMain,
-                            unfocusedTextColor = TextMain
-                        )
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Labels", fontSize = 12.sp, color = TextMuted)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(SurfaceRaised)
+                                .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
+                                .padding(horizontal = 10.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            BasicTextField(
+                                value = editLabels,
+                                onValueChange = { editLabels = it },
+                                singleLine = true,
+                                textStyle = TextStyle(color = TextMain, fontSize = 13.sp),
+                                cursorBrush = SolidColor(AccentMid),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -848,7 +866,7 @@ fun MainScreen() {
         }
     }
 
-    // FILE CABINET FULL SCREEN MODAL / DIALOG
+    // FILE CABINET FULL SCREEN MODAL / DIALOG (WIDE, SPACIOUS, NOT THIN)
     if (showCabinetModal) {
         val filteredDocs = documents.filter {
             val q = cabinetSearchQuery.trim().lowercase()
@@ -856,13 +874,17 @@ fun MainScreen() {
         }
 
         BasicAlertDialog(
-            onDismissRequest = { showCabinetModal = false }
+            onDismissRequest = { showCabinetModal = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             Surface(
-                shape = RoundedCornerShape(22.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = SurfaceColor,
                 border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight),
-                modifier = Modifier.fillMaxWidth(0.96f).fillMaxHeight(0.88f).padding(10.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.92f)
+                    .padding(horizontal = 12.dp, vertical = 16.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(14.dp),
@@ -874,7 +896,7 @@ fun MainScreen() {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("File Cabinet", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextMain)
+                            Text("File Cabinet", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextMain)
                             if (isSyncing) {
                                 CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = AmberGold)
                             }
@@ -884,30 +906,44 @@ fun MainScreen() {
                         }
                     }
 
-                    // Filter by name or labels (as requested)
-                    OutlinedTextField(
-                        value = cabinetSearchQuery,
-                        onValueChange = { cabinetSearchQuery = it },
-                        placeholder = { Text("Filter by name or labels...", color = TextFaint, fontSize = 13.sp) },
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                        shape = RoundedCornerShape(11.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = SurfaceRaised,
-                            unfocusedContainerColor = SurfaceRaised,
-                            focusedBorderColor = AccentColor,
-                            unfocusedBorderColor = BorderColor,
-                            focusedTextColor = TextMain,
-                            unfocusedTextColor = TextMain
-                        ),
-                        singleLine = true
-                    )
+                    // Filter by name or labels (Zero cutoff text field)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(11.dp))
+                            .background(SurfaceRaised)
+                            .border(1.dp, BorderColor, RoundedCornerShape(11.dp))
+                            .padding(horizontal = 10.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Filled.Search, contentDescription = null, tint = TextMuted, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                            if (cabinetSearchQuery.isEmpty()) {
+                                Text("Filter by name or labels...", color = TextFaint, fontSize = 13.sp)
+                            }
+                            BasicTextField(
+                                value = cabinetSearchQuery,
+                                onValueChange = { cabinetSearchQuery = it },
+                                singleLine = true,
+                                textStyle = TextStyle(color = TextMain, fontSize = 13.sp),
+                                cursorBrush = SolidColor(AccentColor),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        if (cabinetSearchQuery.isNotEmpty()) {
+                            IconButton(onClick = { cabinetSearchQuery = "" }, modifier = Modifier.size(24.dp)) {
+                                Icon(Icons.Filled.Clear, contentDescription = "Clear", tint = TextFaint, modifier = Modifier.size(14.dp))
+                            }
+                        }
+                    }
 
                     if (filteredDocs.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text("No documents found", color = TextFaint, fontSize = 13.sp)
                         }
                     } else {
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             items(filteredDocs, key = { it.id }) { doc ->
                                 Surface(
                                     modifier = Modifier.fillMaxWidth(),
@@ -915,14 +951,15 @@ fun MainScreen() {
                                     color = if (doc.isPinned) SurfaceRaised else Color(0xFF0F1426),
                                     border = androidx.compose.foundation.BorderStroke(1.dp, if (doc.isPinned) AmberGold.copy(alpha = 0.5f) else BorderColor)
                                 ) {
-                                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        // Header Row: Pin, Document Name (Full wrap, not cut off), and Timestamp
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
+                                            verticalAlignment = Alignment.Top,
+                                            horizontalArrangement = Arrangement.SpaceBetween
                                         ) {
                                             Row(
-                                                verticalAlignment = Alignment.CenterVertically,
+                                                verticalAlignment = Alignment.Top,
                                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                                 modifier = Modifier.weight(1f)
                                             ) {
@@ -931,13 +968,24 @@ fun MainScreen() {
                                                         documents = repository.togglePin(doc.id)
                                                         scope.launch { repository.togglePinRemoteAsync(doc.id) }
                                                     },
-                                                    modifier = Modifier.size(22.dp)
+                                                    modifier = Modifier.size(22.dp).padding(top = 1.dp)
                                                 ) {
                                                     Text(if (doc.isPinned) "📌" else "📍", fontSize = 13.sp)
                                                 }
-                                                Text(doc.name, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = TextMain, maxLines = 1)
+                                                // FULL WRAP: Long names wrap onto multiple lines and are NEVER cut off!
+                                                Text(
+                                                    text = doc.name,
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 14.sp,
+                                                    color = TextMain,
+                                                    lineHeight = 18.sp
+                                                )
                                             }
-                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                modifier = Modifier.padding(start = 8.dp)
+                                            ) {
                                                 if (doc.isSynced) {
                                                     Text("☁️", fontSize = 11.sp)
                                                 }
@@ -946,54 +994,70 @@ fun MainScreen() {
                                         }
 
                                         if (doc.notes.isNotBlank()) {
-                                            Text("🏷️ ${doc.notes}", color = TextMuted, fontSize = 11.sp)
+                                            Text("🏷️ ${doc.notes}", color = TextMuted, fontSize = 12.sp)
                                         }
 
-                                        // Actions: View, Download, Share, Rename, Delete
+                                        // Actions: Classic Icons for View, Download, Share, Rename, Delete
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
+                                            // View Button
                                             Button(
-                                                onClick = { openDocumentFile(context, doc) },
-                                                shape = RoundedCornerShape(7.dp),
+                                                onClick = { openDocumentFile(context, doc, repository) },
+                                                shape = RoundedCornerShape(8.dp),
                                                 colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
-                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                                modifier = Modifier.weight(1f).height(32.dp)
+                                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                                                modifier = Modifier.weight(1f).height(34.dp)
                                             ) {
-                                                Text("👁️ View", fontSize = 11.sp)
+                                                Icon(Icons.Filled.Visibility, contentDescription = "View", modifier = Modifier.size(15.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("View", fontSize = 11.sp)
                                             }
+
+                                            // Classic Download Arrow Button
                                             OutlinedButton(
                                                 onClick = { downloadDocumentToStorage(context, doc) },
-                                                shape = RoundedCornerShape(7.dp),
-                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                                modifier = Modifier.weight(1.1f).height(32.dp)
+                                                shape = RoundedCornerShape(8.dp),
+                                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                                                modifier = Modifier.weight(1.15f).height(34.dp)
                                             ) {
-                                                Text("📥 Download", fontSize = 11.sp)
+                                                Icon(Icons.Filled.FileDownload, contentDescription = "Download", tint = TextMain, modifier = Modifier.size(15.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Download", fontSize = 11.sp)
                                             }
+
+                                            // Classic Share Icon Button
                                             OutlinedButton(
                                                 onClick = { shareDocumentFile(context, doc) },
-                                                shape = RoundedCornerShape(7.dp),
-                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                                modifier = Modifier.weight(1f).height(32.dp)
+                                                shape = RoundedCornerShape(8.dp),
+                                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                                                modifier = Modifier.weight(1f).height(34.dp)
                                             ) {
-                                                Text("📤 Share", fontSize = 11.sp)
+                                                Icon(Icons.Filled.Share, contentDescription = "Share", tint = TextMain, modifier = Modifier.size(14.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Share", fontSize = 11.sp)
                                             }
+
+                                            // Classic Rename Pencil Icon
                                             IconButton(
                                                 onClick = { docToRename = doc },
-                                                modifier = Modifier.size(30.dp)
+                                                modifier = Modifier.size(32.dp)
                                             ) {
-                                                Icon(Icons.Filled.Edit, contentDescription = "Rename", tint = AmberGold, modifier = Modifier.size(16.dp))
+                                                Icon(Icons.Filled.Edit, contentDescription = "Rename", tint = AmberGold, modifier = Modifier.size(17.dp))
                                             }
+
+                                            // Classic Delete Trash Icon
                                             IconButton(
                                                 onClick = {
                                                     documents = repository.deleteDocument(doc.id)
                                                     scope.launch { repository.deleteDocRemoteAsync(doc.id) }
                                                     Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show()
-                                                }
+                                                },
+                                                modifier = Modifier.size(32.dp)
                                             ) {
-                                                Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = RoseRed, modifier = Modifier.size(16.dp))
+                                                Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = RoseRed, modifier = Modifier.size(17.dp))
                                             }
                                         }
                                     }
@@ -1007,19 +1071,42 @@ fun MainScreen() {
     }
 }
 
-fun openDocumentFile(context: Context, doc: VaultDocument) {
+fun openDocumentFile(context: Context, doc: VaultDocument, repository: VaultRepository) {
     try {
-        val file = File(doc.filePath)
-        if (!file.exists()) {
-            Toast.makeText(context, "File not found locally", Toast.LENGTH_SHORT).show()
+        var file = File(doc.filePath)
+        // If file missing locally, attempt on-demand retrieval or drive URL fallback
+        if (!file.exists() || file.length() == 0L) {
+            val scriptUrl = repository.getScriptUrl()
+            if (scriptUrl.isNotBlank() && !doc.driveFileId.isNullOrBlank()) {
+                Toast.makeText(context, "Fetching file from Google Drive...", Toast.LENGTH_SHORT).show()
+                val downloadedPath = repository.downloadAndSaveFile(scriptUrl, doc.driveFileId, doc.fileName)
+                if (downloadedPath != null) {
+                    file = File(downloadedPath)
+                }
+            }
+        }
+
+        if (!file.exists() || file.length() == 0L) {
+            // Direct Cloud Fallback: Open in Google Drive / Chrome
+            if (!doc.driveFileUrl.isNullOrBlank()) {
+                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(doc.driveFileUrl)).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(browserIntent)
+                return
+            }
+            Toast.makeText(context, "File not found locally or in Drive", Toast.LENGTH_SHORT).show()
             return
         }
+
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, doc.mimeType)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        context.startActivity(Intent.createChooser(intent, "Open with"))
+        // Direct launch without createChooser so Android saves user's "Always" preference
+        context.startActivity(intent)
     } catch (e: Exception) {
         Toast.makeText(context, "No app found to open this file", Toast.LENGTH_SHORT).show()
     }
@@ -1028,6 +1115,10 @@ fun openDocumentFile(context: Context, doc: VaultDocument) {
 fun shareDocumentFile(context: Context, doc: VaultDocument) {
     try {
         val file = File(doc.filePath)
+        if (!file.exists()) {
+            Toast.makeText(context, "File not found locally to share", Toast.LENGTH_SHORT).show()
+            return
+        }
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = doc.mimeType
@@ -1035,8 +1126,10 @@ fun shareDocumentFile(context: Context, doc: VaultDocument) {
             putExtra(Intent.EXTRA_SUBJECT, doc.name)
             putExtra(Intent.EXTRA_TEXT, "${doc.name}\n${doc.notes}")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        context.startActivity(Intent.createChooser(intent, "Share via"))
+        // For sharing, Android system share sheet is standard
+        context.startActivity(Intent.createChooser(intent, "Share Document"))
     } catch (e: Exception) {
         Toast.makeText(context, "Could not share file", Toast.LENGTH_SHORT).show()
     }
@@ -1045,8 +1138,8 @@ fun shareDocumentFile(context: Context, doc: VaultDocument) {
 fun downloadDocumentToStorage(context: Context, doc: VaultDocument) {
     try {
         val srcFile = File(doc.filePath)
-        if (!srcFile.exists()) {
-            Toast.makeText(context, "File not found on device", Toast.LENGTH_SHORT).show()
+        if (!srcFile.exists() || srcFile.length() == 0L) {
+            Toast.makeText(context, "File not found on device to download", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -1066,7 +1159,7 @@ fun downloadDocumentToStorage(context: Context, doc: VaultDocument) {
                 resolver.openOutputStream(uri)?.use { out ->
                     srcFile.inputStream().use { it.copyTo(out) }
                 }
-                Toast.makeText(context, "Downloaded to Downloads: $displayName 📥", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Saved to Downloads: $displayName 📥", Toast.LENGTH_LONG).show()
             } else {
                 Toast.makeText(context, "Failed to create download entry", Toast.LENGTH_SHORT).show()
             }

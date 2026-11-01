@@ -103,7 +103,7 @@ class VaultRepository(private val context: Context) {
     }
 
     fun saveFileToVault(name: String, notes: String, isPinned: Boolean, sourceFile: File, mimeType: String): VaultDocument {
-        val ext = sourceFile.extension.ifEmpty { "jpg" }
+        val ext = sourceFile.extension.ifEmpty { if (mimeType.contains("pdf")) "pdf" else "jpg" }
         val targetFile = File(docsDir, "Vault_${System.currentTimeMillis()}.$ext")
         sourceFile.copyTo(targetFile, overwrite = true)
 
@@ -198,35 +198,46 @@ class VaultRepository(private val context: Context) {
             val remoteMap = mutableMapOf<String, JSONObject>()
             for (i in 0 until records.length()) {
                 val r = records.getJSONObject(i)
-                val docId = r.optString("docId").ifBlank { "row_${r.optInt("rowId")}" }
-                remoteMap[docId] = r
+                val rawDocId = r.optString("docId").ifBlank { r.optString("docID") }
+                val remoteFileId = r.optString("fileId").ifBlank { r.optString("fileID") }
+                val effectiveDocId = rawDocId.ifBlank {
+                    if (remoteFileId.isNotBlank()) "file_$remoteFileId" else "row_${r.optInt("rowId")}"
+                }
+                remoteMap[effectiveDocId] = r
             }
 
             var localList = getDocuments().toMutableList()
             var addedCount = 0
             var uploadedCount = 0
-            var deletedCount = 0
+            var updatedCount = 0
 
             // 2. Download or update remote records into local cabinet
             for ((docId, r) in remoteMap) {
-                val existingIndex = localList.indexOfFirst { it.id == docId || (it.driveFileId != null && it.driveFileId == r.optString("fileId")) }
-                val remotePinned = r.optBoolean("pinned", false)
-                val remoteVendor = r.optString("vendor", "Document")
-                val remoteNotes = r.optString("notes", "")
+                val remoteFileId = r.optString("fileId").ifBlank { r.optString("fileID") }
+                val remoteVendor = r.optString("name").ifBlank { r.optString("vendor", "Document") }
+                val remoteNotes = r.optString("labels").ifBlank { r.optString("notes", "") }
                 val remoteDate = r.optString("date", "")
-                val remoteFileId = r.optString("fileId", "")
-                val remoteFileUrl = r.optString("driveFileUrl", "")
+                val remoteFileUrl = r.optString("driveFileUrl").ifBlank { r.optString("driveFileURL").ifBlank { r.optString("fileUrl") } }
+                val remotePinned = r.optBoolean("pinned", false)
+
+                val existingIndex = localList.indexOfFirst {
+                    it.id == docId ||
+                    (it.driveFileId != null && remoteFileId.isNotBlank() && it.driveFileId == remoteFileId) ||
+                    (it.name.isNotBlank() && it.name.equals(remoteVendor, ignoreCase = true) && it.date == remoteDate)
+                }
 
                 if (existingIndex >= 0) {
                     val existing = localList[existingIndex]
                     val fileOnDisk = File(existing.filePath)
-                    // If file is missing locally, re-download it
-                    val actualPath = if (!fileOnDisk.exists() && remoteFileId.isNotBlank()) {
+                    // If file is missing locally, attempt download; never erase valid existing filePath!
+                    val actualPath = if ((!fileOnDisk.exists() || existing.filePath.isBlank()) && remoteFileId.isNotBlank()) {
                         downloadAndSaveFile(scriptUrl, remoteFileId, existing.fileName) ?: existing.filePath
                     } else {
                         existing.filePath
                     }
+
                     localList[existingIndex] = existing.copy(
+                        id = if (existing.id.startsWith("row_") && !docId.startsWith("row_")) docId else existing.id,
                         name = remoteVendor,
                         notes = remoteNotes,
                         isPinned = remotePinned,
@@ -235,10 +246,11 @@ class VaultRepository(private val context: Context) {
                         filePath = actualPath,
                         isSynced = true
                     )
+                    updatedCount++
                 } else {
-                    // Document exists remotely but not on this phone (e.g. wife added it)
+                    // Document exists remotely but not on this phone (e.g. spouse added it)
                     var localFilePath = ""
-                    var localFileName = "Remote_Doc_${System.currentTimeMillis()}.jpg"
+                    var localFileName = "Vault_Doc_${System.currentTimeMillis()}.jpg"
                     var mimeType = "image/jpeg"
 
                     if (remoteFileId.isNotBlank()) {
@@ -273,7 +285,10 @@ class VaultRepository(private val context: Context) {
             // 3. Handle local docs not in remote records
             val updatedLocalList = mutableListOf<VaultDocument>()
             for (doc in localList) {
-                if (remoteMap.containsKey(doc.id)) {
+                val isInCloud = remoteMap.containsKey(doc.id) ||
+                                (doc.driveFileId != null && remoteMap.values.any { (it.optString("fileId").ifBlank { it.optString("fileID") }) == doc.driveFileId })
+
+                if (isInCloud) {
                     updatedLocalList.add(doc)
                 } else if (!doc.isSynced) {
                     // Local document was created on this phone and hasn't been uploaded yet
@@ -285,14 +300,18 @@ class VaultRepository(private val context: Context) {
                         updatedLocalList.add(doc) // Keep offline for next retry
                     }
                 } else {
-                    // Was previously synced, but no longer in cloud -> deleted on other device!
-                    try { File(doc.filePath).delete() } catch (_: Exception) {}
-                    deletedCount++
+                    // Local document has a valid file on disk; keep it safe and never delete!
+                    val fileOnDisk = File(doc.filePath)
+                    if (fileOnDisk.exists() && fileOnDisk.length() > 0) {
+                        // Re-upload to cloud in case it was missed
+                        val uploadedDoc = uploadDocumentToCloud(scriptUrl, doc)
+                        updatedLocalList.add(uploadedDoc ?: doc)
+                    }
                 }
             }
 
             saveDocuments(updatedLocalList)
-            Result.success(SyncSummary(addedCount, uploadedCount, deletedCount, updatedLocalList.size))
+            Result.success(SyncSummary(addedCount, uploadedCount, 0, updatedLocalList.size))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -356,7 +375,7 @@ class VaultRepository(private val context: Context) {
         return try {
             val file = File(doc.filePath)
             var base64Data = ""
-            if (file.exists()) {
+            if (file.exists() && file.length() > 0) {
                 val bytes = file.readBytes()
                 base64Data = Base64.encodeToString(bytes, Base64.NO_WRAP)
             }
@@ -365,6 +384,7 @@ class VaultRepository(private val context: Context) {
                 put("docId", doc.id)
                 put("vendor", doc.name)
                 put("notes", doc.notes)
+                put("labels", doc.notes)
                 put("pinned", doc.isPinned)
                 put("date", doc.date)
             }
@@ -383,9 +403,11 @@ class VaultRepository(private val context: Context) {
                 val bodyStr = res.body?.string() ?: ""
                 if (res.isSuccessful && bodyStr.contains("success")) {
                     val resJson = JSONObject(bodyStr)
+                    val returnedFileId = resJson.optString("fileId").ifBlank { resJson.optString("fileID") }
+                    val returnedFileUrl = resJson.optString("fileUrl").ifBlank { resJson.optString("driveFileUrl") }
                     doc.copy(
-                        driveFileId = resJson.optString("fileId"),
-                        driveFileUrl = resJson.optString("fileUrl"),
+                        driveFileId = returnedFileId.takeIf { it.isNotBlank() } ?: doc.driveFileId,
+                        driveFileUrl = returnedFileUrl.takeIf { it.isNotBlank() } ?: doc.driveFileUrl,
                         isSynced = true
                     )
                 } else {
@@ -419,7 +441,7 @@ class VaultRepository(private val context: Context) {
         }
     }
 
-    private fun downloadAndSaveFile(scriptUrl: String, fileId: String, fileName: String): String? {
+    fun downloadAndSaveFile(scriptUrl: String, fileId: String, fileName: String): String? {
         val downloaded = downloadFileContent(scriptUrl, fileId) ?: return null
         return try {
             val targetFile = File(docsDir, "Vault_${System.currentTimeMillis()}_${downloaded.name.ifBlank { fileName }}")

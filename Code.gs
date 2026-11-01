@@ -193,8 +193,20 @@ function doGet(e) {
         headers.forEach((header, colIdx) => {
           record[toCamelCase(header)] = row[colIdx];
         });
-        record.pinned = String(record.pinned).toLowerCase() === "true";
-        if (!record.docId) record.docId = "row_" + (index + 2);
+
+        // Ensure normalized access regardless of camelCase variations
+        record.timestamp = row[0] || record.timestamp || "";
+        record.date = row[1] || record.date || "";
+        record.vendor = row[2] || record.vendor || "";
+        record.name = row[2] || record.name || record.vendor || "";
+        record.notes = row[7] || record.notes || "";
+        record.labels = row[7] || record.labels || record.notes || "";
+        record.driveFileUrl = row[9] || record.driveFileUrl || record.driveFileURL || "";
+        record.fileUrl = record.driveFileUrl;
+        record.fileId = row[10] || record.fileId || record.fileID || "";
+        record.pinned = String(row[11] || record.pinned).toLowerCase() === "true";
+        record.docId = String(row[12] || record.docId || record.docID || ("row_" + (index + 2)));
+
         return record;
       });
 
