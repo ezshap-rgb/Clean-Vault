@@ -62,12 +62,28 @@ import com.cleanvault.app.data.VaultDocument
 import com.cleanvault.app.data.VaultRepository
 import com.cleanvault.app.theme.*
 import kotlinx.coroutines.launch
+import android.graphics.BitmapFactory
+import android.graphics.pdf.PdfDocument
+import android.provider.OpenableColumns
+import androidx.activity.result.IntentSenderRequest
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.RESULT_FORMAT_JPEG
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.RESULT_FORMAT_PDF
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.SCANNER_MODE_FULL
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.io.File
 import java.io.FileOutputStream
 
 class MainActivity : ComponentActivity() {
+    private val incomingIntentState = mutableStateOf<Intent?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        incomingIntentState.value = intent
         setContent {
             val currentDensity = LocalDensity.current
             CompositionLocalProvider(
@@ -77,16 +93,28 @@ class MainActivity : ComponentActivity() {
                 )
             ) {
                 CleanVaultTheme {
-                    MainScreen()
+                    MainScreen(
+                        incomingIntent = incomingIntentState.value,
+                        onIntentHandled = { incomingIntentState.value = null }
+                    )
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        incomingIntentState.value = intent
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(
+    incomingIntent: Intent? = null,
+    onIntentHandled: () -> Unit = {}
+) {
     val context = LocalContext.current
     val repository = remember { VaultRepository(context) }
     val scope = rememberCoroutineScope()
@@ -108,6 +136,27 @@ fun MainScreen() {
 
     // Rename Dialog state
     var docToRename by remember { mutableStateOf<VaultDocument?>(null) }
+
+    // Handle Incoming Shares (from other apps: PDFs, images, docs)
+    LaunchedEffect(incomingIntent) {
+        val intent = incomingIntent ?: return@LaunchedEffect
+        val action = intent.action
+        if (action == Intent.ACTION_SEND || action == Intent.ACTION_SEND_MULTIPLE) {
+            handleIncomingShare(
+                context = context,
+                intent = intent,
+                onFileSelected = { file, mime, name ->
+                    selectedTempFile = file
+                    selectedMimeType = mime
+                    if (docNameText.isBlank() && name.isNotBlank()) {
+                        docNameText = name
+                    }
+                    Toast.makeText(context, "Received document: ${file.name}", Toast.LENGTH_SHORT).show()
+                }
+            )
+            onIntentHandled()
+        }
+    }
 
     // Cloud Sync Runner
     fun triggerSync(silent: Boolean = false) {
@@ -231,6 +280,82 @@ fun MainScreen() {
             launchCamera()
         } else {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    // Google Play Services ML Kit Document Scanner
+    val scannerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { activityResult ->
+        if (activityResult.resultCode == Activity.RESULT_OK) {
+            val result = GmsDocumentScanningResult.fromActivityResultIntent(activityResult.data)
+            val pdf = result?.pdf
+            if (pdf != null) {
+                try {
+                    val tempPdf = File(context.cacheDir, "scan_${System.currentTimeMillis()}.pdf")
+                    context.contentResolver.openInputStream(pdf.uri)?.use { input ->
+                        FileOutputStream(tempPdf).use { output -> input.copyTo(output) }
+                    }
+                    selectedTempFile = tempPdf
+                    selectedMimeType = "application/pdf"
+                    if (docNameText.isBlank()) {
+                        val timeStamp = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
+                        docNameText = "Scan $timeStamp"
+                    }
+                    Toast.makeText(context, "Scanned ${pdf.pageCount} page(s) to PDF", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Failed to save PDF: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                val pageUri = result?.pages?.firstOrNull()?.imageUri
+                if (pageUri != null) {
+                    try {
+                        val tempJpg = File(context.cacheDir, "scan_${System.currentTimeMillis()}.jpg")
+                        context.contentResolver.openInputStream(pageUri)?.use { input ->
+                            FileOutputStream(tempJpg).use { output -> input.copyTo(output) }
+                        }
+                        selectedTempFile = tempJpg
+                        selectedMimeType = "image/jpeg"
+                        if (docNameText.isBlank()) {
+                            val timeStamp = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
+                            docNameText = "Scan $timeStamp"
+                        }
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Failed to save scan: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
+
+    fun launchDocumentScanner() {
+        try {
+            val options = GmsDocumentScannerOptions.Builder()
+                .setGalleryImportAllowed(true)
+                .setPageLimit(100)
+                .setResultFormats(RESULT_FORMAT_PDF, RESULT_FORMAT_JPEG)
+                .setScannerMode(SCANNER_MODE_FULL)
+                .build()
+
+            val activity = context as? Activity
+            if (activity == null) {
+                handleCameraClick()
+                return
+            }
+
+            val client = GmsDocumentScanning.getClient(options)
+            client.getStartScanIntent(activity)
+                .addOnSuccessListener { intentSender ->
+                    scannerLauncher.launch(
+                        IntentSenderRequest.Builder(intentSender).build()
+                    )
+                }
+                .addOnFailureListener { e ->
+                    Toast.makeText(context, "Document scanner unavailable, using camera", Toast.LENGTH_SHORT).show()
+                    handleCameraClick()
+                }
+        } catch (e: Exception) {
+            handleCameraClick()
         }
     }
 
@@ -372,26 +497,50 @@ fun MainScreen() {
                     }
                 }
 
-                // Compact Camera / Preview Box (Streamlined Height ~78dp)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(78.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(SurfaceColor.copy(alpha = 0.6f))
-                        .border(1.dp, BorderHighlight, RoundedCornerShape(12.dp))
-                        .clickable { handleCameraClick() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (selectedTempFile != null) {
+                if (selectedTempFile != null) {
+                    // Preview Box for Selected File
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(76.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(SurfaceColor.copy(alpha = 0.6f))
+                            .border(1.dp, BorderHighlight, RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
                         if (selectedMimeType.contains("pdf")) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.padding(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
                             ) {
-                                Icon(Icons.Filled.Description, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
-                                Text(selectedTempFile?.name ?: "Document.pdf", color = TextMain, fontSize = 12.sp, maxLines = 1)
+                                Surface(
+                                    modifier = Modifier.size(42.dp),
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color(0xFFE53935).copy(alpha = 0.2f),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE53935).copy(alpha = 0.4f))
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Filled.PictureAsPdf, contentDescription = null, tint = Color(0xFFFF5252), modifier = Modifier.size(24.dp))
+                                    }
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = selectedTempFile?.name ?: "Document.pdf",
+                                        color = TextMain,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1
+                                    )
+                                    val sizeKb = (selectedTempFile?.length() ?: 0) / 1024
+                                    Text(
+                                        text = "PDF Document • ${sizeKb} KB",
+                                        color = EmeraldGreen,
+                                        fontSize = 11.sp
+                                    )
+                                }
                             }
                         } else {
                             AsyncImage(
@@ -416,36 +565,84 @@ fun MainScreen() {
                                 Icon(Icons.Filled.Close, contentDescription = null, tint = RoseRed, modifier = Modifier.size(14.dp))
                             }
                         }
-                    } else {
+                    }
+                } else {
+                    // Document Scanner Box (Primary Action)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(68.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Brush.horizontalGradient(listOf(Color(0xFF1E1542), Color(0xFF16102D))))
+                            .border(1.dp, AccentColor.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .clickable { launchDocumentScanner() }
+                            .padding(horizontal = 12.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Surface(
-                                modifier = Modifier.size(36.dp),
+                                modifier = Modifier.size(40.dp),
                                 shape = RoundedCornerShape(10.dp),
                                 color = AccentColor
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Filled.CameraAlt, contentDescription = "Camera", tint = Color.White, modifier = Modifier.size(18.dp))
+                                    Icon(Icons.Filled.DocumentScanner, contentDescription = "Scan Document", tint = Color.White, modifier = Modifier.size(22.dp))
                                 }
                             }
-                            Text("Tap to snap photo", color = TextMuted, fontSize = 12.sp)
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text("Scan Document", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextMain)
+                                    Surface(
+                                        shape = RoundedCornerShape(5.dp),
+                                        color = AccentMid.copy(alpha = 0.25f),
+                                        border = androidx.compose.foundation.BorderStroke(0.5.dp, AccentMid)
+                                    ) {
+                                        Text(
+                                            "PDF",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = AccentMid,
+                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                        )
+                                    }
+                                }
+                                Text("Auto-edge crop & multi-page scanner", color = TextMuted, fontSize = 11.sp)
+                            }
                         }
                     }
-                }
 
-                // Sleek File Picker Row
-                OutlinedButton(
-                    onClick = { filePickerLauncher.launch("*/*") },
-                    modifier = Modifier.fillMaxWidth().height(36.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextMuted)
-                ) {
-                    Icon(Icons.Filled.AttachFile, contentDescription = null, modifier = Modifier.size(14.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Or choose file (Photo, PDF, Doc)", fontSize = 12.sp)
+                    // Secondary File Intake Actions
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { handleCameraClick() },
+                            modifier = Modifier.weight(1f).height(34.dp),
+                            shape = RoundedCornerShape(9.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextMuted)
+                        ) {
+                            Icon(Icons.Filled.PhotoCamera, contentDescription = null, modifier = Modifier.size(13.dp))
+                            Spacer(Modifier.width(5.dp))
+                            Text("Quick Photo", fontSize = 11.sp)
+                        }
+
+                        OutlinedButton(
+                            onClick = { filePickerLauncher.launch("*/*") },
+                            modifier = Modifier.weight(1f).height(34.dp),
+                            shape = RoundedCornerShape(9.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextMuted)
+                        ) {
+                            Icon(Icons.Filled.AttachFile, contentDescription = null, modifier = Modifier.size(13.dp))
+                            Spacer(Modifier.width(5.dp))
+                            Text("Choose File", fontSize = 11.sp)
+                        }
+                    }
                 }
 
                 // Document Name Input (Concise One Line with Zero Margin Cutoff)
@@ -1249,4 +1446,135 @@ fun downloadDocumentToStorage(context: Context, doc: VaultDocument) {
     } catch (e: Exception) {
         Toast.makeText(context, "Download failed: ${e.message}", Toast.LENGTH_SHORT).show()
     }
+}
+
+private fun handleIncomingShare(
+    context: Context,
+    intent: Intent,
+    onFileSelected: (file: File, mimeType: String, suggestedName: String) -> Unit
+) {
+    val action = intent.action ?: return
+    try {
+        if (action == Intent.ACTION_SEND) {
+            val uri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+            } ?: intent.data ?: intent.clipData?.let { cd ->
+                if (cd.itemCount > 0) cd.getItemAt(0).uri else null
+            }
+
+            if (uri != null) {
+                val rawType = intent.type ?: context.contentResolver.getType(uri) ?: "application/octet-stream"
+                val displayName = getFileNameFromUri(context, uri) ?: "shared_doc"
+                val ext = when {
+                    rawType.contains("pdf", ignoreCase = true) || displayName.endsWith(".pdf", ignoreCase = true) -> "pdf"
+                    rawType.contains("png", ignoreCase = true) || displayName.endsWith(".png", ignoreCase = true) -> "png"
+                    rawType.contains("jpeg", ignoreCase = true) || rawType.contains("jpg", ignoreCase = true) || displayName.endsWith(".jpg", ignoreCase = true) || displayName.endsWith(".jpeg", ignoreCase = true) -> "jpg"
+                    else -> displayName.substringAfterLast('.', "dat")
+                }
+                val mimeType = if (ext == "pdf") "application/pdf" else if (ext == "png") "image/png" else if (ext == "jpg") "image/jpeg" else rawType
+
+                val tempFile = File(context.cacheDir, "shared_${System.currentTimeMillis()}.$ext")
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    FileOutputStream(tempFile).use { output -> input.copyTo(output) }
+                }
+
+                val suggestedName = displayName.substringBeforeLast('.')
+                onFileSelected(tempFile, mimeType, suggestedName)
+            }
+        } else if (action == Intent.ACTION_SEND_MULTIPLE) {
+            val uris: ArrayList<Uri>? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM)
+            }
+
+            if (!uris.isNullOrEmpty()) {
+                if (uris.size == 1) {
+                    val uri = uris[0]
+                    val rawType = intent.type ?: context.contentResolver.getType(uri) ?: "application/octet-stream"
+                    val displayName = getFileNameFromUri(context, uri) ?: "shared_doc"
+                    val ext = if (rawType.contains("pdf")) "pdf" else if (rawType.contains("png")) "png" else "jpg"
+                    val tempFile = File(context.cacheDir, "shared_${System.currentTimeMillis()}.$ext")
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        FileOutputStream(tempFile).use { output -> input.copyTo(output) }
+                    }
+                    onFileSelected(tempFile, if (ext == "pdf") "application/pdf" else "image/jpeg", displayName.substringBeforeLast('.'))
+                } else {
+                    val tempPdf = File(context.cacheDir, "shared_multi_${System.currentTimeMillis()}.pdf")
+                    val converted = convertImagesToPdf(context, uris, tempPdf)
+                    if (converted) {
+                        val dateStr = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(Date())
+                        onFileSelected(tempPdf, "application/pdf", "Multi-page Document $dateStr")
+                    } else {
+                        val uri = uris[0]
+                        val displayName = getFileNameFromUri(context, uri) ?: "shared_doc"
+                        val tempFile = File(context.cacheDir, "shared_${System.currentTimeMillis()}.jpg")
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            FileOutputStream(tempFile).use { output -> input.copyTo(output) }
+                        }
+                        onFileSelected(tempFile, "image/jpeg", displayName.substringBeforeLast('.'))
+                    }
+                }
+            }
+        }
+    } catch (e: Exception) {
+        Toast.makeText(context, "Error reading shared file: ${e.message}", Toast.LENGTH_SHORT).show()
+    }
+}
+
+private fun convertImagesToPdf(context: Context, uris: List<Uri>, destFile: File): Boolean {
+    val pdfDoc = PdfDocument()
+    try {
+        var pageNum = 1
+        for (uri in uris) {
+            val bitmap = context.contentResolver.openInputStream(uri)?.use { stream ->
+                BitmapFactory.decodeStream(stream)
+            } ?: continue
+
+            val pageInfo = PdfDocument.PageInfo.Builder(bitmap.width, bitmap.height, pageNum).create()
+            val page = pdfDoc.startPage(pageInfo)
+            page.canvas.drawBitmap(bitmap, 0f, 0f, null)
+            pdfDoc.finishPage(page)
+            bitmap.recycle()
+            pageNum++
+        }
+        if (pageNum == 1) return false
+        destFile.outputStream().use { out ->
+            pdfDoc.writeTo(out)
+        }
+        return true
+    } catch (_: Exception) {
+        return false
+    } finally {
+        pdfDoc.close()
+    }
+}
+
+private fun getFileNameFromUri(context: Context, uri: Uri): String? {
+    var result: String? = null
+    if (uri.scheme == "content") {
+        try {
+            val cursor = context.contentResolver.query(uri, null, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val idx = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (idx >= 0) {
+                        result = it.getString(idx)
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+    }
+    if (result == null) {
+        result = uri.path
+        val cut = result?.lastIndexOf('/') ?: -1
+        if (cut != -1) {
+            result = result?.substring(cut + 1)
+        }
+    }
+    return result
 }
