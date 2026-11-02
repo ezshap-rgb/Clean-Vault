@@ -125,6 +125,7 @@ fun MainScreen(
 
     var selectedTempFile by remember { mutableStateOf<File?>(null) }
     var selectedMimeType by remember { mutableStateOf("image/jpeg") }
+    var scanAsPdf by remember { mutableStateOf(true) }
 
     var docNameText by remember { mutableStateOf("") }
     var labelsText by remember { mutableStateOf("") }
@@ -290,7 +291,7 @@ fun MainScreen(
         if (activityResult.resultCode == Activity.RESULT_OK) {
             val result = GmsDocumentScanningResult.fromActivityResultIntent(activityResult.data)
             val pdf = result?.pdf
-            if (pdf != null) {
+            if (scanAsPdf && pdf != null) {
                 try {
                     val tempPdf = File(context.cacheDir, "scan_${System.currentTimeMillis()}.pdf")
                     context.contentResolver.openInputStream(pdf.uri)?.use { input ->
@@ -302,7 +303,7 @@ fun MainScreen(
                         val timeStamp = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
                         docNameText = "Scan $timeStamp"
                     }
-                    Toast.makeText(context, "Scanned ${pdf.pageCount} page(s) to PDF", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Scanned ${pdf.pageCount} page(s) to PDF 📄", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
                     Toast.makeText(context, "Failed to save PDF: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
@@ -320,6 +321,7 @@ fun MainScreen(
                             val timeStamp = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())
                             docNameText = "Scan $timeStamp"
                         }
+                        Toast.makeText(context, "Scanned & cropped image to JPG 🖼️", Toast.LENGTH_SHORT).show()
                     } catch (e: Exception) {
                         Toast.makeText(context, "Failed to save scan: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
@@ -330,12 +332,19 @@ fun MainScreen(
 
     fun launchDocumentScanner() {
         try {
-            val options = GmsDocumentScannerOptions.Builder()
+            val optionsBuilder = GmsDocumentScannerOptions.Builder()
                 .setGalleryImportAllowed(true)
-                .setPageLimit(100)
-                .setResultFormats(RESULT_FORMAT_PDF, RESULT_FORMAT_JPEG)
                 .setScannerMode(SCANNER_MODE_FULL)
-                .build()
+
+            if (scanAsPdf) {
+                optionsBuilder.setPageLimit(100)
+                optionsBuilder.setResultFormats(RESULT_FORMAT_PDF)
+            } else {
+                optionsBuilder.setPageLimit(1)
+                optionsBuilder.setResultFormats(RESULT_FORMAT_JPEG)
+            }
+
+            val options = optionsBuilder.build()
 
             val activity = context as? Activity
             if (activity == null) {
@@ -567,7 +576,7 @@ fun MainScreen(
                         }
                     }
                 } else {
-                    // Document Scanner Box (Primary Action)
+                    // Document Scanner Box (Primary Action) with PDF / JPG selector
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -580,36 +589,73 @@ fun MainScreen(
                         contentAlignment = Alignment.CenterStart
                     ) {
                         Row(
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Surface(
-                                modifier = Modifier.size(40.dp),
-                                shape = RoundedCornerShape(10.dp),
-                                color = AccentColor
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.weight(1f)
                             ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Filled.DocumentScanner, contentDescription = "Scan Document", tint = Color.White, modifier = Modifier.size(22.dp))
-                                }
-                            }
-                            Column {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text("Scan Document", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextMain)
-                                    Surface(
-                                        shape = RoundedCornerShape(5.dp),
-                                        color = AccentMid.copy(alpha = 0.25f),
-                                        border = androidx.compose.foundation.BorderStroke(0.5.dp, AccentMid)
-                                    ) {
-                                        Text(
-                                            "PDF",
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = AccentMid,
-                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                                        )
+                                Surface(
+                                    modifier = Modifier.size(40.dp),
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = AccentColor
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Filled.DocumentScanner, contentDescription = "Scan Document", tint = Color.White, modifier = Modifier.size(22.dp))
                                     }
                                 }
-                                Text("Auto-edge crop & multi-page scanner", color = TextMuted, fontSize = 11.sp)
+                                Column {
+                                    Text("Scan Document", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextMain)
+                                    Text(
+                                        text = if (scanAsPdf) "Auto-crop & multi-page PDF" else "Auto-crop, contrast & JPG",
+                                        color = TextMuted,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+
+                            // Interactive Format Switcher: [ PDF | JPG ]
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(BgBase)
+                                    .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
+                                    .padding(2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(if (scanAsPdf) AccentColor else Color.Transparent)
+                                        .clickable { scanAsPdf = true }
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "PDF",
+                                        fontSize = 10.sp,
+                                        fontWeight = if (scanAsPdf) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (scanAsPdf) Color.White else TextMuted
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(if (!scanAsPdf) AccentColor else Color.Transparent)
+                                        .clickable { scanAsPdf = false }
+                                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "JPG",
+                                        fontSize = 10.sp,
+                                        fontWeight = if (!scanAsPdf) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (!scanAsPdf) Color.White else TextMuted
+                                    )
+                                }
                             }
                         }
                     }
