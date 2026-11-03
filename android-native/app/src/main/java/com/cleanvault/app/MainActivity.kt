@@ -13,6 +13,10 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.speech.RecognizerIntent
 import android.widget.Toast
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.Scope
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -164,10 +168,10 @@ fun MainScreen(
     // Cloud Sync Runner
     fun triggerSync(silent: Boolean = false) {
         if (isSyncing) return
-        val url = repository.getScriptUrl()
-        if (url.isBlank()) {
+        val hasCloud = repository.hasCloudConnection()
+        if (!hasCloud) {
             if (!silent) {
-                Toast.makeText(context, "Configure Google Drive in Settings ⚙️ to sync", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Connect Google Drive in Settings ⚙️ to sync", Toast.LENGTH_SHORT).show()
                 showSettingsModal = true
             }
             return
@@ -182,12 +186,51 @@ fun MainScreen(
                 val msg = if (summary.downloaded > 0 || summary.uploaded > 0) {
                     "Synced: +${summary.downloaded} new, ^${summary.uploaded} uploaded (${summary.total} total)"
                 } else {
-                    "File Cabinet up to date (${summary.total} docs)"
+                    "Clean Filing up to date (${summary.total} docs)"
                 }
                 if (!silent) Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
             }.onFailure { err ->
                 if (!silent) Toast.makeText(context, "Sync error: ${err.message}", Toast.LENGTH_LONG).show()
             }
+        }
+    }
+
+    // Google Sign-In state & Launcher
+    var googleAccountEmail by remember { mutableStateOf(repository.getGoogleEmail()) }
+
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+        try {
+            val account = task.getResult(ApiException::class.java)
+            if (account != null && account.email != null) {
+                repository.setGoogleAccount(account.email)
+                googleAccountEmail = account.email!!
+                Toast.makeText(context, "Connected as ${account.email}! Syncing...", Toast.LENGTH_SHORT).show()
+                triggerSync(silent = false)
+            }
+        } catch (e: ApiException) {
+            Toast.makeText(context, "Sign in failed (${e.statusCode}): ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    fun startGoogleSignIn() {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestEmail()
+            .requestScopes(Scope("https://www.googleapis.com/auth/drive.file"))
+            .build()
+        val client = GoogleSignIn.getClient(context, gso)
+        googleSignInLauncher.launch(client.signInIntent)
+    }
+
+    fun disconnectGoogleAccount() {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).build()
+        val client = GoogleSignIn.getClient(context, gso)
+        client.signOut().addOnCompleteListener {
+            repository.setGoogleAccount(null, null)
+            googleAccountEmail = ""
+            Toast.makeText(context, "Disconnected Google Drive", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -457,7 +500,7 @@ fun MainScreen(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    val hasCloud = repository.getScriptUrl().isNotBlank()
+                    val hasCloud = repository.hasCloudConnection()
                     // Sync Button with animated rotation
                     IconButton(
                         onClick = { triggerSync(silent = false) },
@@ -911,11 +954,12 @@ fun MainScreen(
         }
     }
 
-    // SETTINGS MODAL (Google Drive Shared Backend Setup)
+    // SETTINGS MODAL (Google Drive Shared Sync Setup)
     if (showSettingsModal) {
         var inputUrl by remember { mutableStateOf(repository.getScriptUrl()) }
         var testStatus by remember { mutableStateOf<String?>(null) }
         var isTesting by remember { mutableStateOf(false) }
+        var showLegacySection by remember { mutableStateOf(repository.getScriptUrl().isNotBlank() && googleAccountEmail.isBlank()) }
 
         BasicAlertDialog(
             onDismissRequest = { showSettingsModal = false },
@@ -934,116 +978,249 @@ fun MainScreen(
                     border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
                 ) {
-                Column(
-                    modifier = Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Filled.CloudSync, contentDescription = null, tint = AccentMid)
-                            Text("Shared Cloud Cabinet", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextMain)
-                        }
-                        IconButton(onClick = { showSettingsModal = false }, modifier = Modifier.size(28.dp)) {
-                            Icon(Icons.Filled.Close, contentDescription = null, tint = TextMuted)
-                        }
-                    }
-
-                    Text(
-                        text = "Both you and your wife can use this same Google Apps Script Web App URL to automatically share the exact same Google Drive files & cabinet.",
-                        color = TextMuted,
-                        fontSize = 12.sp,
-                        lineHeight = 17.sp
-                    )
-
-                    Row(
+                    Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(11.dp))
-                            .background(SurfaceRaised)
-                            .border(1.dp, BorderColor, RoundedCornerShape(11.dp))
-                            .padding(horizontal = 10.dp, vertical = 11.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(18.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                            if (inputUrl.isEmpty()) {
-                                Text("https://script.google.com/macros/s/.../exec", color = TextFaint, fontSize = 12.sp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Filled.CloudSync, contentDescription = null, tint = AccentMid)
+                                Text("Sync & Backup", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextMain)
                             }
-                            BasicTextField(
-                                value = inputUrl,
-                                onValueChange = {
-                                    inputUrl = it
-                                    testStatus = null
-                                },
-                                singleLine = true,
-                                textStyle = TextStyle(color = TextMain, fontSize = 12.sp),
-                                cursorBrush = SolidColor(AccentColor),
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                            IconButton(onClick = { showSettingsModal = false }, modifier = Modifier.size(28.dp)) {
+                                Icon(Icons.Filled.Close, contentDescription = null, tint = TextMuted)
+                            }
                         }
-                    }
 
-                    if (testStatus != null) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (testStatus!!.contains("Connected")) EmeraldGreen.copy(alpha = 0.15f) else RoseRed.copy(alpha = 0.15f),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, if (testStatus!!.contains("Connected")) EmeraldGreen else RoseRed)
+                        // DIRECT GOOGLE DRIVE SECTION (Hero Option)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(SurfaceRaised)
+                                .border(1.dp, if (googleAccountEmail.isNotBlank()) EmeraldGreen.copy(alpha = 0.5f) else BorderColor, RoundedCornerShape(14.dp))
+                                .padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Surface(
+                                    modifier = Modifier.size(28.dp),
+                                    shape = CircleShape,
+                                    color = if (googleAccountEmail.isNotBlank()) EmeraldGreen.copy(alpha = 0.2f) else AccentColor.copy(alpha = 0.2f)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(if (googleAccountEmail.isNotBlank()) "✓" else "G", fontWeight = FontWeight.Bold, color = if (googleAccountEmail.isNotBlank()) EmeraldGreen else AccentColor, fontSize = 13.sp)
+                                    }
+                                }
+                                Text("Google Drive Sync", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextMain)
+                            }
+
+                            if (googleAccountEmail.isNotBlank()) {
+                                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text(
+                                        text = "Connected account:",
+                                        fontSize = 11.sp,
+                                        color = TextMuted
+                                    )
+                                    Text(
+                                        text = googleAccountEmail,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = EmeraldGreen
+                                    )
+                                    Text(
+                                        text = "Sync folder: Google Drive / Clean Filing",
+                                        fontSize = 11.sp,
+                                        color = TextFaint
+                                    )
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    // Share folder with wife / partner button
+                                    Button(
+                                        onClick = {
+                                            val folderId = repository.getGoogleFolderId()
+                                            val folderUrl = if (folderId.isNotBlank()) "https://drive.google.com/drive/folders/$folderId" else "https://drive.google.com"
+                                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                                type = "text/plain"
+                                                putExtra(Intent.EXTRA_TEXT, "Here is our shared Clean Filing folder on Google Drive:\n$folderUrl")
+                                            }
+                                            context.startActivity(Intent.createChooser(shareIntent, "Share Clean Filing folder"))
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.weight(1f).height(36.dp),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                    ) {
+                                        Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.White)
+                                        Spacer(Modifier.width(6.dp))
+                                        Text("Share Folder", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                    }
+
+                                    // Disconnect Button
+                                    OutlinedButton(
+                                        onClick = { disconnectGoogleAccount() },
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.height(36.dp),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = RoseRed)
+                                    ) {
+                                        Text("Disconnect", fontSize = 11.sp)
+                                    }
+                                }
+                            } else {
+                                Text(
+                                    text = "One-tap connection to your personal Google Drive. Automatically stores and syncs documents with your family in a visible 'Clean Filing' folder with zero server setup.",
+                                    color = TextMuted,
+                                    fontSize = 12.sp,
+                                    lineHeight = 16.sp
+                                )
+
+                                Button(
+                                    onClick = { startGoogleSignIn() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
+                                    shape = RoundedCornerShape(11.dp),
+                                    modifier = Modifier.fillMaxWidth().height(40.dp)
+                                ) {
+                                    Icon(Icons.Filled.AccountCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Sign in with Google", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 13.sp)
+                                }
+                            }
+                        }
+
+                        // ADVANCED / DEVELOPER (APPS SCRIPT) TOGGLE
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showLegacySection = !showLegacySection }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = testStatus!!,
-                                color = if (testStatus!!.contains("Connected")) EmeraldGreen else RoseRed,
+                                text = "Advanced: Google Apps Script Web App",
                                 fontSize = 12.sp,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                color = TextMuted,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Icon(
+                                if (showLegacySection) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                                contentDescription = null,
+                                tint = TextMuted,
+                                modifier = Modifier.size(16.dp)
                             )
                         }
-                    }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = {
-                                if (inputUrl.isBlank()) {
-                                    testStatus = "Please enter URL first"
-                                    return@OutlinedButton
-                                }
-                                isTesting = true
-                                scope.launch {
-                                    val (success, message) = repository.testConnection(inputUrl.trim())
-                                    isTesting = false
-                                    testStatus = message
-                                }
-                            },
-                            enabled = !isTesting,
-                            shape = RoundedCornerShape(11.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(if (isTesting) "Testing..." else "Test Link", fontSize = 12.sp)
-                        }
+                        if (showLegacySection) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "Custom Apps Script deployment URL (legacy fallback).",
+                                    color = TextFaint,
+                                    fontSize = 11.sp
+                                )
 
-                        Button(
-                            onClick = {
-                                repository.setScriptUrl(inputUrl.trim())
-                                showSettingsModal = false
-                                Toast.makeText(context, "Saved! Syncing cabinet...", Toast.LENGTH_SHORT).show()
-                                triggerSync(silent = false)
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
-                            shape = RoundedCornerShape(11.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Save & Sync", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 12.sp)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(11.dp))
+                                        .background(SurfaceRaised)
+                                        .border(1.dp, BorderColor, RoundedCornerShape(11.dp))
+                                        .padding(horizontal = 10.dp, vertical = 9.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                                        if (inputUrl.isEmpty()) {
+                                            Text("https://script.google.com/macros/s/.../exec", color = TextFaint, fontSize = 11.sp)
+                                        }
+                                        BasicTextField(
+                                            value = inputUrl,
+                                            onValueChange = {
+                                                inputUrl = it
+                                                testStatus = null
+                                            },
+                                            singleLine = true,
+                                            textStyle = TextStyle(color = TextMain, fontSize = 11.sp),
+                                            cursorBrush = SolidColor(AccentColor),
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                }
+
+                                if (testStatus != null) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (testStatus!!.contains("Connected")) EmeraldGreen.copy(alpha = 0.15f) else RoseRed.copy(alpha = 0.15f),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, if (testStatus!!.contains("Connected")) EmeraldGreen else RoseRed)
+                                    ) {
+                                        Text(
+                                            text = testStatus!!,
+                                            color = if (testStatus!!.contains("Connected")) EmeraldGreen else RoseRed,
+                                            fontSize = 11.sp,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            if (inputUrl.isBlank()) {
+                                                testStatus = "Please enter URL first"
+                                                return@OutlinedButton
+                                            }
+                                            isTesting = true
+                                            scope.launch {
+                                                val (success, message) = repository.testConnection(inputUrl.trim())
+                                                isTesting = false
+                                                testStatus = message
+                                            }
+                                        },
+                                        enabled = !isTesting,
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.weight(1f).height(34.dp),
+                                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(if (isTesting) "Testing..." else "Test Link", fontSize = 11.sp)
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            repository.setScriptUrl(inputUrl.trim())
+                                            showSettingsModal = false
+                                            Toast.makeText(context, "Saved script URL!", Toast.LENGTH_SHORT).show()
+                                            triggerSync(silent = false)
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.weight(1f).height(34.dp),
+                                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text("Save Script", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 11.sp)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
         }
     }
-}
 
     // RENAME DOCUMENT DIALOG
     if (docToRename != null) {

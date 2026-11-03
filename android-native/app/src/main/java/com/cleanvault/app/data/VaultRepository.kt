@@ -1,5 +1,6 @@
 package com.cleanvault.app.data
 
+import android.accounts.Account
 import android.content.Context
 import android.util.Base64
 import kotlinx.coroutines.Dispatchers
@@ -46,6 +47,42 @@ class VaultRepository(private val context: Context) {
         .followRedirects(true)
         .followSslRedirects(true)
         .build()
+
+    private val googleDriveService = GoogleDriveService(context)
+
+    fun isGoogleDriveConnected(): Boolean {
+        return getGoogleEmail().isNotBlank()
+    }
+
+    fun hasCloudConnection(): Boolean {
+        return isGoogleDriveConnected() || getScriptUrl().isNotBlank()
+    }
+
+    fun getGoogleEmail(): String {
+        return prefs.getString("google_account_email", "") ?: ""
+    }
+
+    fun setGoogleAccount(email: String?, folderId: String? = null) {
+        val editor = prefs.edit()
+        if (email.isNullOrBlank()) {
+            editor.remove("google_account_email")
+            editor.remove("google_drive_folder_id")
+        } else {
+            editor.putString("google_account_email", email.trim())
+            if (!folderId.isNullOrBlank()) {
+                editor.putString("google_drive_folder_id", folderId.trim())
+            }
+        }
+        editor.apply()
+    }
+
+    fun getGoogleFolderId(): String {
+        return prefs.getString("google_drive_folder_id", "") ?: ""
+    }
+
+    fun setGoogleFolderId(folderId: String) {
+        prefs.edit().putString("google_drive_folder_id", folderId.trim()).apply()
+    }
 
     fun getScriptUrl(): String {
         return prefs.getString("apps_script_url", "") ?: ""
@@ -240,10 +277,173 @@ class VaultRepository(private val context: Context) {
         }
     }
 
+    suspend fun syncDirectGoogleDrive(): Result<SyncSummary> = withContext(Dispatchers.IO) {
+        val email = getGoogleEmail()
+        if (email.isBlank()) {
+            return@withContext Result.failure(Exception("Not signed into Google Drive. Please tap Sign in with Google in Settings."))
+        }
+
+        try {
+            val account = Account(email, "com.google")
+            val token = googleDriveService.getAccessToken(account)
+                ?: return@withContext Result.failure(Exception("Could not obtain Google Drive access token. Please re-sign in."))
+
+            // 1. Get or Create "Clean Filing" folder
+            val folderResult = googleDriveService.findOrCreateAppFolder(token)
+            if (folderResult.isFailure) {
+                return@withContext Result.failure(folderResult.exceptionOrNull() ?: Exception("Folder error"))
+            }
+            val folderId = folderResult.getOrThrow()
+            setGoogleFolderId(folderId)
+
+            // 2. Fetch remote files in the folder
+            val listResult = googleDriveService.listDocuments(token, folderId)
+            if (listResult.isFailure) {
+                return@withContext Result.failure(listResult.exceptionOrNull() ?: Exception("List error"))
+            }
+            val remoteFiles = listResult.getOrThrow()
+            val deletedIds = getDeletedIds()
+
+            // Map remote files by ID and docId property
+            val remoteMap = mutableMapOf<String, JSONObject>()
+            for (rf in remoteFiles) {
+                val fId = rf.getString("id")
+                val props = rf.optJSONObject("properties")
+                val propDocId = props?.optString("docId", "") ?: ""
+                val effectiveKey = if (propDocId.isNotBlank()) propDocId else fId
+
+                // If marked deleted, remove from Drive and skip
+                if (deletedIds.contains(fId) || (propDocId.isNotBlank() && deletedIds.contains(propDocId))) {
+                    googleDriveService.deleteFile(token, fId)
+                    continue
+                }
+                remoteMap[effectiveKey] = rf
+            }
+
+            var localList = getDocuments().toMutableList()
+            var addedCount = 0
+            var uploadedCount = 0
+
+            // 3. Download any remote file that doesn't exist locally
+            for ((key, rf) in remoteMap) {
+                val fId = rf.getString("id")
+                val rName = rf.optString("name", "Document")
+                val rDesc = rf.optString("description", "")
+                val rMime = rf.optString("mimeType", "application/pdf")
+                val rUrl = rf.optString("webViewLink", "https://drive.google.com/file/d/$fId/view")
+                val props = rf.optJSONObject("properties")
+                val propDocId = props?.optString("docId", "").takeIf { !it.isNullOrBlank() } ?: key
+                val propNotes = props?.optString("notes", rDesc) ?: rDesc
+                val propPinned = props?.optString("isPinned", "false")?.toBoolean() ?: false
+
+                val existingIndex = localList.indexOfFirst {
+                    it.driveFileId == fId || it.id == propDocId || (it.driveFileUrl?.isNotBlank() == true && it.driveFileUrl == rUrl)
+                }
+
+                if (existingIndex >= 0) {
+                    val existing = localList[existingIndex]
+                    val fileOnDisk = File(existing.filePath)
+                    val actualPath = if (!fileOnDisk.exists() || existing.filePath.isBlank()) {
+                        val ext = if (rMime.contains("pdf")) "pdf" else "jpg"
+                        val target = File(docsDir, "Vault_${System.currentTimeMillis()}_${existing.fileName.ifBlank { "doc.$ext" }}")
+                        val dlResult = googleDriveService.downloadFile(token, fId, target)
+                        if (dlResult.isSuccess) target.absolutePath else existing.filePath
+                    } else {
+                        existing.filePath
+                    }
+
+                    localList[existingIndex] = existing.copy(
+                        name = existing.name.ifBlank { rName },
+                        notes = if (existing.notes.isBlank()) propNotes else existing.notes,
+                        isPinned = existing.isPinned || propPinned,
+                        driveFileId = fId,
+                        driveFileUrl = rUrl,
+                        filePath = actualPath,
+                        isSynced = true
+                    )
+                } else {
+                    // New file from cloud (e.g. spouse uploaded it!)
+                    val ext = if (rMime.contains("pdf")) "pdf" else "jpg"
+                    val target = File(docsDir, "Vault_${System.currentTimeMillis()}_$rName.$ext")
+                    val dlResult = googleDriveService.downloadFile(token, fId, target)
+                    val localPath = if (dlResult.isSuccess) target.absolutePath else ""
+
+                    val newDoc = VaultDocument(
+                        id = propDocId,
+                        name = rName.substringBeforeLast('.'),
+                        notes = propNotes,
+                        fileName = target.name,
+                        filePath = localPath,
+                        mimeType = rMime,
+                        isPinned = propPinned,
+                        driveFileId = fId,
+                        driveFileUrl = rUrl,
+                        isSynced = true,
+                        lastModified = System.currentTimeMillis()
+                    )
+                    localList.add(newDoc)
+                    addedCount++
+                }
+            }
+
+            // 4. Upload any local document that isn't on Google Drive yet
+            val finalDocs = mutableListOf<VaultDocument>()
+            for (doc in localList) {
+                if (deletedIds.contains(doc.id) || (!doc.driveFileId.isNullOrBlank() && deletedIds.contains(doc.driveFileId))) {
+                    try { File(doc.filePath).delete() } catch (_: Exception) {}
+                    continue
+                }
+
+                val existsInDrive = remoteFiles.any { rf ->
+                    val fId = rf.getString("id")
+                    val props = rf.optJSONObject("properties")
+                    val propDocId = props?.optString("docId", "")
+                    doc.driveFileId == fId || (propDocId != null && propDocId == doc.id)
+                }
+
+                if (!existsInDrive) {
+                    val localFile = File(doc.filePath)
+                    if (localFile.exists() && localFile.length() > 0) {
+                        val uploadResult = googleDriveService.uploadDocument(
+                            token = token,
+                            folderId = folderId,
+                            file = localFile,
+                            docName = doc.name,
+                            notes = doc.notes,
+                            mimeType = doc.mimeType,
+                            docId = doc.id,
+                            isPinned = doc.isPinned
+                        )
+                        if (uploadResult.isSuccess) {
+                            val (fId, link) = uploadResult.getOrThrow()
+                            finalDocs.add(doc.copy(driveFileId = fId, driveFileUrl = link, isSynced = true))
+                            uploadedCount++
+                        } else {
+                            finalDocs.add(doc)
+                        }
+                    } else {
+                        finalDocs.add(doc)
+                    }
+                } else {
+                    finalDocs.add(doc.copy(isSynced = true))
+                }
+            }
+
+            saveDocuments(finalDocs)
+            Result.success(SyncSummary(addedCount, uploadedCount, 0, finalDocs.size))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun syncWithCloud(): Result<SyncSummary> = withContext(Dispatchers.IO) {
+        if (isGoogleDriveConnected()) {
+            return@withContext syncDirectGoogleDrive()
+        }
+
         val scriptUrl = getScriptUrl()
         if (scriptUrl.isBlank()) {
-            return@withContext Result.failure(Exception("Apps Script URL not set. Tap ⚙️ to configure shared Google Drive."))
+            return@withContext Result.failure(Exception("Google Drive not connected. Open Settings ⚙️ to connect."))
         }
 
         try {
@@ -414,6 +614,40 @@ class VaultRepository(private val context: Context) {
     }
 
     suspend fun uploadDocAsync(doc: VaultDocument): VaultDocument? = withContext(Dispatchers.IO) {
+        if (isGoogleDriveConnected()) {
+            try {
+                val email = getGoogleEmail()
+                val account = Account(email, "com.google")
+                val token = googleDriveService.getAccessToken(account) ?: return@withContext null
+                var folderId = getGoogleFolderId()
+                if (folderId.isBlank()) {
+                    folderId = googleDriveService.findOrCreateAppFolder(token).getOrNull() ?: return@withContext null
+                    setGoogleFolderId(folderId)
+                }
+                val localFile = File(doc.filePath)
+                if (!localFile.exists()) return@withContext null
+
+                val res = googleDriveService.uploadDocument(
+                    token = token,
+                    folderId = folderId,
+                    file = localFile,
+                    docName = doc.name,
+                    notes = doc.notes,
+                    mimeType = doc.mimeType,
+                    docId = doc.id,
+                    isPinned = doc.isPinned
+                )
+                if (res.isSuccess) {
+                    val (fId, link) = res.getOrThrow()
+                    val updated = doc.copy(driveFileId = fId, driveFileUrl = link, isSynced = true)
+                    val list = getDocuments().map { if (it.id == doc.id) updated else it }
+                    saveDocuments(list)
+                    return@withContext updated
+                }
+            } catch (_: Exception) {}
+            return@withContext null
+        }
+
         val scriptUrl = getScriptUrl()
         if (scriptUrl.isBlank()) return@withContext null
         val uploaded = uploadDocumentToCloud(scriptUrl, doc)
@@ -425,6 +659,16 @@ class VaultRepository(private val context: Context) {
     }
 
     suspend fun deleteDocRemoteAsync(docId: String, fileId: String? = null) = withContext(Dispatchers.IO) {
+        if (isGoogleDriveConnected() && !fileId.isNullOrBlank()) {
+            try {
+                val email = getGoogleEmail()
+                val account = Account(email, "com.google")
+                val token = googleDriveService.getAccessToken(account) ?: return@withContext
+                googleDriveService.deleteFile(token, fileId)
+            } catch (_: Exception) {}
+            return@withContext
+        }
+
         val scriptUrl = getScriptUrl()
         if (scriptUrl.isBlank()) return@withContext
         try {
