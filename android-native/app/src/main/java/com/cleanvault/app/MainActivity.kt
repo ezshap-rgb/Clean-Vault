@@ -19,6 +19,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -46,6 +47,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
@@ -420,27 +422,42 @@ fun MainScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Surface(
-                        modifier = Modifier.size(34.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        color = AccentColor
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Filled.Folder, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    Image(
+                        painter = painterResource(id = R.drawable.app_icon),
+                        contentDescription = "Clean Filing",
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .border(1.dp, BorderColor, RoundedCornerShape(10.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                    Column(verticalArrangement = Arrangement.Center) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(text = "Clean Filing", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextMain)
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = AccentMid.copy(alpha = 0.22f),
+                                border = androidx.compose.foundation.BorderStroke(0.8.dp, AccentMid.copy(alpha = 0.6f))
+                            ) {
+                                Text(
+                                    text = "STUDIO",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AccentMid,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                                )
+                            }
                         }
-                    }
-                    Column {
-                        Text(text = "Clean Vault", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextMain)
-                        val hasCloud = repository.getScriptUrl().isNotBlank()
                         Text(
-                            text = if (hasCloud) "Google Drive Shared" else "Local only",
+                            text = "Document filing system",
                             fontSize = 11.sp,
-                            color = if (hasCloud) EmeraldGreen else TextFaint
+                            color = TextMuted
                         )
                     }
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val hasCloud = repository.getScriptUrl().isNotBlank()
                     // Sync Button with animated rotation
                     IconButton(
                         onClick = { triggerSync(silent = false) },
@@ -449,7 +466,7 @@ fun MainScreen(
                         Icon(
                             Icons.Filled.Sync,
                             contentDescription = "Sync",
-                            tint = if (isSyncing) AmberGold else TextMuted,
+                            tint = if (isSyncing) AmberGold else if (hasCloud) EmeraldGreen.copy(alpha = 0.85f) else TextMuted,
                             modifier = Modifier
                                 .size(18.dp)
                                 .then(if (isSyncing) Modifier.rotate(syncRotation) else Modifier)
