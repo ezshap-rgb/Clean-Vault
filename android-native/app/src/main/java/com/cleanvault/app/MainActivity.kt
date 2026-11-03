@@ -956,11 +956,6 @@ fun MainScreen(
 
     // SETTINGS MODAL (Google Drive Shared Sync Setup)
     if (showSettingsModal) {
-        var inputUrl by remember { mutableStateOf(repository.getScriptUrl()) }
-        var testStatus by remember { mutableStateOf<String?>(null) }
-        var isTesting by remember { mutableStateOf(false) }
-        var showLegacySection by remember { mutableStateOf(repository.getScriptUrl().isNotBlank() && googleAccountEmail.isBlank()) }
-
         BasicAlertDialog(
             onDismissRequest = { showSettingsModal = false },
             properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -1097,122 +1092,6 @@ fun MainScreen(
                                     Icon(Icons.Filled.AccountCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                                     Spacer(Modifier.width(8.dp))
                                     Text("Sign in with Google", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 13.sp)
-                                }
-                            }
-                        }
-
-                        // ADVANCED / DEVELOPER (APPS SCRIPT) TOGGLE
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { showLegacySection = !showLegacySection }
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "Advanced: Google Apps Script Web App",
-                                fontSize = 12.sp,
-                                color = TextMuted,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Icon(
-                                if (showLegacySection) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                                contentDescription = null,
-                                tint = TextMuted,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-
-                        if (showLegacySection) {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(
-                                    text = "Custom Apps Script deployment URL (legacy fallback).",
-                                    color = TextFaint,
-                                    fontSize = 11.sp
-                                )
-
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(11.dp))
-                                        .background(SurfaceRaised)
-                                        .border(1.dp, BorderColor, RoundedCornerShape(11.dp))
-                                        .padding(horizontal = 10.dp, vertical = 9.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                                        if (inputUrl.isEmpty()) {
-                                            Text("https://script.google.com/macros/s/.../exec", color = TextFaint, fontSize = 11.sp)
-                                        }
-                                        BasicTextField(
-                                            value = inputUrl,
-                                            onValueChange = {
-                                                inputUrl = it
-                                                testStatus = null
-                                            },
-                                            singleLine = true,
-                                            textStyle = TextStyle(color = TextMain, fontSize = 11.sp),
-                                            cursorBrush = SolidColor(AccentColor),
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
-                                    }
-                                }
-
-                                if (testStatus != null) {
-                                    Surface(
-                                        shape = RoundedCornerShape(8.dp),
-                                        color = if (testStatus!!.contains("Connected")) EmeraldGreen.copy(alpha = 0.15f) else RoseRed.copy(alpha = 0.15f),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, if (testStatus!!.contains("Connected")) EmeraldGreen else RoseRed)
-                                    ) {
-                                        Text(
-                                            text = testStatus!!,
-                                            color = if (testStatus!!.contains("Connected")) EmeraldGreen else RoseRed,
-                                            fontSize = 11.sp,
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                        )
-                                    }
-                                }
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    OutlinedButton(
-                                        onClick = {
-                                            if (inputUrl.isBlank()) {
-                                                testStatus = "Please enter URL first"
-                                                return@OutlinedButton
-                                            }
-                                            isTesting = true
-                                            scope.launch {
-                                                val (success, message) = repository.testConnection(inputUrl.trim())
-                                                isTesting = false
-                                                testStatus = message
-                                            }
-                                        },
-                                        enabled = !isTesting,
-                                        shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.weight(1f).height(34.dp),
-                                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Text(if (isTesting) "Testing..." else "Test Link", fontSize = 11.sp)
-                                    }
-
-                                    Button(
-                                        onClick = {
-                                            repository.setScriptUrl(inputUrl.trim())
-                                            showSettingsModal = false
-                                            Toast.makeText(context, "Saved script URL!", Toast.LENGTH_SHORT).show()
-                                            triggerSync(silent = false)
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
-                                        shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.weight(1f).height(34.dp),
-                                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Text("Save Script", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 11.sp)
-                                    }
                                 }
                             }
                         }
