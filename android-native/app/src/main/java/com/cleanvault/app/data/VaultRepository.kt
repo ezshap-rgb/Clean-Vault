@@ -238,6 +238,23 @@ class VaultRepository(private val context: Context) {
         return list
     }
 
+    fun updateNoteContent(docId: String, newContent: String): VaultDocument? {
+        val list = getDocuments().toMutableList()
+        val index = list.indexOfFirst { it.id == docId }
+        if (index == -1) return null
+        val target = list[index]
+        val file = File(target.filePath)
+        try {
+            file.writeText(newContent)
+        } catch (_: Exception) {}
+        val updated = target.copy(
+            lastModified = System.currentTimeMillis()
+        )
+        list[index] = updated
+        saveDocuments(list)
+        return updated
+    }
+
     fun deleteDocument(docId: String): List<VaultDocument> {
         val list = getDocuments().toMutableList()
         val target = list.find { it.id == docId }
@@ -719,6 +736,23 @@ class VaultRepository(private val context: Context) {
             val req = Request.Builder().url(scriptUrl).post(body).build()
             httpClient.newCall(req).execute().close()
         } catch (_: Exception) {}
+    }
+
+    suspend fun updateNoteRemoteAsync(doc: VaultDocument, newContent: String) = withContext(Dispatchers.IO) {
+        val file = File(doc.filePath)
+        try {
+            file.writeText(newContent)
+        } catch (_: Exception) {}
+
+        if (isGoogleDriveConnected() && !doc.driveFileId.isNullOrBlank()) {
+            try {
+                val email = getGoogleEmail()
+                val account = Account(email, "com.google")
+                val token = googleDriveService.getAccessToken(account) ?: return@withContext
+                googleDriveService.updateFileContent(token, doc.driveFileId!!, file, "text/plain")
+            } catch (_: Exception) {}
+            return@withContext
+        }
     }
 
     private fun uploadDocumentToCloud(scriptUrl: String, doc: VaultDocument): VaultDocument? {

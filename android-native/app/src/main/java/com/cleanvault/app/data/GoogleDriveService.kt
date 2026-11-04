@@ -148,6 +148,28 @@ class GoogleDriveService(private val context: Context) {
         }
     }
 
+    suspend fun updateFileContent(token: String, fileId: String, file: File, mimeType: String): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val url = "https://www.googleapis.com/upload/drive/v3/files/$fileId?uploadType=media"
+            val req = Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer $token")
+                .patch(file.asRequestBody(mimeType.toMediaType()))
+                .build()
+
+            httpClient.newCall(req).execute().use { res ->
+                if (res.isSuccessful) {
+                    Result.success(true)
+                } else {
+                    val body = res.body?.string() ?: ""
+                    Result.failure(Exception("Update failed: $body"))
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun listDocuments(token: String, folderId: String): Result<List<JSONObject>> = withContext(Dispatchers.IO) {
         try {
             val query = "'$folderId' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'"

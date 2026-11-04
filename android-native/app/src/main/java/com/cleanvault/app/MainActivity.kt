@@ -151,6 +151,8 @@ fun MainScreen(
     var noteTitleInput by remember { mutableStateOf("") }
     var noteBodyInput by remember { mutableStateOf("") }
     var noteDocToView by remember { mutableStateOf<VaultDocument?>(null) }
+    var noteEditText by remember { mutableStateOf("") }
+    var isEditingNote by remember { mutableStateOf(false) }
 
     // Handle Incoming Shares (from other apps: PDFs, images, docs)
     LaunchedEffect(incomingIntent) {
@@ -310,6 +312,27 @@ fun MainScreen(
         }
         try {
             speechLauncherNote.launch(intent)
+        } catch (_: Exception) {
+            Toast.makeText(context, "Voice input not available", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val speechLauncherNoteEdit = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+        if (res.resultCode == Activity.RESULT_OK) {
+            val spoken = res.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull() ?: ""
+            if (spoken.isNotBlank()) {
+                noteEditText = if (noteEditText.isBlank()) spoken else "$noteEditText $spoken"
+            }
+        }
+    }
+
+    fun startSpeechNoteEdit() {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak Note Content")
+        }
+        try {
+            speechLauncherNoteEdit.launch(intent)
         } catch (_: Exception) {
             Toast.makeText(context, "Voice input not available", Toast.LENGTH_SHORT).show()
         }
@@ -1461,6 +1484,8 @@ fun MainScreen(
                                                             onClick = {
                                                                 if (doc.filePath.endsWith(".txt", ignoreCase = true) || doc.fileName.endsWith(".txt", ignoreCase = true)) {
                                                                     noteDocToView = doc
+                                                                    isEditingNote = false
+                                                                    noteEditText = try { val f = File(doc.filePath); if (f.exists()) f.readText() else "" } catch (_: Exception) { "" }
                                                                 } else {
                                                                     openDocumentFile(context, doc, repository, forceChooser = false)
                                                                 }
@@ -1706,19 +1731,13 @@ fun MainScreen(
         }
     }
 
-    // EMBEDDED NOTE VIEWER DIALOG
+    // EMBEDDED NOTE VIEWER & EDITOR DIALOG
     noteDocToView?.let { noteDoc ->
-        val noteText = remember(noteDoc.filePath) {
-            try {
-                val f = File(noteDoc.filePath)
-                if (f.exists()) f.readText() else "Note file not found on device."
-            } catch (e: Exception) {
-                "Error reading note: ${e.message}"
-            }
-        }
-
         BasicAlertDialog(
-            onDismissRequest = { noteDocToView = null },
+            onDismissRequest = {
+                noteDocToView = null
+                isEditingNote = false
+            },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             val dialogDensity = LocalDensity.current
@@ -1731,91 +1750,205 @@ fun MainScreen(
                 Surface(
                     shape = RoundedCornerShape(22.dp),
                     color = SurfaceColor,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isEditingNote) AmberGold.copy(alpha = 0.6f) else BorderHighlight),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
                 ) {
                     Column(
                         modifier = Modifier.padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        // Dialog Header
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
-                                Icon(Icons.Filled.EditNote, contentDescription = null, tint = AmberGold)
-                                Text(noteDoc.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextMain, maxLines = 1)
+                                Icon(if (isEditingNote) Icons.Filled.Edit else Icons.Filled.EditNote, contentDescription = null, tint = AmberGold)
+                                Text(
+                                    text = if (isEditingNote) "Editing: ${noteDoc.name}" else noteDoc.name,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextMain,
+                                    maxLines = 1
+                                )
                             }
-                            IconButton(onClick = { noteDocToView = null }, modifier = Modifier.size(28.dp)) {
-                                Icon(Icons.Filled.Close, contentDescription = null, tint = TextMuted)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (isEditingNote) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = SurfaceRaised,
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                                        onClick = { startSpeechNoteEdit() },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(Icons.Filled.Mic, contentDescription = "Dictate Note", tint = AmberGold, modifier = Modifier.size(15.dp))
+                                        }
+                                    }
+                                    Spacer(Modifier.width(6.dp))
+                                }
+                                IconButton(
+                                    onClick = {
+                                        noteDocToView = null
+                                        isEditingNote = false
+                                    },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(Icons.Filled.Close, contentDescription = null, tint = TextMuted)
+                                }
                             }
                         }
 
-                        if (noteDoc.notes.isNotBlank()) {
+                        if (noteDoc.notes.isNotBlank() && !isEditingNote) {
                             Text("🏷️ ${noteDoc.notes}", color = TextMuted, fontSize = 11.sp)
                         }
 
-                        // Scrollable content area
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 80.dp, max = 280.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(SurfaceRaised)
-                                .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
-                                .padding(12.dp)
-                                .verticalScroll(rememberScrollState())
-                        ) {
-                            Text(
-                                text = noteText,
-                                color = TextMain,
-                                fontSize = 13.sp,
-                                lineHeight = 19.sp
-                            )
+                        // Content area: Text or Editable Field
+                        if (!isEditingNote) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 80.dp, max = 280.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(SurfaceRaised)
+                                    .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
+                                    .padding(12.dp)
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                Text(
+                                    text = noteEditText.ifEmpty { "Empty note" },
+                                    color = TextMain,
+                                    fontSize = 13.sp,
+                                    lineHeight = 19.sp
+                                )
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 140.dp, max = 280.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(SurfaceRaised)
+                                    .border(1.dp, AmberGold.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                                    .padding(12.dp)
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                BasicTextField(
+                                    value = noteEditText,
+                                    onValueChange = { noteEditText = it },
+                                    textStyle = TextStyle(color = TextMain, fontSize = 13.sp, lineHeight = 19.sp),
+                                    cursorBrush = SolidColor(AmberGold),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                         }
 
-                        // Action Buttons: Copy, Share, Close
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            OutlinedButton(
-                                onClick = {
-                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    val clip = ClipData.newPlainText(noteDoc.name, noteText)
-                                    clipboard.setPrimaryClip(clip)
-                                    Toast.makeText(context, "Copied note to clipboard! 📋", Toast.LENGTH_SHORT).show()
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.weight(1f).height(34.dp),
-                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                        // Action Buttons: View mode vs Edit mode
+                        if (!isEditingNote) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(13.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text("Copy", fontSize = 11.sp)
-                            }
+                                // 1. Copy
+                                OutlinedButton(
+                                    onClick = {
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        val clip = ClipData.newPlainText(noteDoc.name, noteEditText)
+                                        clipboard.setPrimaryClip(clip)
+                                        Toast.makeText(context, "Copied note to clipboard! 📋", Toast.LENGTH_SHORT).show()
+                                    },
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f).height(34.dp),
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                                ) {
+                                    Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(12.dp))
+                                    Spacer(Modifier.width(3.dp))
+                                    Text("Copy", fontSize = 10.5.sp)
+                                }
 
-                            OutlinedButton(
-                                onClick = { shareDocumentFile(context, noteDoc) },
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.weight(1f).height(34.dp),
-                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(13.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text("Share", fontSize = 11.sp)
-                            }
+                                // 2. Share
+                                OutlinedButton(
+                                    onClick = { shareDocumentFile(context, noteDoc) },
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f).height(34.dp),
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                                ) {
+                                    Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(12.dp))
+                                    Spacer(Modifier.width(3.dp))
+                                    Text("Share", fontSize = 10.5.sp)
+                                }
 
-                            Button(
-                                onClick = { noteDocToView = null },
-                                colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.weight(1f).height(34.dp),
-                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                                // 3. Edit (Pencil Icon)
+                                OutlinedButton(
+                                    onClick = { isEditingNote = true },
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f).height(34.dp),
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AmberGold)
+                                ) {
+                                    Icon(Icons.Filled.Edit, contentDescription = "Edit", tint = AmberGold, modifier = Modifier.size(12.dp))
+                                    Spacer(Modifier.width(3.dp))
+                                    Text("Edit", fontSize = 10.5.sp, color = AmberGold)
+                                }
+
+                                // 4. Close
+                                Button(
+                                    onClick = { noteDocToView = null },
+                                    colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f).height(34.dp),
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                                ) {
+                                    Text("Close", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 10.5.sp)
+                                }
+                            }
+                        } else {
+                            // In Edit Mode: Cancel & Save Note
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("Close", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 11.sp)
+                                OutlinedButton(
+                                    onClick = {
+                                        noteEditText = try { val f = File(noteDoc.filePath); if (f.exists()) f.readText() else "" } catch (_: Exception) { "" }
+                                        isEditingNote = false
+                                    },
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1f).height(36.dp),
+                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text("Cancel", fontSize = 11.5.sp)
+                                }
+
+                                Button(
+                                    onClick = {
+                                        try {
+                                            val updated = repository.updateNoteContent(noteDoc.id, noteEditText)
+                                            if (updated != null) {
+                                                noteDocToView = updated
+                                                documents = repository.getDocuments()
+                                                scope.launch {
+                                                    repository.updateNoteRemoteAsync(updated, noteEditText)
+                                                }
+                                            }
+                                            isEditingNote = false
+                                            Toast.makeText(context, "Note updated! 📝", Toast.LENGTH_SHORT).show()
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Failed to save: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = AmberGold),
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.weight(1.3f).height(36.dp),
+                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Icon(Icons.Filled.Check, contentDescription = null, tint = Color.Black, modifier = Modifier.size(15.dp))
+                                    Spacer(Modifier.width(5.dp))
+                                    Text("Save Note", fontWeight = FontWeight.Bold, color = Color.Black, fontSize = 11.5.sp)
+                                }
                             }
                         }
                     }
