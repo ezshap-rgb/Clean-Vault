@@ -193,7 +193,7 @@ class VaultRepository(private val context: Context) {
     }
 
     fun saveFileToVault(name: String, notes: String, isPinned: Boolean, sourceFile: File, mimeType: String): VaultDocument {
-        val ext = sourceFile.extension.ifEmpty { if (mimeType.contains("pdf")) "pdf" else "jpg" }
+        val ext = sourceFile.extension.ifEmpty { if (mimeType.contains("pdf")) "pdf" else if (mimeType.contains("text")) "txt" else "jpg" }
         val targetFile = File(docsDir, "Vault_${System.currentTimeMillis()}.$ext")
         sourceFile.copyTo(targetFile, overwrite = true)
 
@@ -344,7 +344,7 @@ class VaultRepository(private val context: Context) {
                     val existing = localList[existingIndex]
                     val fileOnDisk = File(existing.filePath)
                     val actualPath = if (!fileOnDisk.exists() || existing.filePath.isBlank()) {
-                        val ext = if (rMime.contains("pdf")) "pdf" else "jpg"
+                        val ext = if (rMime.contains("pdf")) "pdf" else if (rMime.contains("text")) "txt" else "jpg"
                         val target = File(docsDir, "Vault_${System.currentTimeMillis()}_${existing.fileName.ifBlank { "doc.$ext" }}")
                         val dlResult = googleDriveService.downloadFile(token, fId, target)
                         if (dlResult.isSuccess) target.absolutePath else existing.filePath
@@ -363,7 +363,7 @@ class VaultRepository(private val context: Context) {
                     )
                 } else {
                     // New file from cloud (e.g. spouse uploaded it!)
-                    val ext = if (rMime.contains("pdf")) "pdf" else "jpg"
+                    val ext = if (rMime.contains("pdf")) "pdf" else if (rMime.contains("text")) "txt" else "jpg"
                     val target = File(docsDir, "Vault_${System.currentTimeMillis()}_$rName.$ext")
                     val dlResult = googleDriveService.downloadFile(token, fId, target)
                     val localPath = if (dlResult.isSuccess) target.absolutePath else ""

@@ -2,6 +2,8 @@ package com.cleanvault.app
 
 import android.Manifest
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -144,6 +146,12 @@ fun MainScreen(
     // Rename Dialog state
     var docToRename by remember { mutableStateOf<VaultDocument?>(null) }
 
+    // Quick Note Dialog & Reader state
+    var showNoteDialog by remember { mutableStateOf(false) }
+    var noteTitleInput by remember { mutableStateOf("") }
+    var noteBodyInput by remember { mutableStateOf("") }
+    var noteDocToView by remember { mutableStateOf<VaultDocument?>(null) }
+
     // Handle Incoming Shares (from other apps: PDFs, images, docs)
     LaunchedEffect(incomingIntent) {
         val intent = incomingIntent ?: return@LaunchedEffect
@@ -281,6 +289,27 @@ fun MainScreen(
         }
         try {
             if (isForName) speechLauncherName.launch(intent) else speechLauncherLabels.launch(intent)
+        } catch (_: Exception) {
+            Toast.makeText(context, "Voice input not available", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val speechLauncherNote = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+        if (res.resultCode == Activity.RESULT_OK) {
+            val spoken = res.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull() ?: ""
+            if (spoken.isNotBlank()) {
+                noteBodyInput = if (noteBodyInput.isBlank()) spoken else "$noteBodyInput $spoken"
+            }
+        }
+    }
+
+    fun startSpeechNote() {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak Note Content")
+        }
+        try {
+            speechLauncherNote.launch(intent)
         } catch (_: Exception) {
             Toast.makeText(context, "Voice input not available", Toast.LENGTH_SHORT).show()
         }
@@ -611,6 +640,41 @@ fun MainScreen(
                                     )
                                 }
                             }
+                        } else if (selectedMimeType.contains("text") || selectedTempFile?.extension?.lowercase() == "txt") {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Surface(
+                                    modifier = Modifier.size(42.dp),
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = AmberGold.copy(alpha = 0.2f),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, AmberGold.copy(alpha = 0.4f))
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Filled.EditNote, contentDescription = null, tint = AmberGold, modifier = Modifier.size(24.dp))
+                                    }
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = selectedTempFile?.name ?: "Note.txt",
+                                        color = TextMain,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1
+                                    )
+                                    val previewSnippet = try { selectedTempFile?.readText()?.take(50)?.replace("\n", " ") ?: "" } catch (_: Exception) { "" }
+                                    Text(
+                                        text = if (previewSnippet.isNotBlank()) "📝 $previewSnippet" else "Text Note • ${(selectedTempFile?.length() ?: 0)} bytes",
+                                        color = AmberGold,
+                                        fontSize = 11.sp,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
                         } else {
                             AsyncImage(
                                 model = selectedTempFile,
@@ -747,6 +811,21 @@ fun MainScreen(
                             Icon(Icons.Filled.AttachFile, contentDescription = null, modifier = Modifier.size(13.dp))
                             Spacer(Modifier.width(5.dp))
                             Text("Choose File", fontSize = 11.sp)
+                        }
+
+                        // Small Icon-sized Quick Note Button
+                        OutlinedButton(
+                            onClick = {
+                                noteTitleInput = ""
+                                noteBodyInput = ""
+                                showNoteDialog = true
+                            },
+                            modifier = Modifier.width(42.dp).height(34.dp),
+                            shape = RoundedCornerShape(9.dp),
+                            contentPadding = PaddingValues(0.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AmberGold)
+                        ) {
+                            Icon(Icons.Filled.EditNote, contentDescription = "Write Note", tint = AmberGold, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
@@ -1379,7 +1458,13 @@ fun MainScreen(
                                                         .height(32.dp)
                                                         .clip(RoundedCornerShape(8.dp))
                                                         .combinedClickable(
-                                                            onClick = { openDocumentFile(context, doc, repository, forceChooser = false) },
+                                                            onClick = {
+                                                                if (doc.filePath.endsWith(".txt", ignoreCase = true) || doc.fileName.endsWith(".txt", ignoreCase = true)) {
+                                                                    noteDocToView = doc
+                                                                } else {
+                                                                    openDocumentFile(context, doc, repository, forceChooser = false)
+                                                                }
+                                                            },
                                                             onLongClick = {
                                                                 Toast.makeText(context, "Choose viewer app...", Toast.LENGTH_SHORT).show()
                                                                 openDocumentFile(context, doc, repository, forceChooser = true)
@@ -1446,6 +1531,291 @@ fun MainScreen(
                                         }
                                     }
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // CREATE NOTE DIALOG
+    if (showNoteDialog) {
+        BasicAlertDialog(
+            onDismissRequest = { showNoteDialog = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            val dialogDensity = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides Density(
+                    density = dialogDensity.density,
+                    fontScale = 1.0f
+                )
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = SurfaceColor,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Icon(Icons.Filled.EditNote, contentDescription = null, tint = AmberGold)
+                                Text("Write Note", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextMain)
+                            }
+                            IconButton(onClick = { showNoteDialog = false }, modifier = Modifier.size(28.dp)) {
+                                Icon(Icons.Filled.Close, contentDescription = null, tint = TextMuted)
+                            }
+                        }
+
+                        // Note Title (Optional)
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Note Title (optional)", fontSize = 11.5.sp, color = TextMuted)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(SurfaceRaised)
+                                    .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
+                                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                                    if (noteTitleInput.isEmpty()) {
+                                        Text("e.g. WiFi password, Insurance details...", color = TextFaint, fontSize = 12.sp)
+                                    }
+                                    BasicTextField(
+                                        value = noteTitleInput,
+                                        onValueChange = { noteTitleInput = it },
+                                        singleLine = true,
+                                        textStyle = TextStyle(color = TextMain, fontSize = 12.sp),
+                                        cursorBrush = SolidColor(AccentColor),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            }
+                        }
+
+                        // Note Body
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Note Content", fontSize = 11.5.sp, color = TextMuted)
+                                Surface(
+                                    shape = CircleShape,
+                                    color = SurfaceRaised,
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                                    onClick = { startSpeechNote() },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Filled.Mic, contentDescription = "Dictate Note", tint = AmberGold, modifier = Modifier.size(13.dp))
+                                    }
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 120.dp, max = 220.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(SurfaceRaised)
+                                    .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
+                                    .padding(10.dp)
+                            ) {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopStart) {
+                                    if (noteBodyInput.isEmpty()) {
+                                        Text("Type or dictate your note here...", color = TextFaint, fontSize = 12.5.sp)
+                                    }
+                                    BasicTextField(
+                                        value = noteBodyInput,
+                                        onValueChange = { noteBodyInput = it },
+                                        textStyle = TextStyle(color = TextMain, fontSize = 12.5.sp, lineHeight = 18.sp),
+                                        cursorBrush = SolidColor(AccentColor),
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                            }
+                        }
+
+                        // Action Buttons: Cancel and Attach
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedButton(
+                                onClick = { showNoteDialog = false },
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f).height(38.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text("Cancel", fontSize = 12.sp)
+                            }
+
+                            Button(
+                                onClick = {
+                                    if (noteBodyInput.isBlank() && noteTitleInput.isBlank()) {
+                                        Toast.makeText(context, "Note is empty", Toast.LENGTH_SHORT).show()
+                                        return@Button
+                                    }
+                                    try {
+                                        val timeStamp = java.text.SimpleDateFormat("yyyy-MM-dd_HHmm", java.util.Locale.US).format(java.util.Date())
+                                        val cleanTitle = noteTitleInput.trim().replace(Regex("[^a-zA-Z0-9._ -]"), "_")
+                                        val fileName = if (cleanTitle.isNotBlank()) "${cleanTitle}.txt" else "Note_${timeStamp}.txt"
+                                        val noteFile = File(context.cacheDir, fileName)
+                                        val fullText = if (noteTitleInput.isNotBlank()) "${noteTitleInput.trim()}\n\n${noteBodyInput.trim()}" else noteBodyInput.trim()
+                                        noteFile.writeText(fullText)
+
+                                        selectedTempFile = noteFile
+                                        selectedMimeType = "text/plain"
+                                        if (docNameText.isBlank()) {
+                                            docNameText = if (cleanTitle.isNotBlank()) cleanTitle else "Note $timeStamp"
+                                        }
+
+                                        showNoteDialog = false
+                                        Toast.makeText(context, "Note attached! 📝", Toast.LENGTH_SHORT).show()
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Failed to save note: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = AmberGold),
+                                modifier = Modifier.weight(1.5f).height(38.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Icon(Icons.Filled.Check, contentDescription = null, tint = Color.Black, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Attach Note", fontWeight = FontWeight.Bold, color = Color.Black, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // EMBEDDED NOTE VIEWER DIALOG
+    noteDocToView?.let { noteDoc ->
+        val noteText = remember(noteDoc.filePath) {
+            try {
+                val f = File(noteDoc.filePath)
+                if (f.exists()) f.readText() else "Note file not found on device."
+            } catch (e: Exception) {
+                "Error reading note: ${e.message}"
+            }
+        }
+
+        BasicAlertDialog(
+            onDismissRequest = { noteDocToView = null },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            val dialogDensity = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides Density(
+                    density = dialogDensity.density,
+                    fontScale = 1.0f
+                )
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = SurfaceColor,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
+                                Icon(Icons.Filled.EditNote, contentDescription = null, tint = AmberGold)
+                                Text(noteDoc.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextMain, maxLines = 1)
+                            }
+                            IconButton(onClick = { noteDocToView = null }, modifier = Modifier.size(28.dp)) {
+                                Icon(Icons.Filled.Close, contentDescription = null, tint = TextMuted)
+                            }
+                        }
+
+                        if (noteDoc.notes.isNotBlank()) {
+                            Text("🏷️ ${noteDoc.notes}", color = TextMuted, fontSize = 11.sp)
+                        }
+
+                        // Scrollable content area
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 80.dp, max = 280.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(SurfaceRaised)
+                                .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
+                                .padding(12.dp)
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            Text(
+                                text = noteText,
+                                color = TextMain,
+                                fontSize = 13.sp,
+                                lineHeight = 19.sp
+                            )
+                        }
+
+                        // Action Buttons: Copy, Share, Close
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    val clip = ClipData.newPlainText(noteDoc.name, noteText)
+                                    clipboard.setPrimaryClip(clip)
+                                    Toast.makeText(context, "Copied note to clipboard! 📋", Toast.LENGTH_SHORT).show()
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f).height(34.dp),
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(13.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Copy", fontSize = 11.sp)
+                            }
+
+                            OutlinedButton(
+                                onClick = { shareDocumentFile(context, noteDoc) },
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f).height(34.dp),
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(13.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Share", fontSize = 11.sp)
+                            }
+
+                            Button(
+                                onClick = { noteDocToView = null },
+                                colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f).height(34.dp),
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text("Close", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 11.sp)
                             }
                         }
                     }
