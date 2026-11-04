@@ -167,7 +167,7 @@ class VaultRepository(private val context: Context) {
             )
         }
         val deduped = deduplicateList(list)
-        return deduped.sortedWith(compareByDescending<VaultDocument> { it.isPinned }.thenByDescending { it.lastModified })
+        return deduped.sortedByDescending { if (it.timestamp > 0) it.timestamp else it.lastModified }
     }
 
     private fun saveDocuments(docs: List<VaultDocument>) {
@@ -223,7 +223,7 @@ class VaultRepository(private val context: Context) {
             if (it.id == docId) it.copy(isPinned = !it.isPinned) else it
         }
         saveDocuments(list)
-        return getDocuments()
+        return list
     }
 
     fun renameDocument(docId: String, newName: String, newNotes: String): List<VaultDocument> {

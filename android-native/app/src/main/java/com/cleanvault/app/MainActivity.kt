@@ -143,6 +143,7 @@ fun MainScreen(
     var showCabinetModal by remember { mutableStateOf(false) }
     var showSettingsModal by remember { mutableStateOf(false) }
     var cabinetSearchQuery by remember { mutableStateOf("") }
+    var cabinetFilterPinnedOnly by remember { mutableStateOf(false) }
 
     // Rename Dialog state
     var docToRename by remember { mutableStateOf<VaultDocument?>(null) }
@@ -1416,7 +1417,9 @@ fun MainScreen(
     if (showCabinetModal) {
         val filteredDocs = documents.filter {
             val q = cabinetSearchQuery.trim().lowercase()
-            q.isEmpty() || it.name.lowercase().contains(q) || it.notes.lowercase().contains(q)
+            val matchesSearch = q.isEmpty() || it.name.lowercase().contains(q) || it.notes.lowercase().contains(q)
+            val matchesPinned = !cabinetFilterPinnedOnly || it.isPinned
+            matchesSearch && matchesPinned
         }
 
         BasicAlertDialog(
@@ -1459,34 +1462,63 @@ fun MainScreen(
                             }
                         }
 
-                        // Filter by name or labels (Zero cutoff text field)
+                        // Filter by name, labels, and Pinned quick filter pill
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(11.dp))
-                                .background(SurfaceRaised)
-                                .border(1.dp, BorderColor, RoundedCornerShape(11.dp))
-                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Filled.Search, contentDescription = null, tint = TextMuted, modifier = Modifier.size(17.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                                if (cabinetSearchQuery.isEmpty()) {
-                                    Text("Filter by name or labels...", color = TextFaint, fontSize = 12.sp)
+                            // Search Box
+                            Row(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(11.dp))
+                                    .background(SurfaceRaised)
+                                    .border(1.dp, BorderColor, RoundedCornerShape(11.dp))
+                                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Filled.Search, contentDescription = null, tint = TextMuted, modifier = Modifier.size(17.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                                    if (cabinetSearchQuery.isEmpty()) {
+                                        Text("Filter documents...", color = TextFaint, fontSize = 12.sp)
+                                    }
+                                    BasicTextField(
+                                        value = cabinetSearchQuery,
+                                        onValueChange = { cabinetSearchQuery = it },
+                                        singleLine = true,
+                                        textStyle = TextStyle(color = TextMain, fontSize = 12.sp),
+                                        cursorBrush = SolidColor(AccentColor),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
                                 }
-                                BasicTextField(
-                                    value = cabinetSearchQuery,
-                                    onValueChange = { cabinetSearchQuery = it },
-                                    singleLine = true,
-                                    textStyle = TextStyle(color = TextMain, fontSize = 12.sp),
-                                    cursorBrush = SolidColor(AccentColor),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
+                                if (cabinetSearchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { cabinetSearchQuery = "" }, modifier = Modifier.size(22.dp)) {
+                                        Icon(Icons.Filled.Clear, contentDescription = "Clear", tint = TextFaint, modifier = Modifier.size(13.dp))
+                                    }
+                                }
                             }
-                            if (cabinetSearchQuery.isNotEmpty()) {
-                                IconButton(onClick = { cabinetSearchQuery = "" }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Filled.Clear, contentDescription = "Clear", tint = TextFaint, modifier = Modifier.size(14.dp))
+
+                            // Quick Pinned Toggle Pill
+                            Surface(
+                                shape = RoundedCornerShape(11.dp),
+                                color = if (cabinetFilterPinnedOnly) AmberGold.copy(alpha = 0.2f) else SurfaceRaised,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, if (cabinetFilterPinnedOnly) AmberGold else BorderColor),
+                                onClick = { cabinetFilterPinnedOnly = !cabinetFilterPinnedOnly }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 7.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(if (cabinetFilterPinnedOnly) "📌" else "📍", fontSize = 11.sp)
+                                    Text(
+                                        "Pinned",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = if (cabinetFilterPinnedOnly) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (cabinetFilterPinnedOnly) AmberGold else TextMuted
+                                    )
                                 }
                             }
                         }
@@ -1505,7 +1537,7 @@ fun MainScreen(
                                         border = androidx.compose.foundation.BorderStroke(1.dp, if (doc.isPinned) AmberGold.copy(alpha = 0.5f) else BorderColor)
                                     ) {
                                         Column(modifier = Modifier.padding(11.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                                            // Header Row: Pin, Document Name (Full wrap, not cut off), and Timestamp
+                                            // Header Row: Pin, File Type Icon, Document Name (Full wrap, not cut off), and Sync Status
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 verticalAlignment = Alignment.Top,
@@ -1516,6 +1548,7 @@ fun MainScreen(
                                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                                                     modifier = Modifier.weight(1f)
                                                 ) {
+                                                    // Pin toggle button: updates in place with zero shuffling
                                                     IconButton(
                                                         onClick = {
                                                             val updated = repository.togglePin(doc.id)
@@ -1527,6 +1560,17 @@ fun MainScreen(
                                                     ) {
                                                         Text(if (doc.isPinned) "📌" else "📍", fontSize = 12.sp)
                                                     }
+
+                                                    // Prominent File Type Icon (📝 note, 📄 PDF, 🖼️ image)
+                                                    val fileTypeIcon = if (doc.filePath.endsWith(".txt", ignoreCase = true) || doc.fileName.endsWith(".txt", ignoreCase = true)) {
+                                                        "📝"
+                                                    } else if (doc.mimeType.contains("pdf")) {
+                                                        "📄"
+                                                    } else {
+                                                        "🖼️"
+                                                    }
+                                                    Text(fileTypeIcon, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
+
                                                     // FULL WRAP: Long names wrap onto multiple lines and are NEVER cut off!
                                                     Text(
                                                         text = doc.name,
