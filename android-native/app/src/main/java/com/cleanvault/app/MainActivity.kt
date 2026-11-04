@@ -1537,7 +1537,7 @@ fun MainScreen(
                                         border = androidx.compose.foundation.BorderStroke(1.dp, if (doc.isPinned) AmberGold.copy(alpha = 0.5f) else BorderColor)
                                     ) {
                                         Column(modifier = Modifier.padding(11.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                                            // Header Row: Pin, File Type Icon, Document Name (Full wrap, not cut off), and Sync Status
+                                            // Header Row: Pin, Document Name (Full wrap, not cut off), and File Type Icon + Cloud Status
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 verticalAlignment = Alignment.Top,
@@ -1561,16 +1561,6 @@ fun MainScreen(
                                                         Text(if (doc.isPinned) "📌" else "📍", fontSize = 12.sp)
                                                     }
 
-                                                    // Prominent File Type Icon (📝 note, 📄 PDF, 🖼️ image)
-                                                    val fileTypeIcon = if (doc.filePath.endsWith(".txt", ignoreCase = true) || doc.fileName.endsWith(".txt", ignoreCase = true)) {
-                                                        "📝"
-                                                    } else if (doc.mimeType.contains("pdf")) {
-                                                        "📄"
-                                                    } else {
-                                                        "🖼️"
-                                                    }
-                                                    Text(fileTypeIcon, fontSize = 13.sp, modifier = Modifier.padding(top = 2.dp))
-
                                                     // FULL WRAP: Long names wrap onto multiple lines and are NEVER cut off!
                                                     Text(
                                                         text = doc.name,
@@ -1580,25 +1570,42 @@ fun MainScreen(
                                                         lineHeight = 16.sp
                                                     )
                                                 }
-                                                if (doc.isSynced) {
-                                                    Text("☁️", fontSize = 11.sp, modifier = Modifier.padding(start = 8.dp, top = 2.dp))
-                                                } else {
-                                                    IconButton(
-                                                        onClick = {
-                                                            scope.launch {
-                                                                Toast.makeText(context, "Uploading to Google Drive...", Toast.LENGTH_SHORT).show()
-                                                                val uploaded = repository.uploadDocAsync(doc)
-                                                                documents = repository.getDocuments()
-                                                                if (uploaded != null) {
-                                                                    Toast.makeText(context, "Uploaded to Google Drive! ☁️", Toast.LENGTH_SHORT).show()
-                                                                } else {
-                                                                    Toast.makeText(context, "Upload failed. Check Google Drive settings ⚙️", Toast.LENGTH_SHORT).show()
+
+                                                // End of line: File Type Icon next to Cloud Sync icon
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                                    modifier = Modifier.padding(start = 6.dp, top = 2.dp)
+                                                ) {
+                                                    val fileTypeIcon = if (doc.filePath.endsWith(".txt", ignoreCase = true) || doc.fileName.endsWith(".txt", ignoreCase = true)) {
+                                                        "📝"
+                                                    } else if (doc.mimeType.contains("pdf")) {
+                                                        "📄"
+                                                    } else {
+                                                        "🖼️"
+                                                    }
+                                                    Text(fileTypeIcon, fontSize = 12.5.sp)
+
+                                                    if (doc.isSynced) {
+                                                        Text("☁️", fontSize = 11.sp)
+                                                    } else {
+                                                        IconButton(
+                                                            onClick = {
+                                                                scope.launch {
+                                                                    Toast.makeText(context, "Uploading to Google Drive...", Toast.LENGTH_SHORT).show()
+                                                                    val uploaded = repository.uploadDocAsync(doc)
+                                                                    documents = repository.getDocuments()
+                                                                    if (uploaded != null) {
+                                                                        Toast.makeText(context, "Uploaded to Google Drive! ☁️", Toast.LENGTH_SHORT).show()
+                                                                    } else {
+                                                                        Toast.makeText(context, "Upload failed. Check Google Drive settings ⚙️", Toast.LENGTH_SHORT).show()
+                                                                    }
                                                                 }
-                                                            }
-                                                        },
-                                                        modifier = Modifier.size(22.dp).padding(start = 4.dp)
-                                                    ) {
-                                                        Text("⬆️", fontSize = 11.sp)
+                                                            },
+                                                            modifier = Modifier.size(20.dp)
+                                                        ) {
+                                                            Text("⬆️", fontSize = 11.sp)
+                                                        }
                                                     }
                                                 }
                                             }
