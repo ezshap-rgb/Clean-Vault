@@ -123,12 +123,14 @@ class VaultRepository(private val context: Context) {
                 // Keep the one with newer modifications or more complete fields
                 val winner = if (doc.lastModified >= existing.lastModified) {
                     doc.copy(
+                        isPinned = doc.isPinned || existing.isPinned,
                         driveFileId = doc.driveFileId ?: existing.driveFileId,
                         driveFileUrl = doc.driveFileUrl ?: existing.driveFileUrl,
                         filePath = if (doc.filePath.isNotBlank() && File(doc.filePath).exists()) doc.filePath else existing.filePath
                     )
                 } else {
                     existing.copy(
+                        isPinned = existing.isPinned || doc.isPinned,
                         driveFileId = existing.driveFileId ?: doc.driveFileId,
                         driveFileUrl = existing.driveFileUrl ?: doc.driveFileUrl,
                         filePath = if (existing.filePath.isNotBlank() && File(existing.filePath).exists()) existing.filePath else doc.filePath
@@ -218,10 +220,10 @@ class VaultRepository(private val context: Context) {
 
     fun togglePin(docId: String): List<VaultDocument> {
         val list = getDocuments().map {
-            if (it.id == docId) it.copy(isPinned = !it.isPinned, lastModified = System.currentTimeMillis()) else it
+            if (it.id == docId) it.copy(isPinned = !it.isPinned) else it
         }
         saveDocuments(list)
-        return list
+        return getDocuments()
     }
 
     fun renameDocument(docId: String, newName: String, newNotes: String): List<VaultDocument> {
@@ -701,6 +703,16 @@ class VaultRepository(private val context: Context) {
     }
 
     suspend fun togglePinRemoteAsync(doc: VaultDocument) = withContext(Dispatchers.IO) {
+        if (isGoogleDriveConnected() && !doc.driveFileId.isNullOrBlank()) {
+            try {
+                val email = getGoogleEmail()
+                val account = Account(email, "com.google")
+                val token = googleDriveService.getAccessToken(account) ?: return@withContext
+                googleDriveService.updateFileProperties(token, doc.driveFileId, mapOf("isPinned" to doc.isPinned.toString()))
+            } catch (_: Exception) {}
+            return@withContext
+        }
+
         val scriptUrl = getScriptUrl()
         if (scriptUrl.isBlank()) return@withContext
         try {

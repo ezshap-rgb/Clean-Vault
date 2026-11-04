@@ -170,6 +170,29 @@ class GoogleDriveService(private val context: Context) {
         }
     }
 
+    suspend fun updateFileProperties(token: String, fileId: String, properties: Map<String, String>): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val url = "https://www.googleapis.com/drive/v3/files/$fileId?fields=id,properties"
+            val json = JSONObject().apply {
+                val propObj = JSONObject()
+                properties.forEach { (k, v) -> propObj.put(k, v) }
+                put("properties", propObj)
+            }
+            val body = json.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+            val req = Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer $token")
+                .patch(body)
+                .build()
+
+            httpClient.newCall(req).execute().use { res ->
+                if (res.isSuccessful) Result.success(true) else Result.failure(Exception("Property update failed: ${res.body?.string()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun listDocuments(token: String, folderId: String): Result<List<JSONObject>> = withContext(Dispatchers.IO) {
         try {
             val query = "'$folderId' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'"

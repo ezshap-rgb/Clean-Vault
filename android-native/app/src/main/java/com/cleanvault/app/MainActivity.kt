@@ -56,6 +56,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -583,11 +584,10 @@ fun MainScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Spacer(modifier = Modifier.height(2.dp))
 
             // CARD 1: STREAMLINED COMPACT FILE CARD
             Column(
@@ -974,19 +974,26 @@ fun MainScreen(
                 }
             }
 
-            // CARD 2: RETRIEVE
+            // CARD 2: RETRIEVE (Extends to bottom with 2-column vertically scrolling pinned documents)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .weight(1f)
                     .clip(RoundedCornerShape(18.dp))
                     .background(retrieveCardBrush)
                     .border(1.dp, WarningColor.copy(alpha = 0.4f), RoundedCornerShape(18.dp))
                     .padding(13.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Icon(Icons.Filled.Search, contentDescription = null, tint = AmberGold, modifier = Modifier.size(16.dp))
-                    Text("Retrieve", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextMain)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Filled.Search, contentDescription = null, tint = AmberGold, modifier = Modifier.size(16.dp))
+                        Text("Retrieve", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextMain)
+                    }
                 }
 
                 // File Cabinet Button
@@ -995,16 +1002,19 @@ fun MainScreen(
                     shape = RoundedCornerShape(11.dp),
                     color = SurfaceRaised,
                     border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-                    onClick = { showCabinetModal = true }
+                    onClick = {
+                        documents = repository.getDocuments()
+                        showCabinetModal = true
+                    }
                 ) {
                     Row(
-                        modifier = Modifier.padding(12.dp),
+                        modifier = Modifier.padding(11.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Filled.FolderZip, contentDescription = null, tint = AccentMid, modifier = Modifier.size(20.dp))
-                            Text("File Cabinet", fontWeight = FontWeight.SemiBold, color = TextMain, fontSize = 14.sp)
+                            Icon(Icons.Filled.FolderZip, contentDescription = null, tint = AccentMid, modifier = Modifier.size(19.dp))
+                            Text("File Cabinet", fontWeight = FontWeight.SemiBold, color = TextMain, fontSize = 13.5.sp)
                         }
                         Surface(
                             shape = RoundedCornerShape(8.dp),
@@ -1014,45 +1024,133 @@ fun MainScreen(
                             Text(
                                 text = "${documents.size} documents",
                                 color = AmberGold,
-                                fontSize = 12.sp,
+                                fontSize = 11.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                             )
                         }
                     }
                 }
 
-                // Pinned Quick Access Pills
+                // Pinned Quick Access Section Header
                 val pinnedList = documents.filter { it.isPinned }
-                if (pinnedList.isNotEmpty()) {
-                    Row(
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("📌", fontSize = 11.sp)
+                        Text(
+                            "PINNED DOCUMENTS",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AmberGold,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                    if (pinnedList.isNotEmpty()) {
+                        Text(
+                            text = "${pinnedList.size} pinned",
+                            fontSize = 10.5.sp,
+                            color = TextMuted
+                        )
+                    }
+                }
+
+                // 2-Column Vertically Scrolling Pinned List (Extends down to safe navigation area)
+                if (pinnedList.isEmpty()) {
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(SurfaceColor.copy(alpha = 0.4f))
+                            .border(1.dp, BorderColor.copy(alpha = 0.5f), RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
                     ) {
-                        pinnedList.forEach { doc ->
-                            Surface(
-                                shape = RoundedCornerShape(20.dp),
-                                color = AmberGold.copy(alpha = 0.15f),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, AmberGold.copy(alpha = 0.4f)),
-                                onClick = { openDocumentFile(context, doc, repository) }
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text("No pinned documents yet", color = TextFaint, fontSize = 12.sp)
+                            Text("Tap 📍 in File Cabinet to pin items here", color = TextFaint.copy(alpha = 0.7f), fontSize = 10.5.sp)
+                        }
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(7.dp)
+                    ) {
+                        pinnedList.chunked(2).forEach { pair ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(7.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Text("📌", fontSize = 11.sp)
-                                    Text(doc.name, color = TextMain, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                for (doc in pair) {
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = SurfaceRaised,
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, AmberGold.copy(alpha = 0.45f)),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .clickable {
+                                                if (doc.filePath.endsWith(".txt", ignoreCase = true) || doc.fileName.endsWith(".txt", ignoreCase = true)) {
+                                                    noteDocToView = doc
+                                                    isEditingNote = false
+                                                    noteEditText = try { val f = File(doc.filePath); if (f.exists()) f.readText() else "" } catch (_: Exception) { "" }
+                                                } else {
+                                                    openDocumentFile(context, doc, repository)
+                                                }
+                                            }
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 7.dp),
+                                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Text(
+                                                    text = if (doc.filePath.endsWith(".txt", ignoreCase = true) || doc.fileName.endsWith(".txt", ignoreCase = true)) "📝" else if (doc.mimeType.contains("pdf")) "📄" else "🖼️",
+                                                    fontSize = 11.sp
+                                                )
+                                                Text(
+                                                    text = doc.name,
+                                                    color = TextMain,
+                                                    fontSize = 11.5.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                            }
+                                            if (doc.notes.isNotBlank()) {
+                                                Text(
+                                                    text = doc.notes,
+                                                    color = TextMuted,
+                                                    fontSize = 9.5.sp,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                if (pair.size == 1) {
+                                    Spacer(modifier = Modifier.weight(1f))
                                 }
                             }
                         }
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 
@@ -1422,7 +1520,7 @@ fun MainScreen(
                                                         onClick = {
                                                             val updated = repository.togglePin(doc.id)
                                                             documents = updated
-                                                            val targetDoc = updated.find { it.id == doc.id } ?: doc
+                                                            val targetDoc = updated.find { it.id == doc.id } ?: doc.copy(isPinned = !doc.isPinned)
                                                             scope.launch { repository.togglePinRemoteAsync(targetDoc) }
                                                         },
                                                         modifier = Modifier.size(22.dp).padding(top = 1.dp)
