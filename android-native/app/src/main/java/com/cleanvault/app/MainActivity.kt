@@ -1935,6 +1935,25 @@ fun MainScreen(
                                         Text(if (isTestingScript) "Testing..." else "Test Connection", fontSize = 11.sp)
                                     }
                                 }
+
+                                if (appsScriptUrlInput.isNotBlank()) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            val shareText = "Here is our Clean Vault shared URL. Paste this into Clean Vault Settings on your phone:\\n\\n" + appsScriptUrlInput.trim()
+                                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                                type = "text/plain"
+                                                putExtra(Intent.EXTRA_TEXT, shareText)
+                                            }
+                                            context.startActivity(Intent.createChooser(intent, "Share Shared Vault URL with Wife"))
+                                        },
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.fillMaxWidth().height(36.dp)
+                                    ) {
+                                        Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = PurpleDark)
+                                        Spacer(Modifier.width(6.dp))
+                                        Text("Share Shared Vault URL with Wife", fontSize = 11.sp, color = PurpleDark, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
                             }
                         }
                     }
