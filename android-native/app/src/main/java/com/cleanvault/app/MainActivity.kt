@@ -78,6 +78,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
 import com.cleanvault.app.data.VaultDocument
 import com.cleanvault.app.data.VaultRepository
+import com.cleanvault.app.data.CloudSyncMode
 import com.cleanvault.app.theme.*
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
@@ -1749,24 +1750,29 @@ fun MainScreen(
                             }
                         }
 
+                        var activeCloudMode by remember { mutableStateOf(repository.getActiveCloudMode()) }
+
                         // ============================================
                         // OPTION 1: LOCAL ONLY (NO CLOUD SETUP)
                         // ============================================
-                        val hasAnyCloud = googleAccountEmail.isNotBlank() || appsScriptUrlInput.isNotBlank()
+                        val isLocalActive = (activeCloudMode == CloudSyncMode.LOCAL_ONLY)
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(18.dp),
-                            color = if (!hasAnyCloud) Color(0xFFF0FDF4) else SurfaceRaised,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, if (!hasAnyCloud) EmeraldGreen.copy(alpha = 0.5f) else BorderColor)
+                            color = if (isLocalActive) Color(0xFFF0FDF4) else SurfaceRaised,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isLocalActive) EmeraldGreen.copy(alpha = 0.6f) else BorderColor)
                         ) {
                             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Row(
+                                    modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text("📱", fontSize = 18.sp)
-                                    Text("Option 1: Local Only (Offline)", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
-                                    if (!hasAnyCloud) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text("📱", fontSize = 18.sp)
+                                        Text("Option 1: Local Only (Offline)", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
+                                    }
+                                    if (isLocalActive) {
                                         Surface(
                                             shape = RoundedCornerShape(8.dp),
                                             color = EmeraldGreen.copy(alpha = 0.15f)
@@ -1781,6 +1787,19 @@ fun MainScreen(
                                     color = TextSubtle,
                                     lineHeight = 16.sp
                                 )
+                                if (!isLocalActive) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            repository.setActiveCloudMode(CloudSyncMode.LOCAL_ONLY)
+                                            activeCloudMode = CloudSyncMode.LOCAL_ONLY
+                                            Toast.makeText(context, "Switched to Local Only (Offline)", Toast.LENGTH_SHORT).show()
+                                        },
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.height(34.dp)
+                                    ) {
+                                        Text("Switch to Local Only", fontSize = 11.sp, color = TextDark)
+                                    }
+                                }
                             }
                         }
 
@@ -1788,28 +1807,39 @@ fun MainScreen(
                         // OPTION 2: PRIVATE GOOGLE DRIVE (1-TAP)
                         // ============================================
                         val isDriveConnected = googleAccountEmail.isNotBlank()
+                        val isDriveActive = (activeCloudMode == CloudSyncMode.GOOGLE_DRIVE)
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(18.dp),
-                            color = if (isDriveConnected) Color(0xFFFAF5FF) else SurfaceRaised,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isDriveConnected) PurpleAccent.copy(alpha = 0.5f) else BorderColor)
+                            color = if (isDriveActive) Color(0xFFFAF5FF) else SurfaceRaised,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isDriveActive) PurpleAccent.copy(alpha = 0.6f) else BorderColor)
                         ) {
                             Column(
                                 modifier = Modifier.padding(14.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Row(
+                                    modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text("☁️", fontSize = 18.sp)
-                                    Text("Option 2: Private Google Drive", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
-                                    if (isDriveConnected) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text("☁️", fontSize = 18.sp)
+                                        Text("Option 2: Private Google Drive", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
+                                    }
+                                    if (isDriveActive) {
                                         Surface(
                                             shape = RoundedCornerShape(8.dp),
                                             color = PurpleAccent.copy(alpha = 0.15f)
                                         ) {
-                                            Text("CONNECTED", fontSize = 9.sp, fontWeight = FontWeight.Black, color = PurpleDark, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                                            Text("ACTIVE", fontSize = 9.sp, fontWeight = FontWeight.Black, color = PurpleDark, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                                        }
+                                    } else if (isDriveConnected) {
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = SurfaceHover
+                                        ) {
+                                            Text("CONNECTED", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = TextSubtle, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                                         }
                                     }
                                 }
@@ -1829,18 +1859,37 @@ fun MainScreen(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        Button(
-                                            onClick = { triggerSync(silent = false) },
-                                            colors = ButtonDefaults.buttonColors(containerColor = PurpleDark),
-                                            shape = RoundedCornerShape(12.dp),
-                                            modifier = Modifier.weight(1f).height(38.dp)
-                                        ) {
-                                            Icon(Icons.Filled.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
-                                            Spacer(Modifier.width(4.dp))
-                                            Text("Sync Now", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                                        if (isDriveActive) {
+                                            Button(
+                                                onClick = { triggerSync(silent = false) },
+                                                colors = ButtonDefaults.buttonColors(containerColor = PurpleDark),
+                                                shape = RoundedCornerShape(12.dp),
+                                                modifier = Modifier.weight(1f).height(38.dp)
+                                            ) {
+                                                Icon(Icons.Filled.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
+                                                Spacer(Modifier.width(4.dp))
+                                                Text("Sync Private Drive", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        } else {
+                                            Button(
+                                                onClick = {
+                                                    repository.setActiveCloudMode(CloudSyncMode.GOOGLE_DRIVE)
+                                                    activeCloudMode = CloudSyncMode.GOOGLE_DRIVE
+                                                    Toast.makeText(context, "Switched to Private Google Drive", Toast.LENGTH_SHORT).show()
+                                                    triggerSync(silent = false)
+                                                },
+                                                colors = ButtonDefaults.buttonColors(containerColor = PurpleDark),
+                                                shape = RoundedCornerShape(12.dp),
+                                                modifier = Modifier.weight(1f).height(38.dp)
+                                            ) {
+                                                Text("Use Private Drive", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                                            }
                                         }
                                         OutlinedButton(
-                                            onClick = { disconnectGoogleAccount() },
+                                            onClick = {
+                                                disconnectGoogleAccount()
+                                                activeCloudMode = repository.getActiveCloudMode()
+                                            },
                                             shape = RoundedCornerShape(12.dp),
                                             modifier = Modifier.height(38.dp),
                                             colors = ButtonDefaults.outlinedButtonColors(contentColor = RoseRed)
@@ -1867,33 +1916,37 @@ fun MainScreen(
                         // OPTION 3: SHARED FILE CABINET (PASTE URL)
                         // ============================================
                         val isScriptConnected = appsScriptUrlInput.isNotBlank()
+                        val isScriptActive = (activeCloudMode == CloudSyncMode.SHARED_CABINET && isScriptConnected)
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(18.dp),
-                            color = if (isScriptConnected) Color(0xFFEFF6FF) else SurfaceRaised,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isScriptConnected) Color(0xFF60A5FA) else BorderColor)
+                            color = if (isScriptActive) Color(0xFFEFF6FF) else SurfaceRaised,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isScriptActive) Color(0xFF3B82F6) else BorderColor)
                         ) {
                             Column(
                                 modifier = Modifier.padding(14.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Row(
+                                    modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text("🤝", fontSize = 18.sp)
-                                    Text("Option 3: Shared File Cabinet", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
-                                    if (isScriptConnected) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text("🤝", fontSize = 18.sp)
+                                        Text("Option 3: Shared File Cabinet", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
+                                    }
+                                    if (isScriptActive) {
                                         Surface(
                                             shape = RoundedCornerShape(8.dp),
                                             color = Color(0xFFDBEAFE)
                                         ) {
-                                            Text("SHARED", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color(0xFF1D4ED8), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                                            Text("ACTIVE (SHARED)", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color(0xFF1D4ED8), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                                         }
                                     }
                                 }
                                 Text(
-                                    "To share a mutual cabinet between spouses or partners: paste the shared vault link you received below.",
+                                    "Shared mutual vault between spouses or partners. Both devices sync to the same shared cabinet, pins, and documents.",
                                     fontSize = 11.5.sp,
                                     color = TextSubtle,
                                     lineHeight = 16.sp
@@ -1918,15 +1971,25 @@ fun MainScreen(
                                 ) {
                                     Button(
                                         onClick = {
-                                            repository.setScriptUrl(appsScriptUrlInput.trim())
-                                            Toast.makeText(context, if (appsScriptUrlInput.isNotBlank()) "Connected to Shared Cabinet!" else "Disconnected Shared Cabinet", Toast.LENGTH_SHORT).show()
-                                            if (appsScriptUrlInput.isNotBlank()) triggerSync(silent = false)
+                                            val trimmed = appsScriptUrlInput.trim()
+                                            repository.setScriptUrl(trimmed)
+                                            if (trimmed.isNotBlank()) {
+                                                repository.setActiveCloudMode(CloudSyncMode.SHARED_CABINET)
+                                                activeCloudMode = CloudSyncMode.SHARED_CABINET
+                                                Toast.makeText(context, "Connected to Shared Cabinet! Syncing...", Toast.LENGTH_SHORT).show()
+                                                triggerSync(silent = false)
+                                            } else {
+                                                activeCloudMode = repository.getActiveCloudMode()
+                                                Toast.makeText(context, "URL is blank", Toast.LENGTH_SHORT).show()
+                                            }
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = PurpleDark),
                                         shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.weight(1f).height(36.dp)
+                                        modifier = Modifier.weight(1f).height(38.dp)
                                     ) {
-                                        Text(if (isScriptConnected) "Save Link" else "Connect Shared Link", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        Icon(Icons.Filled.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                        Text(if (isScriptActive) "Sync Shared Cabinet" else "Connect & Sync Shared", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                     }
 
                                     if (isScriptConnected) {
@@ -1934,10 +1997,11 @@ fun MainScreen(
                                             onClick = {
                                                 appsScriptUrlInput = ""
                                                 repository.setScriptUrl("")
-                                                Toast.makeText(context, "Removed Shared Link", Toast.LENGTH_SHORT).show()
+                                                activeCloudMode = repository.getActiveCloudMode()
+                                                Toast.makeText(context, "Removed Shared Cabinet", Toast.LENGTH_SHORT).show()
                                             },
                                             shape = RoundedCornerShape(10.dp),
-                                            modifier = Modifier.height(36.dp)
+                                            modifier = Modifier.height(38.dp)
                                         ) {
                                             Text("Disconnect", fontSize = 11.sp, color = RoseRed)
                                         }
@@ -2108,7 +2172,7 @@ fun MainScreen(
                         val updated = repository.deleteDocument(target.id)
                         documents = updated
                         scope.launch {
-                            repository.deleteDocRemoteAsync(target.id, target.driveFileId)
+                            repository.deleteDocRemoteAsync(target.id, target.driveFileId, target.name)
                         }
                         Toast.makeText(context, "Deleted \"${target.name}\"", Toast.LENGTH_SHORT).show()
                         docToDelete = null
