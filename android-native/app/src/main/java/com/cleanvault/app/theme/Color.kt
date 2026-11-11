@@ -62,6 +62,7 @@ val WarningColor = Color(0xFFF50ACE)
 val AmberGold = Color(0xFFFB8500)
 val EmeraldGreen = Color(0xFF10B981)
 val RoseRed = Color(0xFFEF4444)
+val RedPin = Color(0xFFEF4444)
 
 val TextMain = TextDark
 val TextMuted = TextSubtle

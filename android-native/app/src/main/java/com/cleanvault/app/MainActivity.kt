@@ -217,81 +217,132 @@ fun NeonHandle(width: Dp, height: Dp) {
 fun StreamlinedDocCard(
     doc: VaultDocument,
     onOpen: () -> Unit,
+    onDownload: () -> Unit,
+    onEdit: () -> Unit,
     onTogglePin: () -> Unit,
     onShare: () -> Unit,
-    onLongClick: () -> Unit
+    onDelete: () -> Unit
 ) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .combinedClickable(
-                onClick = onOpen,
-                onLongClick = onLongClick
-            ),
+            .clickable(onClick = onOpen),
         shape = RoundedCornerShape(20.dp),
         color = CardWhite,
         shadowElevation = 3.dp,
         border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Left: Icon + Text
+            // Main Top Row: Icon, Title, Tags, Date, Cloud icon
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.weight(1f)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = getFileTypeIcon(doc),
-                    fontSize = 24.sp
-                )
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = doc.name,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextDark,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        text = getFileTypeIcon(doc),
+                        fontSize = 24.sp
                     )
-                    Text(
-                        text = if (doc.notes.isNotBlank()) "🏷️ ${doc.notes}" else "🏷️ No labels",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextSubtle,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = doc.name,
+                            fontSize = 14.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextDark,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = if (doc.notes.isNotBlank()) "🏷️ ${doc.notes}" else "🏷️ No labels",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextSubtle,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (doc.date.isNotBlank()) {
+                                Text(
+                                    text = "• ${doc.date}",
+                                    fontSize = 10.sp,
+                                    color = TextFaint
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (doc.isSynced || doc.driveFileId != null) {
+                    Text("☁️", fontSize = 16.sp, modifier = Modifier.padding(start = 6.dp))
                 }
             }
 
-            // Right Actions
+            // Clean subtle divider
+            HorizontalDivider(
+                color = BorderColor.copy(alpha = 0.5f),
+                thickness = 0.8.dp,
+                modifier = Modifier.padding(vertical = 2.dp)
+            )
+
+            // Action Row: Download, Edit, Pin, Share, Delete
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (doc.isSynced || doc.driveFileId != null) {
-                    Text("☁️", fontSize = 15.sp, modifier = Modifier.padding(end = 4.dp))
+                // 1. Download
+                IconButton(
+                    onClick = onDownload,
+                    modifier = Modifier.size(34.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Download,
+                        contentDescription = "Download",
+                        tint = PurpleDark,
+                        modifier = Modifier.size(19.dp)
+                    )
                 }
 
+                // 2. Edit
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.size(34.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = "Edit",
+                        tint = PurpleDark,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                // 3. Pin (RED when pinned!)
                 IconButton(
                     onClick = onTogglePin,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(34.dp)
                 ) {
                     if (doc.isPinned) {
                         Icon(
                             imageVector = Icons.Filled.PushPin,
                             contentDescription = "Pinned",
-                            tint = AmberGold,
+                            tint = RedPin,
                             modifier = Modifier.size(20.dp)
                         )
                     } else {
@@ -304,15 +355,29 @@ fun StreamlinedDocCard(
                     }
                 }
 
+                // 4. Share
                 IconButton(
                     onClick = onShare,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(34.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Share,
                         contentDescription = "Share",
                         tint = PurpleDark,
                         modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                // 5. Delete
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(34.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = "Delete",
+                        tint = RedPin.copy(alpha = 0.85f),
+                        modifier = Modifier.size(19.dp)
                     )
                 }
             }
@@ -350,6 +415,7 @@ fun MainScreen(
 
     // Rename Dialog state
     var docToRename by remember { mutableStateOf<VaultDocument?>(null) }
+    var docToDelete by remember { mutableStateOf<VaultDocument?>(null) }
 
     // Quick Note Dialog & Reader state
     var showNoteDialog by remember { mutableStateOf(false) }
@@ -1193,7 +1259,7 @@ fun MainScreen(
                                         .clip(RoundedCornerShape(20.dp))
                                         .clickable { isPinned = !isPinned },
                                     shape = RoundedCornerShape(20.dp),
-                                    color = if (isPinned) Color(0xFFFEF3C7) else CardWhite,
+                                    color = if (isPinned) Color(0xFFFFEBEE) else CardWhite,
                                     shadowElevation = 2.dp
                                 ) {
                                     Row(
@@ -1208,19 +1274,19 @@ fun MainScreen(
                                             Icon(
                                                 imageVector = Icons.Filled.PushPin,
                                                 contentDescription = "Pin",
-                                                tint = if (isPinned) AmberGold else TextSubtle.copy(alpha = 0.4f)
+                                                tint = if (isPinned) RedPin else TextSubtle.copy(alpha = 0.4f)
                                             )
                                             Text(
                                                 "Pin to Essentials",
                                                 fontSize = 14.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = if (isPinned) TextDark else TextSubtle
+                                                color = if (isPinned) RedPin else TextSubtle
                                             )
                                         }
                                         Switch(
                                             checked = isPinned,
                                             onCheckedChange = { isPinned = it },
-                                            colors = SwitchDefaults.colors(checkedThumbColor = AmberGold)
+                                            colors = SwitchDefaults.colors(checkedThumbColor = RedPin)
                                         )
                                     }
                                 }
@@ -1368,6 +1434,17 @@ fun MainScreen(
                                                 openDocumentFile(context, doc, repository)
                                             }
                                         },
+                                        onDownload = {
+                                            downloadDocumentToStorage(context, doc)
+                                        },
+                                        onEdit = {
+                                            if (doc.filePath.endsWith(".txt", ignoreCase = true) || doc.fileName.endsWith(".txt", ignoreCase = true)) {
+                                                noteDocToView = doc
+                                                isEditingNote = true
+                                            } else {
+                                                docToRename = doc
+                                            }
+                                        },
                                         onTogglePin = {
                                             val updated = repository.togglePin(doc.id)
                                             documents = updated
@@ -1375,7 +1452,7 @@ fun MainScreen(
                                             scope.launch { repository.togglePinRemoteAsync(targetDoc) }
                                         },
                                         onShare = { shareDocumentFile(context, doc) },
-                                        onLongClick = { docToRename = doc }
+                                        onDelete = { docToDelete = doc }
                                     )
                                 }
                             }
@@ -1485,10 +1562,10 @@ fun MainScreen(
                                 }
                             }
 
-                            // Pinned Filter Toggle Pill
+                            // Pinned Filter Toggle Pill (Red Pin)
                             Surface(
                                 shape = RoundedCornerShape(20.dp),
-                                color = if (cabinetFilterPinnedOnly) Color(0xFFFEF3C7) else CardWhite,
+                                color = if (cabinetFilterPinnedOnly) Color(0xFFFFEBEE) else CardWhite,
                                 shadowElevation = 2.dp,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(20.dp))
@@ -1502,14 +1579,14 @@ fun MainScreen(
                                     Icon(
                                         imageVector = Icons.Filled.PushPin,
                                         contentDescription = "Pinned",
-                                        tint = if (cabinetFilterPinnedOnly) AmberGold else TextSubtle.copy(alpha = 0.4f),
+                                        tint = if (cabinetFilterPinnedOnly) RedPin else TextSubtle.copy(alpha = 0.4f),
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Text(
                                         "Pinned",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (cabinetFilterPinnedOnly) TextDark else TextSubtle
+                                        color = if (cabinetFilterPinnedOnly) RedPin else TextSubtle
                                     )
                                 }
                             }
@@ -1548,6 +1625,17 @@ fun MainScreen(
                                                 openDocumentFile(context, doc, repository)
                                             }
                                         },
+                                        onDownload = {
+                                            downloadDocumentToStorage(context, doc)
+                                        },
+                                        onEdit = {
+                                            if (doc.filePath.endsWith(".txt", ignoreCase = true) || doc.fileName.endsWith(".txt", ignoreCase = true)) {
+                                                noteDocToView = doc
+                                                isEditingNote = true
+                                            } else {
+                                                docToRename = doc
+                                            }
+                                        },
                                         onTogglePin = {
                                             val updated = repository.togglePin(doc.id)
                                             documents = updated
@@ -1555,7 +1643,7 @@ fun MainScreen(
                                             scope.launch { repository.togglePinRemoteAsync(targetDoc) }
                                         },
                                         onShare = { shareDocumentFile(context, doc) },
-                                        onLongClick = { docToRename = doc }
+                                        onDelete = { docToDelete = doc }
                                     )
                                 }
                             }
@@ -1826,6 +1914,52 @@ fun MainScreen(
     }
 
     // FILE CABINET FULL SCREEN MODAL / DIALOG (WIDE, SPACIOUS, NOT THIN)
+
+    
+    // DELETE CONFIRMATION DIALOG
+    if (docToDelete != null) {
+        val target = docToDelete!!
+        AlertDialog(
+            onDismissRequest = { docToDelete = null },
+            shape = RoundedCornerShape(24.dp),
+            containerColor = CardWhite,
+            title = {
+                Text("Delete Document", fontWeight = FontWeight.Bold, color = TextDark)
+            },
+            text = {
+                Text(
+                    "Are you sure you want to delete \"${target.name}\"? This cannot be undone.",
+                    color = TextSubtle,
+                    fontSize = 14.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val updated = repository.deleteDocument(target.id)
+                        documents = updated
+                        scope.launch {
+                            repository.deleteDocRemoteAsync(target.id, target.driveFileId)
+                        }
+                        Toast.makeText(context, "Deleted \"${target.name}\"", Toast.LENGTH_SHORT).show()
+                        docToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = RedPin),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text("Delete", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { docToDelete = null },
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Text("Cancel", color = TextSubtle, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        )
+    }
 
     if (showNoteDialog) {
         BasicAlertDialog(
