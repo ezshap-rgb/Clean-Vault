@@ -2011,7 +2011,7 @@ fun MainScreen(
                                 if (isScriptConnected) {
                                     OutlinedButton(
                                         onClick = {
-                                            val shareText = "Here is our Clean Vault shared cabinet link. In Clean Vault Settings, paste this under 'Option 3: Shared File Cabinet':\n\n" + appsScriptUrlInput.trim()
+                                            val shareText = "Here is our Clean Filing shared cabinet link. In Clean Filing Settings, paste this under 'Option 3: Shared File Cabinet':\n\n" + appsScriptUrlInput.trim()
                                             val intent = Intent(Intent.ACTION_SEND).apply {
                                                 type = "text/plain"
                                                 putExtra(Intent.EXTRA_TEXT, shareText)

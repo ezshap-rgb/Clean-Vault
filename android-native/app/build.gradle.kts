@@ -8,6 +8,10 @@ android {
     namespace = "com.cleanvault.app"
     compileSdk = 35
 
+    base {
+        archivesName.set("CleanFiling")
+    }
+
     defaultConfig {
         applicationId = "com.cleanvault.app"
         minSdk = 26
