@@ -8,29 +8,30 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
+import android.graphics.pdf.PdfDocument
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import android.speech.RecognizerIntent
 import android.widget.Toast
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
-import com.google.android.gms.common.api.Scope
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -47,17 +48,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
@@ -70,22 +79,29 @@ import coil.compose.AsyncImage
 import com.cleanvault.app.data.VaultDocument
 import com.cleanvault.app.data.VaultRepository
 import com.cleanvault.app.theme.*
-import kotlinx.coroutines.launch
-import android.graphics.BitmapFactory
-import android.graphics.pdf.PdfDocument
-import android.provider.OpenableColumns
-import androidx.activity.result.IntentSenderRequest
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.Scope
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.RESULT_FORMAT_JPEG
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.RESULT_FORMAT_PDF
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.SCANNER_MODE_FULL
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
+import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.io.File
-import java.io.FileOutputStream
+
+enum class AppScreen {
+    HOME,
+    FILE_IN,
+    ESSENTIALS,
+    FILE_CABINET
+}
 
 class MainActivity : ComponentActivity() {
     private val incomingIntentState = mutableStateOf<Intent?>(null)
@@ -118,7 +134,193 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+fun getFileTypeIcon(doc: VaultDocument): String {
+    val path = doc.filePath.lowercase()
+    val name = doc.fileName.lowercase()
+    val mime = doc.mimeType.lowercase()
+    return when {
+        path.endsWith(".txt") || name.endsWith(".txt") || mime.startsWith("text/") -> "📝"
+        path.endsWith(".pdf") || name.endsWith(".pdf") || mime.contains("pdf") -> "📄"
+        else -> "🖼️"
+    }
+}
+
+@Composable
+fun ScanReticleIcon(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+        val cornerLen = w * 0.25f
+        val stroke = 3.dp.toPx()
+        val white = Color.White
+        val yellow = Color(0xFFFFD54F)
+
+        // Corners
+        drawLine(white, Offset(0f, cornerLen), Offset(0f, 0f), strokeWidth = stroke)
+        drawLine(white, Offset(0f, 0f), Offset(cornerLen, 0f), strokeWidth = stroke)
+
+        drawLine(white, Offset(w - cornerLen, 0f), Offset(w, 0f), strokeWidth = stroke)
+        drawLine(white, Offset(w, 0f), Offset(w, cornerLen), strokeWidth = stroke)
+
+        drawLine(white, Offset(0f, h - cornerLen), Offset(0f, h), strokeWidth = stroke)
+        drawLine(white, Offset(0f, h), Offset(cornerLen, h), strokeWidth = stroke)
+
+        drawLine(white, Offset(w - cornerLen, h), Offset(w, h), strokeWidth = stroke)
+        drawLine(white, Offset(w, h), Offset(w, h - cornerLen), strokeWidth = stroke)
+
+        // Inner dashed rect
+        val inset = w * 0.22f
+        drawRoundRect(
+            color = white.copy(alpha = 0.85f),
+            topLeft = Offset(inset, inset),
+            size = Size(w - inset * 2, h - inset * 2),
+            cornerRadius = CornerRadius(6.dp.toPx()),
+            style = Stroke(
+                width = 2.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f))
+            )
+        )
+
+        // Laser scan line across center
+        drawLine(
+            color = yellow,
+            start = Offset(w * 0.1f, h * 0.5f),
+            end = Offset(w * 0.9f, h * 0.5f),
+            strokeWidth = 3.dp.toPx()
+        )
+    }
+}
+
+@Composable
+fun NeonHandle(width: Dp, height: Dp) {
+    Box(
+        modifier = Modifier
+            .width(width)
+            .height(height)
+            .clip(RoundedCornerShape(20.dp))
+            .background(NeonAmberHandle),
+        contentAlignment = Alignment.TopCenter
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(top = 2.dp, start = 8.dp, end = 8.dp)
+                .fillMaxWidth()
+                .height(3.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color.White.copy(alpha = 0.7f))
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun StreamlinedDocCard(
+    doc: VaultDocument,
+    onOpen: () -> Unit,
+    onTogglePin: () -> Unit,
+    onShare: () -> Unit,
+    onLongClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .combinedClickable(
+                onClick = onOpen,
+                onLongClick = onLongClick
+            ),
+        shape = RoundedCornerShape(20.dp),
+        color = CardWhite,
+        shadowElevation = 3.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Left: Icon + Text
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = getFileTypeIcon(doc),
+                    fontSize = 24.sp
+                )
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = doc.name,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextDark,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = if (doc.notes.isNotBlank()) "🏷️ ${doc.notes}" else "🏷️ No labels",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextSubtle,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            // Right Actions
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                if (doc.isSynced || doc.driveFileId != null) {
+                    Text("☁️", fontSize = 15.sp, modifier = Modifier.padding(end = 4.dp))
+                }
+
+                IconButton(
+                    onClick = onTogglePin,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    if (doc.isPinned) {
+                        Icon(
+                            imageVector = Icons.Filled.PushPin,
+                            contentDescription = "Pinned",
+                            tint = AmberGold,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.PushPin,
+                            contentDescription = "Unpinned",
+                            tint = TextSubtle.copy(alpha = 0.35f),
+                            modifier = Modifier.size(20.dp).rotate(45f)
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = onShare,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Share,
+                        contentDescription = "Share",
+                        tint = PurpleDark,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun MainScreen(
     incomingIntent: Intent? = null,
@@ -132,6 +334,8 @@ fun MainScreen(
     var documents by remember { mutableStateOf(repository.getDocuments()) }
     var isSyncing by remember { mutableStateOf(false) }
 
+    var currentScreen by remember { mutableStateOf(AppScreen.HOME) }
+
     var selectedTempFile by remember { mutableStateOf<File?>(null) }
     var selectedMimeType by remember { mutableStateOf("image/jpeg") }
     var scanAsPdf by remember { mutableStateOf(true) }
@@ -140,7 +344,6 @@ fun MainScreen(
     var labelsText by remember { mutableStateOf("") }
     var isPinned by remember { mutableStateOf(false) }
 
-    var showCabinetModal by remember { mutableStateOf(false) }
     var showSettingsModal by remember { mutableStateOf(false) }
     var cabinetSearchQuery by remember { mutableStateOf("") }
     var cabinetFilterPinnedOnly by remember { mutableStateOf(false) }
@@ -156,6 +359,11 @@ fun MainScreen(
     var noteEditText by remember { mutableStateOf("") }
     var isEditingNote by remember { mutableStateOf(false) }
 
+    // System Back Gesture handling: if inside sub-screens, back returns to HOME
+    BackHandler(enabled = currentScreen != AppScreen.HOME) {
+        currentScreen = AppScreen.HOME
+    }
+
     // Handle Incoming Shares (from other apps: PDFs, images, docs)
     LaunchedEffect(incomingIntent) {
         val intent = incomingIntent ?: return@LaunchedEffect
@@ -170,6 +378,7 @@ fun MainScreen(
                     if (docNameText.isBlank() && name.isNotBlank()) {
                         docNameText = name
                     }
+                    currentScreen = AppScreen.FILE_IN
                     Toast.makeText(context, "Received document: ${file.name}", Toast.LENGTH_SHORT).show()
                 }
             )
@@ -340,7 +549,7 @@ fun MainScreen(
         }
     }
 
-    // Safe Camera Launcher with runtime permission check
+    // Safe Camera Launcher
     var cameraTempUri by remember { mutableStateOf<Uri?>(null) }
     var cameraTempFile by remember { mutableStateOf<File?>(null) }
 
@@ -467,7 +676,7 @@ fun MainScreen(
         }
     }
 
-    // File Picker (Photos, PDFs, Docs)
+    // File Picker
     val filePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
             try {
@@ -488,7 +697,7 @@ fun MainScreen(
         }
     }
 
-    // Infinite rotation animation for syncing icon
+    // Sync animation
     val infiniteTransition = rememberInfiniteTransition(label = "sync")
     val syncRotation by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -500,242 +709,585 @@ fun MainScreen(
         label = "rotation"
     )
 
-    val fileCardBrush = Brush.linearGradient(listOf(Color(0xFF101530), Color(0xFF0C1024)))
-    val retrieveCardBrush = Brush.linearGradient(listOf(Color(0xFF1C1028), Color(0xFF120B1C)))
-
     Scaffold(
-        containerColor = BgBase,
-        topBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(SurfaceColor)
-                    .border(1.dp, BorderColor, RoundedCornerShape(18.dp))
-                    .padding(horizontal = 14.dp, vertical = 7.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Image(
-                        painter = painterResource(id = R.drawable.app_icon),
-                        contentDescription = "Clean Filing",
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .border(1.dp, BorderColor, RoundedCornerShape(10.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                    Column(verticalArrangement = Arrangement.Center) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(text = "Clean Filing", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextMain)
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = AccentMid.copy(alpha = 0.22f),
-                                border = androidx.compose.foundation.BorderStroke(0.8.dp, AccentMid.copy(alpha = 0.6f))
-                            ) {
-                                Text(
-                                    text = "STUDIO",
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = AccentMid,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
-                                )
-                            }
-                        }
-                        Text(
-                            text = "Document filing system",
-                            fontSize = 11.sp,
-                            color = TextMuted
-                        )
-                    }
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    val hasCloud = repository.hasCloudConnection()
-                    // Sync Button with animated rotation
-                    IconButton(
-                        onClick = { triggerSync(silent = false) },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            Icons.Filled.Sync,
-                            contentDescription = "Sync",
-                            tint = if (isSyncing) AmberGold else if (hasCloud) EmeraldGreen.copy(alpha = 0.85f) else TextMuted,
-                            modifier = Modifier
-                                .size(18.dp)
-                                .then(if (isSyncing) Modifier.rotate(syncRotation) else Modifier)
-                        )
-                    }
-
-                    // Settings Button
-                    IconButton(
-                        onClick = { showSettingsModal = true },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = TextMuted, modifier = Modifier.size(18.dp))
-                    }
-                }
-            }
-        }
-    ) { padding ->
-        Column(
+        containerColor = ClayAppBg
+    ) { innerPadding ->
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(innerPadding)
+                .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
+            when (currentScreen) {
+                // ============================================
+                // SCREEN 1: HOME (THE 3D CLAY CABINET)
+                // ============================================
+                AppScreen.HOME -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Header: Clean Filing + Clay Pill with Sync & Settings
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "🗄️ Clean Filing",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Black,
+                                color = TextDark
+                            )
 
-            // CARD 1: STREAMLINED COMPACT FILE CARD
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(fileCardBrush)
-                    .border(1.dp, AccentColor.copy(alpha = 0.4f), RoundedCornerShape(18.dp))
-                    .padding(13.dp),
-                verticalArrangement = Arrangement.spacedBy(9.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Icon(Icons.Filled.Folder, contentDescription = null, tint = AmberGold, modifier = Modifier.size(16.dp))
-                        Text("File", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextMain)
-                    }
-                    if (selectedTempFile != null) {
-                        Text(
-                            text = "1 item selected",
-                            color = EmeraldGreen,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+                            // Top-right white clay pill
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = CardWhite,
+                                shadowElevation = 3.dp,
+                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                                ) {
+                                    IconButton(
+                                        onClick = { triggerSync(silent = false) },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Text(
+                                            text = "☁️",
+                                            fontSize = 18.sp,
+                                            modifier = if (isSyncing) Modifier.rotate(syncRotation) else Modifier
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { showSettingsModal = true },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Text(text = "⚙️", fontSize = 18.sp)
+                                    }
+                                }
+                            }
+                        }
+
+                        // 3D Clay Cabinet Casing
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 580.dp)
+                                    .clip(RoundedCornerShape(44.dp))
+                                    .background(ClayCabinetGradient)
+                                    .border(1.5.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(44.dp))
+                                    .padding(18.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                // Drawer 1: IN (Scan & File)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1.25f)
+                                        .clip(RoundedCornerShape(32.dp))
+                                        .background(ClaySlotBg)
+                                        .padding(4.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(28.dp))
+                                            .background(ClayDrawerGradient)
+                                            .clickable { currentScreen = AppScreen.FILE_IN },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            NeonHandle(width = 110.dp, height = 14.dp)
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(
+                                                text = "IN",
+                                                color = Color.White,
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.Black,
+                                                letterSpacing = 2.5.sp
+                                            )
+                                            Text(
+                                                text = "Scan & File",
+                                                color = PillLavender,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Drawer 2: ESSENTIALS (Pinned)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(0.95f)
+                                        .clip(RoundedCornerShape(32.dp))
+                                        .background(ClaySlotBg)
+                                        .padding(4.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(28.dp))
+                                            .background(ClayDrawerGradient)
+                                            .clickable { currentScreen = AppScreen.ESSENTIALS },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            NeonHandle(width = 80.dp, height = 12.dp)
+                                            Spacer(modifier = Modifier.height(5.dp))
+                                            Text(
+                                                text = "📌 ESSENTIALS",
+                                                color = Color.White,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Black,
+                                                letterSpacing = 1.5.sp
+                                            )
+                                            Text(
+                                                text = "${documents.count { it.isPinned }} pinned files",
+                                                color = PillLavender,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Drawer 3: OUT (Archive / Cabinet)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1.25f)
+                                        .clip(RoundedCornerShape(32.dp))
+                                        .background(ClaySlotBg)
+                                        .padding(4.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(28.dp))
+                                            .background(ClayDrawerGradient)
+                                            .clickable { currentScreen = AppScreen.FILE_CABINET },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            NeonHandle(width = 110.dp, height = 14.dp)
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(
+                                                text = "OUT",
+                                                color = Color.White,
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.Black,
+                                                letterSpacing = 2.5.sp
+                                            )
+                                            Text(
+                                                text = "${documents.size} documents",
+                                                color = PillLavender,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
-                if (selectedTempFile != null) {
-                    // Preview Box for Selected File
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(76.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(SurfaceColor.copy(alpha = 0.6f))
-                            .border(1.dp, BorderHighlight, RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center
+                // ============================================
+                // SCREEN 2: "FILE" (CENTERED SCAN VIEW & INTAKE)
+                // ============================================
+                AppScreen.FILE_IN -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        if (selectedMimeType.contains("pdf")) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        // Sub-screen header
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = CardWhite,
+                                shadowElevation = 3.dp,
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 6.dp)
-                            ) {
-                                Surface(
-                                    modifier = Modifier.size(42.dp),
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = Color(0xFFE53935).copy(alpha = 0.2f),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE53935).copy(alpha = 0.4f))
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(Icons.Filled.PictureAsPdf, contentDescription = null, tint = Color(0xFFFF5252), modifier = Modifier.size(24.dp))
+                                    .size(42.dp)
+                                    .clickable {
+                                        currentScreen = AppScreen.HOME
+                                        selectedTempFile = null
                                     }
-                                }
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = selectedTempFile?.name ?: "Document.pdf",
-                                        color = TextMain,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1
-                                    )
-                                    val sizeKb = (selectedTempFile?.length() ?: 0) / 1024
-                                    Text(
-                                        text = "PDF Document • ${sizeKb} KB",
-                                        color = EmeraldGreen,
-                                        fontSize = 11.sp
-                                    )
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text("✕", fontSize = 18.sp, fontWeight = FontWeight.Black, color = TextDark)
                                 }
                             }
-                        } else if (selectedMimeType.contains("text") || selectedTempFile?.extension?.lowercase() == "txt") {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 6.dp)
-                            ) {
-                                Surface(
-                                    modifier = Modifier.size(42.dp),
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = AmberGold.copy(alpha = 0.2f),
-                                    border = androidx.compose.foundation.BorderStroke(1.dp, AmberGold.copy(alpha = 0.4f))
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(Icons.Filled.EditNote, contentDescription = null, tint = AmberGold, modifier = Modifier.size(24.dp))
-                                    }
-                                }
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = selectedTempFile?.name ?: "Note.txt",
-                                        color = TextMain,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1
-                                    )
-                                    val previewSnippet = try { selectedTempFile?.readText()?.take(50)?.replace("\n", " ") ?: "" } catch (_: Exception) { "" }
-                                    Text(
-                                        text = if (previewSnippet.isNotBlank()) "📝 $previewSnippet" else "Text Note • ${(selectedTempFile?.length() ?: 0)} bytes",
-                                        color = AmberGold,
-                                        fontSize = 11.sp,
-                                        maxLines = 1
-                                    )
-                                }
-                            }
-                        } else {
-                            AsyncImage(
-                                model = selectedTempFile,
-                                contentDescription = null,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
+                            Text(
+                                text = "File",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Black,
+                                color = TextDark
                             )
                         }
 
-                        // Remove thumbnail button
-                        Surface(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(6.dp)
-                                .size(24.dp),
-                            shape = CircleShape,
-                            color = BgBase.copy(alpha = 0.85f),
-                            onClick = { selectedTempFile = null }
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Filled.Close, contentDescription = null, tint = RoseRed, modifier = Modifier.size(14.dp))
+                        if (selectedTempFile == null) {
+                            // Format Toggle Pill [ PDF | JPG ]
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(24.dp))
+                                        .background(PillLavender)
+                                        .padding(4.dp)
+                                        .width(160.dp),
+                                    horizontalArrangement = Arrangement.SpaceEvenly
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(20.dp))
+                                            .background(if (scanAsPdf) CardWhite else Color.Transparent)
+                                            .clickable { scanAsPdf = true }
+                                            .padding(vertical = 6.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            "PDF",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = if (scanAsPdf) PurpleDark else ClaySlotBg
+                                        )
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(20.dp))
+                                            .background(if (!scanAsPdf) CardWhite else Color.Transparent)
+                                            .clickable { scanAsPdf = false }
+                                            .padding(vertical = 6.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            "JPG",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = if (!scanAsPdf) PurpleDark else ClaySlotBg
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Centered Large Scan Area
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                                    .padding(vertical = 18.dp)
+                                    .clip(RoundedCornerShape(38.dp))
+                                    .background(ClayScanCardGradient)
+                                    .clickable { launchDocumentScanner() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(96.dp)
+                                            .clip(RoundedCornerShape(30.dp))
+                                            .background(Color.White.copy(alpha = 0.18f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        ScanReticleIcon(modifier = Modifier.size(48.dp))
+                                    }
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        text = "Scan Document",
+                                        fontSize = 22.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+
+                            // Clay Action Row: 📷 Quick Photo, 📁 Choose File, 📝 Quick Note
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceAround
+                            ) {
+                                Surface(
+                                    modifier = Modifier
+                                        .size(72.dp)
+                                        .clip(RoundedCornerShape(26.dp))
+                                        .clickable { handleCameraClick() },
+                                    shape = RoundedCornerShape(26.dp),
+                                    color = CardWhite,
+                                    shadowElevation = 4.dp
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text("📷", fontSize = 30.sp)
+                                    }
+                                }
+
+                                Surface(
+                                    modifier = Modifier
+                                        .size(72.dp)
+                                        .clip(RoundedCornerShape(26.dp))
+                                        .clickable { filePickerLauncher.launch("*/*") },
+                                    shape = RoundedCornerShape(26.dp),
+                                    color = CardWhite,
+                                    shadowElevation = 4.dp
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text("📁", fontSize = 30.sp)
+                                    }
+                                }
+
+                                Surface(
+                                    modifier = Modifier
+                                        .size(72.dp)
+                                        .clip(RoundedCornerShape(26.dp))
+                                        .clickable { showNoteDialog = true },
+                                    shape = RoundedCornerShape(26.dp),
+                                    color = CardWhite,
+                                    shadowElevation = 4.dp
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text("📝", fontSize = 30.sp)
+                                    }
+                                }
+                            }
+                        } else {
+                            // File Intake Form (When a file is ready to be filed)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                                    .verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                // Preview Container
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(160.dp),
+                                    shape = RoundedCornerShape(24.dp),
+                                    color = CardWhite,
+                                    shadowElevation = 3.dp
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        if (selectedMimeType.startsWith("image/")) {
+                                            AsyncImage(
+                                                model = selectedTempFile,
+                                                contentDescription = "Preview",
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        } else {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Text(
+                                                    if (selectedMimeType.contains("pdf")) "📄" else "📝",
+                                                    fontSize = 48.sp
+                                                )
+                                                Text(
+                                                    selectedTempFile?.name ?: "",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = TextDark
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Document Name Input
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = CardWhite,
+                                    shadowElevation = 2.dp
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text("Document Name", fontSize = 11.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
+                                            BasicTextField(
+                                                value = docNameText,
+                                                onValueChange = { docNameText = it },
+                                                textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextDark),
+                                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                                singleLine = true
+                                            )
+                                        }
+                                        IconButton(onClick = { startSpeech(isForName = true) }) {
+                                            Text("🎤", fontSize = 18.sp)
+                                        }
+                                    }
+                                }
+
+                                // Labels Input
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = CardWhite,
+                                    shadowElevation = 2.dp
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text("Labels / Tags", fontSize = 11.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
+                                            BasicTextField(
+                                                value = labelsText,
+                                                onValueChange = { labelsText = it },
+                                                textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextDark),
+                                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                                singleLine = true
+                                            )
+                                        }
+                                        IconButton(onClick = { startSpeech(isForName = false) }) {
+                                            Text("🎤", fontSize = 18.sp)
+                                        }
+                                    }
+                                }
+
+                                // Pin to Essentials Toggle
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .clickable { isPinned = !isPinned },
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = if (isPinned) Color(0xFFFEF3C7) else CardWhite,
+                                    shadowElevation = 2.dp
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.PushPin,
+                                                contentDescription = "Pin",
+                                                tint = if (isPinned) AmberGold else TextSubtle.copy(alpha = 0.4f)
+                                            )
+                                            Text(
+                                                "Pin to Essentials",
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isPinned) TextDark else TextSubtle
+                                            )
+                                        }
+                                        Switch(
+                                            checked = isPinned,
+                                            onCheckedChange = { isPinned = it },
+                                            colors = SwitchDefaults.colors(checkedThumbColor = AmberGold)
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                // Save to Vault Button
+                                Button(
+                                    onClick = {
+                                        val temp = selectedTempFile
+                                        if (temp != null && temp.exists()) {
+                                            val finalName = if (docNameText.isNotBlank()) docNameText.trim() else "Document ${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}"
+                                            scope.launch {
+                                                val doc = repository.saveFileToVault(
+                                                    name = finalName,
+                                                    notes = labelsText.trim(),
+                                                    isPinned = isPinned,
+                                                    sourceFile = temp,
+                                                    mimeType = selectedMimeType
+                                                )
+                                                documents = repository.getDocuments()
+                                                selectedTempFile = null
+                                                docNameText = ""
+                                                labelsText = ""
+                                                isPinned = false
+                                                Toast.makeText(context, "Saved to Vault! 🗄️", Toast.LENGTH_SHORT).show()
+                                                currentScreen = AppScreen.FILE_CABINET
+                                                scope.launch {
+                                                    repository.uploadDocAsync(doc)
+                                                }
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(52.dp),
+                                    shape = RoundedCornerShape(22.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = PurpleDark)
+                                ) {
+                                    Text("Save to Vault 🗄️", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+
+                                // Cancel Button
+                                OutlinedButton(
+                                    onClick = { selectedTempFile = null },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp),
+                                    shape = RoundedCornerShape(20.dp)
+                                ) {
+                                    Text("Cancel / Retake", fontSize = 14.sp, color = TextSubtle)
+                                }
                             }
                         }
                     }
-                } else {
-                    // Document Scanner Box (Primary Action) with PDF / JPG selector
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(68.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Brush.horizontalGradient(listOf(Color(0xFF1E1542), Color(0xFF16102D))))
-                            .border(1.dp, AccentColor.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                            .clickable { launchDocumentScanner() }
-                            .padding(horizontal = 12.dp),
-                        contentAlignment = Alignment.CenterStart
+                }
+
+                // ============================================
+                // SCREEN 3: ESSENTIALS (PINNED DOCUMENTS)
+                // ============================================
+                AppScreen.ESSENTIALS -> {
+                    val pinnedDocs = documents.filter { it.isPinned }
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        // Sub-screen header
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -743,409 +1295,268 @@ fun MainScreen(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                modifier = Modifier.weight(1f)
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
                                 Surface(
-                                    modifier = Modifier.size(40.dp),
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = AccentColor
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = CardWhite,
+                                    shadowElevation = 3.dp,
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .clickable { currentScreen = AppScreen.HOME }
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
-                                        Icon(Icons.Filled.DocumentScanner, contentDescription = "Scan Document", tint = Color.White, modifier = Modifier.size(22.dp))
+                                        Text("‹", fontSize = 22.sp, fontWeight = FontWeight.Black, color = TextDark)
                                     }
                                 }
-                                Column {
-                                    Text("Scan Document", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextMain)
-                                    Text(
-                                        text = if (scanAsPdf) "Auto-crop & multi-page PDF" else "Auto-crop, contrast & JPG",
-                                        color = TextMuted,
-                                        fontSize = 11.sp
-                                    )
-                                }
+                                Text(
+                                    text = "📌 Essentials",
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = TextDark
+                                )
                             }
-
-                            // Interactive Format Switcher: [ PDF | JPG ]
-                            Row(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(BgBase)
-                                    .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
-                                    .padding(2.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(if (scanAsPdf) AccentColor else Color.Transparent)
-                                        .clickable { scanAsPdf = true }
-                                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        "PDF",
-                                        fontSize = 10.sp,
-                                        fontWeight = if (scanAsPdf) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (scanAsPdf) Color.White else TextMuted
-                                    )
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(if (!scanAsPdf) AccentColor else Color.Transparent)
-                                        .clickable { scanAsPdf = false }
-                                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        "JPG",
-                                        fontSize = 10.sp,
-                                        fontWeight = if (!scanAsPdf) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (!scanAsPdf) Color.White else TextMuted
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Secondary File Intake Actions
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = { handleCameraClick() },
-                            modifier = Modifier.weight(1f).height(34.dp),
-                            shape = RoundedCornerShape(9.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextMuted)
-                        ) {
-                            Icon(Icons.Filled.PhotoCamera, contentDescription = null, modifier = Modifier.size(13.dp))
-                            Spacer(Modifier.width(5.dp))
-                            Text("Quick Photo", fontSize = 11.sp)
-                        }
-
-                        OutlinedButton(
-                            onClick = { filePickerLauncher.launch("*/*") },
-                            modifier = Modifier.weight(1f).height(34.dp),
-                            shape = RoundedCornerShape(9.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextMuted)
-                        ) {
-                            Icon(Icons.Filled.AttachFile, contentDescription = null, modifier = Modifier.size(13.dp))
-                            Spacer(Modifier.width(5.dp))
-                            Text("Choose File", fontSize = 11.sp)
-                        }
-
-                        // Small Icon-sized Quick Note Button
-                        OutlinedButton(
-                            onClick = {
-                                noteTitleInput = ""
-                                noteBodyInput = ""
-                                showNoteDialog = true
-                            },
-                            modifier = Modifier.width(42.dp).height(34.dp),
-                            shape = RoundedCornerShape(9.dp),
-                            contentPadding = PaddingValues(0.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AmberGold)
-                        ) {
-                            Icon(Icons.Filled.EditNote, contentDescription = "Write Note", tint = AmberGold, modifier = Modifier.size(18.dp))
-                        }
-                    }
-                }
-
-                // Document Name Input (Concise One Line with Zero Margin Cutoff)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(11.dp))
-                        .background(SurfaceRaised)
-                        .border(1.dp, BorderColor, RoundedCornerShape(11.dp))
-                        .padding(horizontal = 8.dp, vertical = 9.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = { startSpeech(isForName = true) }, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Filled.Mic, contentDescription = "Dictate Name", tint = AmberGold, modifier = Modifier.size(18.dp))
-                    }
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                        if (docNameText.isEmpty()) {
-                            Text("Document name...", color = TextFaint, fontSize = 13.sp)
-                        }
-                        BasicTextField(
-                            value = docNameText,
-                            onValueChange = { docNameText = it },
-                            singleLine = true,
-                            textStyle = TextStyle(color = TextMain, fontSize = 13.sp, fontWeight = FontWeight.Normal),
-                            cursorBrush = SolidColor(AmberGold),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                    if (docNameText.isNotEmpty()) {
-                        IconButton(onClick = { docNameText = "" }, modifier = Modifier.size(24.dp)) {
-                            Icon(Icons.Filled.Clear, contentDescription = "Clear", tint = TextFaint, modifier = Modifier.size(14.dp))
-                        }
-                    }
-                }
-
-                // Labels Input (Concise One Line with Zero Margin Cutoff)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(11.dp))
-                        .background(SurfaceRaised)
-                        .border(1.dp, BorderColor, RoundedCornerShape(11.dp))
-                        .padding(horizontal = 8.dp, vertical = 9.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = { startSpeech(isForName = false) }, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Filled.Mic, contentDescription = "Dictate Labels", tint = AccentMid, modifier = Modifier.size(18.dp))
-                    }
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                        if (labelsText.isEmpty()) {
-                            Text("Labels (e.g. taxes, car, receipts)...", color = TextFaint, fontSize = 13.sp)
-                        }
-                        BasicTextField(
-                            value = labelsText,
-                            onValueChange = { labelsText = it },
-                            singleLine = true,
-                            textStyle = TextStyle(color = TextMain, fontSize = 13.sp, fontWeight = FontWeight.Normal),
-                            cursorBrush = SolidColor(AccentMid),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                    if (labelsText.isNotEmpty()) {
-                        IconButton(onClick = { labelsText = "" }, modifier = Modifier.size(24.dp)) {
-                            Icon(Icons.Filled.Clear, contentDescription = "Clear", tint = TextFaint, modifier = Modifier.size(14.dp))
-                        }
-                    }
-                }
-
-                // Streamlined Save Row with Discreet Pin
-                Row(
-                    modifier = Modifier.fillMaxWidth().height(42.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Surface(
-                        modifier = Modifier.size(42.dp),
-                        shape = RoundedCornerShape(11.dp),
-                        color = if (isPinned) AmberGold.copy(alpha = 0.2f) else SurfaceRaised,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isPinned) AmberGold else BorderColor),
-                        onClick = { isPinned = !isPinned }
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text("📌", fontSize = 15.sp)
-                        }
-                    }
-
-                    Button(
-                        onClick = {
-                            if (selectedTempFile == null) {
-                                Toast.makeText(context, "Please snap or choose a file first", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            val doc = repository.saveFileToVault(
-                                name = docNameText,
-                                notes = labelsText,
-                                isPinned = isPinned,
-                                sourceFile = selectedTempFile!!,
-                                mimeType = selectedMimeType
-                            )
-                            documents = repository.getDocuments()
-                            selectedTempFile = null
-                            docNameText = ""
-                            labelsText = ""
-                            isPinned = false
-                            Toast.makeText(context, "Saved to File Cabinet! 🗄️", Toast.LENGTH_SHORT).show()
-
-                            // Auto-upload in background to Google Drive
-                            scope.launch {
-                                repository.uploadDocAsync(doc)
-                                documents = repository.getDocuments()
-                            }
-                        },
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        shape = RoundedCornerShape(11.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentColor)
-                    ) {
-                        Text("Save to Vault", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 14.sp)
-                    }
-                }
-            }
-
-            // CARD 2: RETRIEVE (Extends to bottom with 2-column vertically scrolling pinned documents)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(retrieveCardBrush)
-                    .border(1.dp, WarningColor.copy(alpha = 0.4f), RoundedCornerShape(18.dp))
-                    .padding(13.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Icon(Icons.Filled.Search, contentDescription = null, tint = AmberGold, modifier = Modifier.size(16.dp))
-                        Text("Retrieve", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = TextMain)
-                    }
-                }
-
-                // File Cabinet Button
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(11.dp),
-                    color = SurfaceRaised,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-                    onClick = {
-                        documents = repository.getDocuments()
-                        showCabinetModal = true
-                    }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(11.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Filled.FolderZip, contentDescription = null, tint = AccentMid, modifier = Modifier.size(19.dp))
-                            Text("File Cabinet", fontWeight = FontWeight.SemiBold, color = TextMain, fontSize = 13.5.sp)
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = SurfaceColor,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight)
-                        ) {
                             Text(
-                                text = "${documents.size} documents",
-                                color = AmberGold,
-                                fontSize = 11.5.sp,
+                                text = "${pinnedDocs.size} pinned",
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                color = TextSubtle
                             )
                         }
-                    }
-                }
 
-                // Pinned Quick Access Section Header
-                val pinnedList = documents.filter { it.isPinned }
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("📌", fontSize = 11.sp)
-                        Text(
-                            "PINNED DOCUMENTS",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = AmberGold,
-                            letterSpacing = 0.5.sp
-                        )
-                    }
-                    if (pinnedList.isNotEmpty()) {
-                        Text(
-                            text = "${pinnedList.size} pinned",
-                            fontSize = 10.5.sp,
-                            color = TextMuted
-                        )
-                    }
-                }
-
-                // 2-Column Vertically Scrolling Pinned List (Extends down to safe navigation area)
-                if (pinnedList.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(SurfaceColor.copy(alpha = 0.4f))
-                            .border(1.dp, BorderColor.copy(alpha = 0.5f), RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Text("No pinned documents yet", color = TextFaint, fontSize = 12.sp)
-                            Text("Tap 📍 in File Cabinet to pin items here", color = TextFaint.copy(alpha = 0.7f), fontSize = 10.5.sp)
+                        if (pinnedDocs.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text("📌", fontSize = 48.sp)
+                                    Text(
+                                        "No pinned essentials yet",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextDark
+                                    )
+                                    Text(
+                                        "Tap the pin icon on any file in your cabinet\nto keep it handy right here.",
+                                        fontSize = 12.sp,
+                                        color = TextSubtle,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                items(pinnedDocs, key = { it.id }) { doc ->
+                                    StreamlinedDocCard(
+                                        doc = doc,
+                                        onOpen = {
+                                            if (doc.filePath.endsWith(".txt", ignoreCase = true) || doc.fileName.endsWith(".txt", ignoreCase = true)) {
+                                                noteDocToView = doc
+                                                isEditingNote = false
+                                            } else {
+                                                openDocumentFile(context, doc, repository)
+                                            }
+                                        },
+                                        onTogglePin = {
+                                            val updated = repository.togglePin(doc.id)
+                                            documents = updated
+                                            val targetDoc = updated.find { it.id == doc.id } ?: doc.copy(isPinned = !doc.isPinned)
+                                            scope.launch { repository.togglePinRemoteAsync(targetDoc) }
+                                        },
+                                        onShare = { shareDocumentFile(context, doc) },
+                                        onLongClick = { docToRename = doc }
+                                    )
+                                }
+                            }
                         }
                     }
-                } else {
+                }
+
+                // ============================================
+                // SCREEN 4: OUT (HIGH-DENSITY FILE CABINET)
+                // ============================================
+                AppScreen.FILE_CABINET -> {
+                    val filteredDocs = documents.filter { doc ->
+                        val matchesSearch = cabinetSearchQuery.isBlank() ||
+                                doc.name.contains(cabinetSearchQuery, ignoreCase = true) ||
+                                doc.notes.contains(cabinetSearchQuery, ignoreCase = true)
+                        val matchesPinned = !cabinetFilterPinnedOnly || doc.isPinned
+                        matchesSearch && matchesPinned
+                    }
+
                     Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(7.dp)
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        pinnedList.chunked(2).forEach { pair ->
+                        // Sub-screen header
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(7.dp)
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
-                                for (doc in pair) {
-                                    Surface(
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = SurfaceRaised,
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, AmberGold.copy(alpha = 0.45f)),
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .clickable {
-                                                if (doc.filePath.endsWith(".txt", ignoreCase = true) || doc.fileName.endsWith(".txt", ignoreCase = true)) {
-                                                    noteDocToView = doc
-                                                    isEditingNote = false
-                                                    noteEditText = try { val f = File(doc.filePath); if (f.exists()) f.readText() else "" } catch (_: Exception) { "" }
-                                                } else {
-                                                    openDocumentFile(context, doc, repository)
-                                                }
-                                            }
-                                    ) {
-                                        Column(
-                                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 7.dp),
-                                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                                Surface(
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = CardWhite,
+                                    shadowElevation = 3.dp,
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .clickable { currentScreen = AppScreen.HOME }
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text("‹", fontSize = 22.sp, fontWeight = FontWeight.Black, color = TextDark)
+                                    }
+                                }
+                                Text(
+                                    text = "File Cabinet",
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = TextDark
+                                )
+                            }
+                            Text(
+                                text = "${documents.size} files",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextSubtle
+                            )
+                        }
+
+                        // Search Bar & Filter
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(20.dp),
+                                color = CardWhite,
+                                shadowElevation = 2.dp
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text("🔍", fontSize = 14.sp)
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        if (cabinetSearchQuery.isEmpty()) {
+                                            Text(
+                                                "Search documents, tags...",
+                                                fontSize = 14.sp,
+                                                color = TextSubtle.copy(alpha = 0.6f)
+                                            )
+                                        }
+                                        BasicTextField(
+                                            value = cabinetSearchQuery,
+                                            onValueChange = { cabinetSearchQuery = it },
+                                            textStyle = TextStyle(
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = TextDark
+                                            ),
+                                            singleLine = true,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                    if (cabinetSearchQuery.isNotEmpty()) {
+                                        IconButton(
+                                            onClick = { cabinetSearchQuery = "" },
+                                            modifier = Modifier.size(20.dp)
                                         ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(5.dp),
-                                                modifier = Modifier.fillMaxWidth()
-                                            ) {
-                                                Text(
-                                                    text = if (doc.filePath.endsWith(".txt", ignoreCase = true) || doc.fileName.endsWith(".txt", ignoreCase = true)) "📝" else if (doc.mimeType.contains("pdf")) "📄" else "🖼️",
-                                                    fontSize = 11.sp
-                                                )
-                                                Text(
-                                                    text = doc.name,
-                                                    color = TextMain,
-                                                    fontSize = 11.5.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                    modifier = Modifier.weight(1f)
-                                                )
-                                            }
-                                            if (doc.notes.isNotBlank()) {
-                                                Text(
-                                                    text = doc.notes,
-                                                    color = TextMuted,
-                                                    fontSize = 9.5.sp,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                            }
+                                            Text("✕", fontSize = 12.sp, color = TextSubtle)
                                         }
                                     }
                                 }
-                                if (pair.size == 1) {
-                                    Spacer(modifier = Modifier.weight(1f))
+                            }
+
+                            // Pinned Filter Toggle Pill
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = if (cabinetFilterPinnedOnly) Color(0xFFFEF3C7) else CardWhite,
+                                shadowElevation = 2.dp,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .clickable { cabinetFilterPinnedOnly = !cabinetFilterPinnedOnly }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.PushPin,
+                                        contentDescription = "Pinned",
+                                        tint = if (cabinetFilterPinnedOnly) AmberGold else TextSubtle.copy(alpha = 0.4f),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        "Pinned",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (cabinetFilterPinnedOnly) TextDark else TextSubtle
+                                    )
+                                }
+                            }
+                        }
+
+                        // Streamlined Document List
+                        if (filteredDocs.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "No documents found",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = TextSubtle
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                items(filteredDocs, key = { it.id }) { doc ->
+                                    StreamlinedDocCard(
+                                        doc = doc,
+                                        onOpen = {
+                                            if (doc.filePath.endsWith(".txt", ignoreCase = true) || doc.fileName.endsWith(".txt", ignoreCase = true)) {
+                                                noteDocToView = doc
+                                                isEditingNote = false
+                                            } else {
+                                                openDocumentFile(context, doc, repository)
+                                            }
+                                        },
+                                        onTogglePin = {
+                                            val updated = repository.togglePin(doc.id)
+                                            documents = updated
+                                            val targetDoc = updated.find { it.id == doc.id } ?: doc.copy(isPinned = !doc.isPinned)
+                                            scope.launch { repository.togglePinRemoteAsync(targetDoc) }
+                                        },
+                                        onShare = { shareDocumentFile(context, doc) },
+                                        onLongClick = { docToRename = doc }
+                                    )
                                 }
                             }
                         }
@@ -1155,7 +1566,7 @@ fun MainScreen(
         }
     }
 
-    // SETTINGS MODAL (Google Drive Shared Sync Setup)
+    // DIALOGS
     if (showSettingsModal) {
         BasicAlertDialog(
             onDismissRequest = { showSettingsModal = false },
@@ -1303,6 +1714,7 @@ fun MainScreen(
     }
 
     // RENAME DOCUMENT DIALOG
+
     if (docToRename != null) {
         val target = docToRename!!
         var editName by remember(target) { mutableStateOf(target.name) }
@@ -1414,306 +1826,7 @@ fun MainScreen(
     }
 
     // FILE CABINET FULL SCREEN MODAL / DIALOG (WIDE, SPACIOUS, NOT THIN)
-    if (showCabinetModal) {
-        val filteredDocs = documents.filter {
-            val q = cabinetSearchQuery.trim().lowercase()
-            val matchesSearch = q.isEmpty() || it.name.lowercase().contains(q) || it.notes.lowercase().contains(q)
-            val matchesPinned = !cabinetFilterPinnedOnly || it.isPinned
-            matchesSearch && matchesPinned
-        }
 
-        BasicAlertDialog(
-            onDismissRequest = { showCabinetModal = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            val dialogDensity = LocalDensity.current
-            CompositionLocalProvider(
-                LocalDensity provides Density(
-                    density = dialogDensity.density,
-                    fontScale = 1.0f
-                )
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = SurfaceColor,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight(0.92f)
-                        .padding(horizontal = 12.dp, vertical = 16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("File Cabinet", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextMain)
-                                if (isSyncing) {
-                                    CircularProgressIndicator(modifier = Modifier.size(13.dp), strokeWidth = 2.dp, color = AmberGold)
-                                }
-                            }
-                            IconButton(onClick = { showCabinetModal = false }, modifier = Modifier.size(28.dp)) {
-                                Icon(Icons.Filled.Close, contentDescription = null, tint = TextMuted)
-                            }
-                        }
-
-                        // Filter by name, labels, and Pinned quick filter pill
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Search Box
-                            Row(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(11.dp))
-                                    .background(SurfaceRaised)
-                                    .border(1.dp, BorderColor, RoundedCornerShape(11.dp))
-                                    .padding(horizontal = 10.dp, vertical = 7.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Filled.Search, contentDescription = null, tint = TextMuted, modifier = Modifier.size(17.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                                    if (cabinetSearchQuery.isEmpty()) {
-                                        Text("Filter documents...", color = TextFaint, fontSize = 12.sp)
-                                    }
-                                    BasicTextField(
-                                        value = cabinetSearchQuery,
-                                        onValueChange = { cabinetSearchQuery = it },
-                                        singleLine = true,
-                                        textStyle = TextStyle(color = TextMain, fontSize = 12.sp),
-                                        cursorBrush = SolidColor(AccentColor),
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
-                                if (cabinetSearchQuery.isNotEmpty()) {
-                                    IconButton(onClick = { cabinetSearchQuery = "" }, modifier = Modifier.size(22.dp)) {
-                                        Icon(Icons.Filled.Clear, contentDescription = "Clear", tint = TextFaint, modifier = Modifier.size(13.dp))
-                                    }
-                                }
-                            }
-
-                            // Quick Pinned Toggle Pill
-                            Surface(
-                                shape = RoundedCornerShape(11.dp),
-                                color = if (cabinetFilterPinnedOnly) AmberGold.copy(alpha = 0.2f) else SurfaceRaised,
-                                border = androidx.compose.foundation.BorderStroke(1.dp, if (cabinetFilterPinnedOnly) AmberGold else BorderColor),
-                                onClick = { cabinetFilterPinnedOnly = !cabinetFilterPinnedOnly }
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 7.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Text(if (cabinetFilterPinnedOnly) "📌" else "📍", fontSize = 11.sp)
-                                    Text(
-                                        "Pinned",
-                                        fontSize = 11.5.sp,
-                                        fontWeight = if (cabinetFilterPinnedOnly) FontWeight.Bold else FontWeight.Normal,
-                                        color = if (cabinetFilterPinnedOnly) AmberGold else TextMuted
-                                    )
-                                }
-                            }
-                        }
-
-                        if (filteredDocs.isEmpty()) {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("No documents found", color = TextFaint, fontSize = 12.sp)
-                            }
-                        } else {
-                            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                items(filteredDocs, key = { it.id }) { doc ->
-                                    Surface(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = if (doc.isPinned) SurfaceRaised else Color(0xFF0F1426),
-                                        border = androidx.compose.foundation.BorderStroke(1.dp, if (doc.isPinned) AmberGold.copy(alpha = 0.5f) else BorderColor)
-                                    ) {
-                                        Column(modifier = Modifier.padding(11.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                                            // Header Row: Pin, Document Name (Full wrap, not cut off), and File Type Icon + Cloud Status
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                verticalAlignment = Alignment.Top,
-                                                horizontalArrangement = Arrangement.SpaceBetween
-                                            ) {
-                                                Row(
-                                                    verticalAlignment = Alignment.Top,
-                                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                                    modifier = Modifier.weight(1f)
-                                                ) {
-                                                    // Pin toggle button: updates in place with zero shuffling
-                                                    IconButton(
-                                                        onClick = {
-                                                            val updated = repository.togglePin(doc.id)
-                                                            documents = updated
-                                                            val targetDoc = updated.find { it.id == doc.id } ?: doc.copy(isPinned = !doc.isPinned)
-                                                            scope.launch { repository.togglePinRemoteAsync(targetDoc) }
-                                                        },
-                                                        modifier = Modifier.size(22.dp).padding(top = 1.dp)
-                                                    ) {
-                                                        Text(if (doc.isPinned) "📌" else "📍", fontSize = 12.sp)
-                                                    }
-
-                                                    // FULL WRAP: Long names wrap onto multiple lines and are NEVER cut off!
-                                                    Text(
-                                                        text = doc.name,
-                                                        fontWeight = FontWeight.Bold,
-                                                        fontSize = 13.sp,
-                                                        color = TextMain,
-                                                        lineHeight = 16.sp
-                                                    )
-                                                }
-
-                                                // End of line: File Type Icon next to Cloud Sync icon
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
-                                                    modifier = Modifier.padding(start = 6.dp, top = 2.dp)
-                                                ) {
-                                                    val fileTypeIcon = if (doc.filePath.endsWith(".txt", ignoreCase = true) || doc.fileName.endsWith(".txt", ignoreCase = true)) {
-                                                        "📝"
-                                                    } else if (doc.mimeType.contains("pdf")) {
-                                                        "📄"
-                                                    } else {
-                                                        "🖼️"
-                                                    }
-                                                    Text(fileTypeIcon, fontSize = 12.5.sp)
-
-                                                    if (doc.isSynced) {
-                                                        Text("☁️", fontSize = 11.sp)
-                                                    } else {
-                                                        IconButton(
-                                                            onClick = {
-                                                                scope.launch {
-                                                                    Toast.makeText(context, "Uploading to Google Drive...", Toast.LENGTH_SHORT).show()
-                                                                    val uploaded = repository.uploadDocAsync(doc)
-                                                                    documents = repository.getDocuments()
-                                                                    if (uploaded != null) {
-                                                                        Toast.makeText(context, "Uploaded to Google Drive! ☁️", Toast.LENGTH_SHORT).show()
-                                                                    } else {
-                                                                        Toast.makeText(context, "Upload failed. Check Google Drive settings ⚙️", Toast.LENGTH_SHORT).show()
-                                                                    }
-                                                                }
-                                                            },
-                                                            modifier = Modifier.size(20.dp)
-                                                        ) {
-                                                            Text("⬆️", fontSize = 11.sp)
-                                                        }
-                                                    }
-                                                }
-                                            }
-
-                                            if (doc.notes.isNotBlank()) {
-                                                Text("🏷️ ${doc.notes}", color = TextMuted, fontSize = 11.sp)
-                                            }
-
-                                            // Actions: Classic Icons for View, Download, Share, Rename, Delete
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.spacedBy(5.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                // View Button: Tap to open directly, Long-press to choose a different viewer app
-                                                @OptIn(ExperimentalFoundationApi::class)
-                                                Surface(
-                                                    shape = RoundedCornerShape(8.dp),
-                                                    color = AccentColor,
-                                                    modifier = Modifier
-                                                        .weight(1f)
-                                                        .height(32.dp)
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                        .combinedClickable(
-                                                            onClick = {
-                                                                if (doc.filePath.endsWith(".txt", ignoreCase = true) || doc.fileName.endsWith(".txt", ignoreCase = true)) {
-                                                                    noteDocToView = doc
-                                                                    isEditingNote = false
-                                                                    noteEditText = try { val f = File(doc.filePath); if (f.exists()) f.readText() else "" } catch (_: Exception) { "" }
-                                                                } else {
-                                                                    openDocumentFile(context, doc, repository, forceChooser = false)
-                                                                }
-                                                            },
-                                                            onLongClick = {
-                                                                Toast.makeText(context, "Choose viewer app...", Toast.LENGTH_SHORT).show()
-                                                                openDocumentFile(context, doc, repository, forceChooser = true)
-                                                            }
-                                                        )
-                                                ) {
-                                                    Row(
-                                                        modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 2.dp),
-                                                        horizontalArrangement = Arrangement.Center,
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        Icon(Icons.Filled.Visibility, contentDescription = "View", tint = Color.White, modifier = Modifier.size(13.dp))
-                                                        Spacer(modifier = Modifier.width(3.dp))
-                                                        Text("View", color = Color.White, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold)
-                                                    }
-                                                }
-
-                                                // Classic Download Arrow Button
-                                                OutlinedButton(
-                                                    onClick = { downloadDocumentToStorage(context, doc) },
-                                                    shape = RoundedCornerShape(8.dp),
-                                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
-                                                    modifier = Modifier.weight(1.15f).height(32.dp)
-                                                ) {
-                                                    Icon(Icons.Filled.FileDownload, contentDescription = "Download", tint = TextMain, modifier = Modifier.size(13.dp))
-                                                    Spacer(modifier = Modifier.width(3.dp))
-                                                    Text("Download", fontSize = 10.5.sp)
-                                                }
-
-                                                // Classic Share Icon Button
-                                                OutlinedButton(
-                                                    onClick = { shareDocumentFile(context, doc) },
-                                                    shape = RoundedCornerShape(8.dp),
-                                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
-                                                    modifier = Modifier.weight(1f).height(32.dp)
-                                                ) {
-                                                    Icon(Icons.Filled.Share, contentDescription = "Share", tint = TextMain, modifier = Modifier.size(13.dp))
-                                                    Spacer(modifier = Modifier.width(3.dp))
-                                                    Text("Share", fontSize = 10.5.sp)
-                                                }
-
-                                                // Classic Rename Pencil Icon
-                                                IconButton(
-                                                    onClick = { docToRename = doc },
-                                                    modifier = Modifier.size(30.dp)
-                                                ) {
-                                                    Icon(Icons.Filled.Edit, contentDescription = "Rename", tint = AmberGold, modifier = Modifier.size(16.dp))
-                                                }
-
-                                                // Classic Delete Trash Icon
-                                                IconButton(
-                                                    onClick = {
-                                                        val docIdToDelete = doc.id
-                                                        val fileIdToDelete = doc.driveFileId
-                                                        documents = repository.deleteDocument(docIdToDelete)
-                                                        scope.launch { repository.deleteDocRemoteAsync(docIdToDelete, fileIdToDelete) }
-                                                        Toast.makeText(context, "Deleted", Toast.LENGTH_SHORT).show()
-                                                    },
-                                                    modifier = Modifier.size(30.dp)
-                                                ) {
-                                                    Icon(Icons.Filled.Delete, contentDescription = "Delete", tint = RoseRed, modifier = Modifier.size(16.dp))
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // CREATE NOTE DIALOG
     if (showNoteDialog) {
         BasicAlertDialog(
             onDismissRequest = { showNoteDialog = false },
@@ -1881,6 +1994,7 @@ fun MainScreen(
     }
 
     // EMBEDDED NOTE VIEWER & EDITOR DIALOG
+
     noteDocToView?.let { noteDoc ->
         BasicAlertDialog(
             onDismissRequest = {
