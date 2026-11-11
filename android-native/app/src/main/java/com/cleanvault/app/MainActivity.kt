@@ -779,15 +779,15 @@ fun MainScreen(
     )
 
     Scaffold(
-        containerColor = ClayAppBg
-    ) { innerPadding ->
+        containerColor = ClayAppBg,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
+    ) { _ ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .padding(horizontal = 16.dp, vertical = 6.dp)
         ) {
             when (currentScreen) {
                 // ============================================
@@ -802,7 +802,7 @@ fun MainScreen(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp),
+                                .padding(bottom = 8.dp),
                             shape = RoundedCornerShape(20.dp),
                             color = CardWhite,
                             shadowElevation = 3.dp,
@@ -902,18 +902,18 @@ fun MainScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)
-                                .padding(vertical = 12.dp),
+                                .padding(bottom = 6.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(max = 580.dp)
-                                    .clip(RoundedCornerShape(44.dp))
+                                    .fillMaxHeight()
+                                    .clip(RoundedCornerShape(38.dp))
                                     .background(ClayCabinetGradient)
-                                    .border(1.5.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(44.dp))
-                                    .padding(18.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    .border(1.5.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(38.dp))
+                                    .padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 // Drawer 1: IN (Scan & File)
                                 Box(
