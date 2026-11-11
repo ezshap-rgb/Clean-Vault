@@ -410,6 +410,9 @@ fun MainScreen(
     var isPinned by remember { mutableStateOf(false) }
 
     var showSettingsModal by remember { mutableStateOf(false) }
+    var showGuideModal by remember { mutableStateOf(false) }
+    var appsScriptUrlInput by remember { mutableStateOf(repository.getScriptUrl()) }
+    var isTestingScript by remember { mutableStateOf(false) }
     var cabinetSearchQuery by remember { mutableStateOf("") }
     var cabinetFilterPinnedOnly by remember { mutableStateOf(false) }
 
@@ -1668,132 +1671,412 @@ fun MainScreen(
                 )
             ) {
                 Surface(
-                    shape = RoundedCornerShape(22.dp),
-                    color = SurfaceColor,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderHighlight),
+                    shape = RoundedCornerShape(26.dp),
+                    color = CardWhite,
+                    shadowElevation = 6.dp,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
                 ) {
                     Column(
                         modifier = Modifier
-                            .padding(18.dp)
+                            .padding(20.dp)
                             .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+                        // Header
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Icon(Icons.Filled.CloudSync, contentDescription = null, tint = AccentMid)
-                                Text("Sync & Backup", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextMain)
+                                Text("⚙️", fontSize = 20.sp)
+                                Text("Settings & Cloud Backup", fontSize = 17.sp, fontWeight = FontWeight.Black, color = TextDark)
                             }
                             IconButton(onClick = { showSettingsModal = false }, modifier = Modifier.size(28.dp)) {
-                                Icon(Icons.Filled.Close, contentDescription = null, tint = TextMuted)
+                                Icon(Icons.Filled.Close, contentDescription = null, tint = TextSubtle)
                             }
                         }
 
-                        // DIRECT GOOGLE DRIVE SECTION (Hero Option)
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(SurfaceRaised)
-                                .border(1.dp, if (googleAccountEmail.isNotBlank()) EmeraldGreen.copy(alpha = 0.5f) else BorderColor, RoundedCornerShape(14.dp))
-                                .padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        // 1. Direct Google Drive Connection (Wife / Self)
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            color = SurfaceRaised,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (googleAccountEmail.isNotBlank()) EmeraldGreen.copy(alpha = 0.5f) else BorderColor)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Surface(
-                                    modifier = Modifier.size(28.dp),
-                                    shape = CircleShape,
-                                    color = if (googleAccountEmail.isNotBlank()) EmeraldGreen.copy(alpha = 0.2f) else AccentColor.copy(alpha = 0.2f)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Text(if (googleAccountEmail.isNotBlank()) "✓" else "G", fontWeight = FontWeight.Bold, color = if (googleAccountEmail.isNotBlank()) EmeraldGreen else AccentColor, fontSize = 13.sp)
+                                    Surface(
+                                        modifier = Modifier.size(28.dp),
+                                        shape = CircleShape,
+                                        color = if (googleAccountEmail.isNotBlank()) EmeraldGreen.copy(alpha = 0.2f) else PurpleDark.copy(alpha = 0.15f)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text(
+                                                if (googleAccountEmail.isNotBlank()) "✓" else "G",
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (googleAccountEmail.isNotBlank()) EmeraldGreen else PurpleDark,
+                                                fontSize = 13.sp
+                                            )
+                                        }
+                                    }
+                                    Text("Google Drive Backup", fontWeight = FontWeight.Bold, fontSize = 14.5.sp, color = TextDark)
+                                }
+
+                                if (googleAccountEmail.isNotBlank()) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                        Text("Connected account:", fontSize = 11.sp, color = TextSubtle)
+                                        Text(
+                                            text = googleAccountEmail,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = EmeraldGreen
+                                        )
+                                        Text(
+                                            text = "Sync folder: Google Drive / Clean Filing",
+                                            fontSize = 11.sp,
+                                            color = TextFaint
+                                        )
+                                    }
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        // Sync Now Button
+                                        Button(
+                                            onClick = { triggerSync(silent = false) },
+                                            colors = ButtonDefaults.buttonColors(containerColor = PurpleDark),
+                                            shape = RoundedCornerShape(12.dp),
+                                            modifier = Modifier.weight(1f).height(38.dp)
+                                        ) {
+                                            Icon(Icons.Filled.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(Modifier.width(4.dp))
+                                            Text("Sync Now", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                                        }
+
+                                        // Share Folder with Wife / Family
+                                        OutlinedButton(
+                                            onClick = {
+                                                val folderId = repository.getGoogleFolderId()
+                                                val folderUrl = if (folderId.isNotBlank()) "https://drive.google.com/drive/folders/$folderId" else "https://drive.google.com"
+                                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                                    type = "text/plain"
+                                                    putExtra(Intent.EXTRA_TEXT, "Here is our shared Clean Filing folder on Google Drive:\n$folderUrl")
+                                                }
+                                                context.startActivity(Intent.createChooser(shareIntent, "Share Clean Filing folder"))
+                                            },
+                                            shape = RoundedCornerShape(12.dp),
+                                            modifier = Modifier.weight(1f).height(38.dp)
+                                        ) {
+                                            Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = PurpleDark)
+                                            Spacer(Modifier.width(4.dp))
+                                            Text("Share Folder", fontSize = 11.sp, color = PurpleDark, fontWeight = FontWeight.SemiBold)
+                                        }
+
+                                        // Disconnect Button
+                                        OutlinedButton(
+                                            onClick = { disconnectGoogleAccount() },
+                                            shape = RoundedCornerShape(12.dp),
+                                            modifier = Modifier.height(38.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = RoseRed)
+                                        ) {
+                                            Text("Disconnect", fontSize = 11.sp)
+                                        }
+                                    }
+                                } else {
+                                    Text(
+                                        text = "One-tap connection to your personal Google Drive. Automatically stores and syncs documents with your family in a visible 'Clean Filing' folder with zero server setup.",
+                                        color = TextSubtle,
+                                        fontSize = 12.sp,
+                                        lineHeight = 16.sp
+                                    )
+
+                                    Button(
+                                        onClick = { startGoogleSignIn() },
+                                        colors = ButtonDefaults.buttonColors(containerColor = PurpleDark),
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.fillMaxWidth().height(42.dp)
+                                    ) {
+                                        Icon(Icons.Filled.AccountCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Sign in with Google", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 13.5.sp)
                                     }
                                 }
-                                Text("Google Drive Sync", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextMain)
                             }
+                        }
 
-                            if (googleAccountEmail.isNotBlank()) {
-                                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                    Text(
-                                        text = "Connected account:",
-                                        fontSize = 11.sp,
-                                        color = TextMuted
-                                    )
-                                    Text(
-                                        text = googleAccountEmail,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = EmeraldGreen
-                                    )
-                                    Text(
-                                        text = "Sync folder: Google Drive / Clean Filing",
-                                        fontSize = 11.sp,
-                                        color = TextFaint
-                                    )
+                        // 2. Family Cloud Backup & Son Setup Card
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color(0xFFFAF5FF),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDDD6FE))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text("👨‍👩‍👧", fontSize = 18.sp)
+                                    Text("Family & Son Setup Guide", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
                                 }
-
+                                Text(
+                                    text = "Instructions and complete backend code to set up private cloud backup for your wife or son on their phone.",
+                                    fontSize = 11.5.sp,
+                                    color = TextSubtle,
+                                    lineHeight = 16.sp
+                                )
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    // Share folder with wife / partner button
                                     Button(
-                                        onClick = {
-                                            val folderId = repository.getGoogleFolderId()
-                                            val folderUrl = if (folderId.isNotBlank()) "https://drive.google.com/drive/folders/$folderId" else "https://drive.google.com"
-                                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                                type = "text/plain"
-                                                putExtra(Intent.EXTRA_TEXT, "Here is our shared Clean Filing folder on Google Drive:\n$folderUrl")
-                                            }
-                                            context.startActivity(Intent.createChooser(shareIntent, "Share Clean Filing folder"))
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
-                                        shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.weight(1f).height(36.dp),
-                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                        onClick = { showGuideModal = true },
+                                        colors = ButtonDefaults.buttonColors(containerColor = PurpleDark),
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.weight(1f).height(38.dp)
                                     ) {
-                                        Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color.White)
-                                        Spacer(Modifier.width(6.dp))
-                                        Text("Share Folder", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                        Text("📖 Open Setup Guide", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
                                     }
-
-                                    // Disconnect Button
                                     OutlinedButton(
-                                        onClick = { disconnectGoogleAccount() },
-                                        shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.height(36.dp),
-                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = RoseRed)
+                                        onClick = {
+                                            val shareText = "Clean Vault Setup Instructions for Family:\n\n" +
+                                                    "Option 1 (Easiest): Install CleanVault.apk and tap 'Sign in with Google' in Settings.\n\n" +
+                                                    "Option 2 (Google Apps Script): Open script.google.com, create a project, paste Code.gs, deploy as Web App (Anyone), and paste the Web App URL in Clean Vault Settings."
+                                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                                type = "text/plain"
+                                                putExtra(Intent.EXTRA_TEXT, shareText)
+                                            }
+                                            context.startActivity(Intent.createChooser(sendIntent, "Share Setup Instructions"))
+                                        },
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.weight(1f).height(38.dp)
                                     ) {
-                                        Text("Disconnect", fontSize = 11.sp)
+                                        Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = PurpleDark)
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("Share with Son", fontSize = 11.sp, color = PurpleDark, fontWeight = FontWeight.SemiBold)
                                     }
-                                }
-                            } else {
-                                Text(
-                                    text = "One-tap connection to your personal Google Drive. Automatically stores and syncs documents with your family in a visible 'Clean Filing' folder with zero server setup.",
-                                    color = TextMuted,
-                                    fontSize = 12.sp,
-                                    lineHeight = 16.sp
-                                )
-
-                                Button(
-                                    onClick = { startGoogleSignIn() },
-                                    colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
-                                    shape = RoundedCornerShape(11.dp),
-                                    modifier = Modifier.fillMaxWidth().height(40.dp)
-                                ) {
-                                    Icon(Icons.Filled.AccountCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("Sign in with Google", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 13.sp)
                                 }
                             }
+                        }
+
+                        // 3. Custom Google Apps Script Web App (Optional / Advanced)
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            color = SurfaceRaised,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text("Google Apps Script Web App (Optional)", fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = TextDark)
+                                Text(
+                                    "If using a custom Google Apps Script project, enter the deployed Web App URL here:",
+                                    fontSize = 11.sp,
+                                    color = TextSubtle
+                                )
+                                BasicTextField(
+                                    value = appsScriptUrlInput,
+                                    onValueChange = { appsScriptUrlInput = it },
+                                    textStyle = TextStyle(color = TextDark, fontSize = 12.sp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(CardWhite)
+                                        .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    singleLine = true
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Button(
+                                        onClick = {
+                                            repository.setScriptUrl(appsScriptUrlInput.trim())
+                                            Toast.makeText(context, "Saved Apps Script URL", Toast.LENGTH_SHORT).show()
+                                            if (appsScriptUrlInput.isNotBlank()) triggerSync(silent = false)
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = PurpleDark),
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.weight(1f).height(34.dp)
+                                    ) {
+                                        Text("Save URL", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                    OutlinedButton(
+                                        onClick = {
+                                            if (appsScriptUrlInput.isBlank()) {
+                                                Toast.makeText(context, "Please enter a URL first", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                isTestingScript = true
+                                                scope.launch {
+                                                    val (ok, msg) = repository.testConnection(appsScriptUrlInput.trim())
+                                                    isTestingScript = false
+                                                    Toast.makeText(context, if (ok) "✓ $msg" else "Error: $msg", Toast.LENGTH_LONG).show()
+                                                }
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.weight(1f).height(34.dp)
+                                    ) {
+                                        Text(if (isTestingScript) "Testing..." else "Test Connection", fontSize = 11.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // BACKUP SETUP GUIDE MODAL (FOR SON / FAMILY)
+    if (showGuideModal) {
+        BasicAlertDialog(
+            onDismissRequest = { showGuideModal = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            val dialogDensity = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides Density(
+                    density = dialogDensity.density,
+                    fontScale = 1.0f
+                )
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(26.dp),
+                    color = CardWhite,
+                    shadowElevation = 6.dp,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(20.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        // Header
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("📖", fontSize = 20.sp)
+                                Text("Cloud Backup Setup Guide", fontSize = 17.sp, fontWeight = FontWeight.Black, color = TextDark)
+                            }
+                            IconButton(onClick = { showGuideModal = false }, modifier = Modifier.size(28.dp)) {
+                                Icon(Icons.Filled.Close, contentDescription = null, tint = TextSubtle)
+                            }
+                        }
+
+                        // Card 1: Easy Method (Google Sign-In)
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            color = SurfaceRaised,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("Option A: 1-Tap Google Drive (Easiest)", fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = TextDark)
+                                Text(
+                                    "1. Install CleanVault.apk on their Android phone.\n" +
+                                    "2. Open Clean Vault and tap Settings ⚙️ at top right.\n" +
+                                    "3. Tap 'Sign in with Google' and choose their account.\n\n" +
+                                    "That's all! Their documents and notes will back up to their own Google Drive in a 'Clean Filing' folder automatically with zero server setup.",
+                                    fontSize = 12.sp,
+                                    color = TextSubtle,
+                                    lineHeight = 17.sp
+                                )
+                            }
+                        }
+
+                        // Card 2: Google Apps Script Method (With code to paste)
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFFFAF5FF),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDDD6FE))
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("Option B: Custom Google Apps Script Backend", fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = TextDark)
+                                Text(
+                                    "If they want a shared family ledger or a standalone script backend:\n\n" +
+                                    "1. On a computer or browser, go to: script.google.com\n" +
+                                    "2. Click '+ New project'.\n" +
+                                    "3. Delete default code, then tap the button below to copy the complete Code.gs script to your clipboard and paste it into the editor.\n" +
+                                    "4. Click Deploy → New deployment → Web app.\n" +
+                                    "   • Set 'Execute as': Me\n" +
+                                    "   • Set 'Who has access': Anyone\n" +
+                                    "5. Copy the Web App URL and paste it into Clean Vault Settings.",
+                                    fontSize = 12.sp,
+                                    color = TextSubtle,
+                                    lineHeight = 17.sp
+                                )
+
+                                // Big prominent Copy Code button!
+                                Button(
+                                    onClick = {
+                                        try {
+                                            val codeText = context.assets.open("Code.gs").bufferedReader().use { it.readText() }
+                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                            val clip = ClipData.newPlainText("Clean Vault Code.gs", codeText)
+                                            clipboard.setPrimaryClip(clip)
+                                            Toast.makeText(context, "Copied Code.gs to clipboard! (381 lines) 📋", Toast.LENGTH_LONG).show()
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Could not load script: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = PurpleDark),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth().height(42.dp)
+                                ) {
+                                    Icon(Icons.Filled.ContentCopy, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("📋 Copy Complete Code.gs Script", fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+
+                        // Share Guide Button
+                        Button(
+                            onClick = {
+                                val guide = "Clean Vault Cloud Backup Guide:\n\n" +
+                                        "Option 1 (One-Tap Google Drive):\n" +
+                                        "Open Clean Vault on phone -> Settings ⚙️ -> Sign in with Google.\n\n" +
+                                        "Option 2 (Google Apps Script):\n" +
+                                        "1. Open https://script.google.com\n" +
+                                        "2. Create project 'Clean Vault Backend'\n" +
+                                        "3. Paste Code.gs backend script\n" +
+                                        "4. Deploy as Web App (Execute as: Me, Access: Anyone)\n" +
+                                        "5. Paste the Web App URL in Clean Vault Settings."
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, guide)
+                                }
+                                context.startActivity(Intent.createChooser(intent, "Share Setup Guide with Family"))
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = PurpleAccent),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().height(40.dp)
+                        ) {
+                            Icon(Icons.Filled.Share, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("↗️ Share Instructions with Son", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -2130,6 +2413,9 @@ fun MainScreen(
     // EMBEDDED NOTE VIEWER & EDITOR DIALOG
 
     noteDocToView?.let { noteDoc ->
+        var noteTitleEdit by remember(noteDoc) { mutableStateOf(noteDoc.name) }
+        var noteLabelsEdit by remember(noteDoc) { mutableStateOf(noteDoc.notes) }
+
         BasicAlertDialog(
             onDismissRequest = {
                 noteDocToView = null
@@ -2145,14 +2431,15 @@ fun MainScreen(
                 )
             ) {
                 Surface(
-                    shape = RoundedCornerShape(22.dp),
-                    color = SurfaceColor,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, if (isEditingNote) AmberGold.copy(alpha = 0.6f) else BorderHighlight),
+                    shape = RoundedCornerShape(24.dp),
+                    color = CardWhite,
+                    shadowElevation = 6.dp,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
                 ) {
                     Column(
-                        modifier = Modifier.padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        modifier = Modifier.padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         // Dialog Header
                         Row(
@@ -2161,13 +2448,14 @@ fun MainScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
-                                Icon(if (isEditingNote) Icons.Filled.Edit else Icons.Filled.EditNote, contentDescription = null, tint = AmberGold)
+                                Text("📝", fontSize = 20.sp)
                                 Text(
-                                    text = if (isEditingNote) "Editing: ${noteDoc.name}" else noteDoc.name,
-                                    fontSize = 15.sp,
+                                    text = if (isEditingNote) "Edit Note" else noteDoc.name,
+                                    fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = TextMain,
-                                    maxLines = 1
+                                    color = TextDark,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -2177,10 +2465,10 @@ fun MainScreen(
                                         color = SurfaceRaised,
                                         border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
                                         onClick = { startSpeechNoteEdit() },
-                                        modifier = Modifier.size(28.dp)
+                                        modifier = Modifier.size(32.dp)
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
-                                            Icon(Icons.Filled.Mic, contentDescription = "Dictate Note", tint = AmberGold, modifier = Modifier.size(15.dp))
+                                            Text("🎤", fontSize = 16.sp)
                                         }
                                     }
                                     Spacer(Modifier.width(6.dp))
@@ -2192,60 +2480,106 @@ fun MainScreen(
                                     },
                                     modifier = Modifier.size(28.dp)
                                 ) {
-                                    Icon(Icons.Filled.Close, contentDescription = null, tint = TextMuted)
+                                    Icon(Icons.Filled.Close, contentDescription = null, tint = TextSubtle)
                                 }
                             }
                         }
 
-                        if (noteDoc.notes.isNotBlank() && !isEditingNote) {
-                            Text("🏷️ ${noteDoc.notes}", color = TextMuted, fontSize = 11.sp)
-                        }
-
-                        // Content area: Text or Editable Field
+                        // Content Area
                         if (!isEditingNote) {
+                            if (noteDoc.notes.isNotBlank()) {
+                                Text("🏷️ ${noteDoc.notes}", color = TextSubtle, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = 80.dp, max = 280.dp)
-                                    .clip(RoundedCornerShape(10.dp))
+                                    .heightIn(min = 100.dp, max = 300.dp)
+                                    .clip(RoundedCornerShape(14.dp))
                                     .background(SurfaceRaised)
-                                    .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
-                                    .padding(12.dp)
+                                    .border(1.dp, BorderColor, RoundedCornerShape(14.dp))
+                                    .padding(14.dp)
                                     .verticalScroll(rememberScrollState())
                             ) {
                                 Text(
                                     text = noteEditText.ifEmpty { "Empty note" },
-                                    color = TextMain,
-                                    fontSize = 13.sp,
-                                    lineHeight = 19.sp
+                                    color = TextDark,
+                                    fontSize = 14.sp,
+                                    lineHeight = 20.sp
                                 )
                             }
                         } else {
-                            Box(
+                            // EDIT MODE: Title, Labels, and Content are all editable!
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = 140.dp, max = 280.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(SurfaceRaised)
-                                    .border(1.dp, AmberGold.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
-                                    .padding(12.dp)
-                                    .verticalScroll(rememberScrollState())
+                                    .verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                BasicTextField(
-                                    value = noteEditText,
-                                    onValueChange = { noteEditText = it },
-                                    textStyle = TextStyle(color = TextMain, fontSize = 13.sp, lineHeight = 19.sp),
-                                    cursorBrush = SolidColor(AmberGold),
-                                    modifier = Modifier.fillMaxWidth()
-                                )
+                                // Title Field
+                                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text("Note Title", fontSize = 11.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
+                                    BasicTextField(
+                                        value = noteTitleEdit,
+                                        onValueChange = { noteTitleEdit = it },
+                                        textStyle = TextStyle(color = TextDark, fontSize = 14.sp, fontWeight = FontWeight.Bold),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(SurfaceRaised)
+                                            .border(1.dp, BorderColor, RoundedCornerShape(12.dp))
+                                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                                        singleLine = true
+                                    )
+                                }
+
+                                // Labels Field
+                                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text("Labels / Tags", fontSize = 11.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
+                                    BasicTextField(
+                                        value = noteLabelsEdit,
+                                        onValueChange = { noteLabelsEdit = it },
+                                        textStyle = TextStyle(color = TextDark, fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(SurfaceRaised)
+                                            .border(1.dp, BorderColor, RoundedCornerShape(12.dp))
+                                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                                        singleLine = true
+                                    )
+                                }
+
+                                // Content Field
+                                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text("Note Content", fontSize = 11.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(min = 120.dp, max = 220.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(SurfaceRaised)
+                                            .border(1.dp, PurpleDark.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                                            .padding(12.dp)
+                                            .verticalScroll(rememberScrollState())
+                                    ) {
+                                        BasicTextField(
+                                            value = noteEditText,
+                                            onValueChange = { noteEditText = it },
+                                            textStyle = TextStyle(color = TextDark, fontSize = 13.5.sp, lineHeight = 19.sp),
+                                            cursorBrush = SolidColor(PurpleDark),
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                }
                             }
                         }
 
-                        // Action Buttons: View mode vs Edit mode
+                        // Bottom Action Buttons
                         if (!isEditingNote) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 // 1. Copy
@@ -2256,49 +2590,42 @@ fun MainScreen(
                                         clipboard.setPrimaryClip(clip)
                                         Toast.makeText(context, "Copied note to clipboard! 📋", Toast.LENGTH_SHORT).show()
                                     },
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.weight(1f).height(34.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(1f).height(38.dp),
                                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
                                 ) {
-                                    Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(12.dp))
-                                    Spacer(Modifier.width(3.dp))
-                                    Text("Copy", fontSize = 10.5.sp)
+                                    Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp), tint = PurpleDark)
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Copy", fontSize = 11.5.sp, color = PurpleDark)
                                 }
 
                                 // 2. Share
                                 OutlinedButton(
                                     onClick = { shareDocumentFile(context, noteDoc) },
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.weight(1f).height(34.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(1f).height(38.dp),
                                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
                                 ) {
-                                    Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(12.dp))
-                                    Spacer(Modifier.width(3.dp))
-                                    Text("Share", fontSize = 10.5.sp)
+                                    Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = PurpleDark)
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Share", fontSize = 11.5.sp, color = PurpleDark)
                                 }
 
-                                // 3. Edit (Pencil Icon)
-                                OutlinedButton(
-                                    onClick = { isEditingNote = true },
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.weight(1f).height(34.dp),
-                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AmberGold)
-                                ) {
-                                    Icon(Icons.Filled.Edit, contentDescription = "Edit", tint = AmberGold, modifier = Modifier.size(12.dp))
-                                    Spacer(Modifier.width(3.dp))
-                                    Text("Edit", fontSize = 10.5.sp, color = AmberGold)
-                                }
-
-                                // 4. Close
+                                // 3. Edit (Pencil)
                                 Button(
-                                    onClick = { noteDocToView = null },
-                                    colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.weight(1f).height(34.dp),
+                                    onClick = {
+                                        noteTitleEdit = noteDoc.name
+                                        noteLabelsEdit = noteDoc.notes
+                                        isEditingNote = true
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = PurpleDark),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(1.1f).height(38.dp),
                                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
                                 ) {
-                                    Text("Close", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 10.5.sp)
+                                    Icon(Icons.Filled.Edit, contentDescription = "Edit", tint = Color.White, modifier = Modifier.size(14.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Edit", fontSize = 11.5.sp, color = Color.White, fontWeight = FontWeight.Bold)
                                 }
                             }
                         } else {
@@ -2310,41 +2637,46 @@ fun MainScreen(
                             ) {
                                 OutlinedButton(
                                     onClick = {
+                                        noteTitleEdit = noteDoc.name
+                                        noteLabelsEdit = noteDoc.notes
                                         noteEditText = try { val f = File(noteDoc.filePath); if (f.exists()) f.readText() else "" } catch (_: Exception) { "" }
                                         isEditingNote = false
                                     },
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.weight(1f).height(36.dp),
-                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(1f).height(40.dp)
                                 ) {
-                                    Text("Cancel", fontSize = 11.5.sp)
+                                    Text("Cancel", fontSize = 12.sp)
                                 }
 
                                 Button(
                                     onClick = {
                                         try {
+                                            val updatedName = noteTitleEdit.trim().ifBlank { noteDoc.name }
+                                            val updatedNotes = noteLabelsEdit.trim()
+                                            repository.renameDocument(noteDoc.id, updatedName, updatedNotes)
                                             val updated = repository.updateNoteContent(noteDoc.id, noteEditText)
                                             if (updated != null) {
-                                                noteDocToView = updated
+                                                val finalDoc = updated.copy(name = updatedName, notes = updatedNotes)
+                                                noteDocToView = finalDoc
                                                 documents = repository.getDocuments()
                                                 scope.launch {
-                                                    repository.updateNoteRemoteAsync(updated, noteEditText)
+                                                    repository.updateDocRemoteAsync(finalDoc, updatedName, updatedNotes)
+                                                    repository.updateNoteRemoteAsync(finalDoc, noteEditText)
                                                 }
                                             }
                                             isEditingNote = false
-                                            Toast.makeText(context, "Note updated! 📝", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "Note saved successfully! ✅", Toast.LENGTH_SHORT).show()
                                         } catch (e: Exception) {
                                             Toast.makeText(context, "Failed to save: ${e.message}", Toast.LENGTH_SHORT).show()
                                         }
                                     },
-                                    colors = ButtonDefaults.buttonColors(containerColor = AmberGold),
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.weight(1.3f).height(36.dp),
-                                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                                    colors = ButtonDefaults.buttonColors(containerColor = PurpleDark),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(1.3f).height(40.dp)
                                 ) {
-                                    Icon(Icons.Filled.Check, contentDescription = null, tint = Color.Black, modifier = Modifier.size(15.dp))
-                                    Spacer(Modifier.width(5.dp))
-                                    Text("Save Note", fontWeight = FontWeight.Bold, color = Color.Black, fontSize = 11.5.sp)
+                                    Icon(Icons.Filled.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Save Note", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 12.5.sp)
                                 }
                             }
                         }
