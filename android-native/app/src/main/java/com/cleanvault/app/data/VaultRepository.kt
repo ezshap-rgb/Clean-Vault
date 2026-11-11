@@ -176,41 +176,41 @@ class VaultRepository(private val context: Context) {
 
         val dedupedMap = LinkedHashMap<String, VaultDocument>()
         for (doc in valid) {
-            val key = when {
-                !doc.driveFileId.isNullOrBlank() -> "file_${doc.driveFileId}"
-                doc.filePath.isNotBlank() && File(doc.filePath).exists() -> "path_${doc.filePath}"
-                else -> "id_${doc.id}"
+            val cleanName = doc.name.trim().lowercase()
+            val key = if (cleanName.isNotBlank()) "name_$cleanName" else {
+                if (!doc.driveFileId.isNullOrBlank()) "file_${doc.driveFileId}" else "id_${doc.id}"
             }
 
             val existing = dedupedMap[key]
             if (existing == null) {
                 dedupedMap[key] = doc
             } else {
-                val winner = if (doc.lastModified >= existing.lastModified) {
-                    doc.copy(
-                        isPinned = if (doc.isSynced != existing.isSynced) {
-                            if (!doc.isSynced) doc.isPinned else existing.isPinned
-                        } else doc.isPinned,
-                        driveFileId = doc.driveFileId ?: existing.driveFileId,
-                        driveFileUrl = doc.driveFileUrl ?: existing.driveFileUrl,
-                        filePath = if (doc.filePath.isNotBlank() && File(doc.filePath).exists()) doc.filePath else existing.filePath,
-                        timestamp = if (doc.timestamp > 0) doc.timestamp else existing.timestamp
-                    )
-                } else {
-                    existing.copy(
-                        isPinned = if (doc.isSynced != existing.isSynced) {
-                            if (!existing.isSynced) existing.isPinned else doc.isPinned
-                        } else existing.isPinned,
-                        driveFileId = existing.driveFileId ?: doc.driveFileId,
-                        driveFileUrl = existing.driveFileUrl ?: doc.driveFileUrl,
-                        filePath = if (existing.filePath.isNotBlank() && File(existing.filePath).exists()) existing.filePath else doc.filePath,
-                        timestamp = if (existing.timestamp > 0) existing.timestamp else doc.timestamp
-                    )
+                val winner = if (doc.lastModified >= existing.lastModified) doc else existing
+                val loser = if (doc.lastModified >= existing.lastModified) existing else doc
+                if (loser.filePath != winner.filePath && loser.filePath.isNotBlank()) {
+                    try { File(loser.filePath).delete() } catch (_: Exception) {}
                 }
-                dedupedMap[key] = winner
+                val merged = winner.copy(
+                    isPinned = if (winner.isSynced != loser.isSynced) {
+                        if (!winner.isSynced) winner.isPinned else loser.isPinned
+                    } else winner.isPinned,
+                    driveFileId = winner.driveFileId ?: loser.driveFileId,
+                    driveFileUrl = winner.driveFileUrl ?: loser.driveFileUrl,
+                    filePath = if (winner.filePath.isNotBlank() && File(winner.filePath).exists()) winner.filePath else loser.filePath,
+                    timestamp = if (winner.timestamp > 0) winner.timestamp else loser.timestamp
+                )
+                dedupedMap[key] = merged
             }
         }
         return dedupedMap.values.toList()
+    }
+
+        fun clearAllDocuments() {
+        val current = getDocuments()
+        for (doc in current) {
+            try { File(doc.filePath).delete() } catch (_: Exception) {}
+        }
+        prefs.edit().putString("documents_list", "[]").apply()
     }
 
     fun getDocuments(): List<VaultDocument> {
@@ -566,8 +566,9 @@ class VaultRepository(private val context: Context) {
 
             val records = json.optJSONArray("records") ?: JSONArray()
             val deletedIds = getDeletedIds()
-            val remoteMap = LinkedHashMap<String, JSONObject>()
 
+            // Group remote records by normalized document name to eliminate duplicate rows in Google Sheet
+            val rawRemoteList = mutableListOf<JSONObject>()
             for (i in 0 until records.length()) {
                 val r = records.getJSONObject(i)
                 val rawDocId = r.optString("docId").ifBlank { r.optString("docID") }
@@ -577,13 +578,39 @@ class VaultRepository(private val context: Context) {
                     if (remoteFileId.isNotBlank()) "file_$remoteFileId" else "row_${r.optInt("rowId")}"
                 }
 
-                // If document was marked deleted locally, tell remote to delete it and skip
                 if (deletedIds.contains(effectiveDocId) || (remoteFileId.isNotBlank() && deletedIds.contains(remoteFileId))) {
                     deleteDocRemoteAsync(effectiveDocId, remoteFileId, remoteName)
                     continue
                 }
+                rawRemoteList.add(r)
+            }
 
-                remoteMap[effectiveDocId] = r
+            // Deduplicate remote records by document name: keep only the newest record, clean older duplicate rows
+            val remoteMap = LinkedHashMap<String, JSONObject>()
+            val nameGroups = rawRemoteList.groupBy { (it.optString("name").ifBlank { it.optString("vendor") }).trim().lowercase() }
+            for ((normName, group) in nameGroups) {
+                if (normName.isBlank()) continue
+                // Sort group so newest row is first
+                val sortedGroup = group.sortedByDescending {
+                    val ts = parseTimestamp(it.opt("timestamp"), it.opt("date"))
+                    val rowId = it.optInt("rowId", 0)
+                    ts + rowId
+                }
+                val winner = sortedGroup.first()
+                val rawDocId = winner.optString("docId").ifBlank { winner.optString("docID") }
+                val remoteFileId = winner.optString("fileId").ifBlank { winner.optString("fileID") }
+                val effectiveDocId = rawDocId.ifBlank {
+                    if (remoteFileId.isNotBlank()) "file_$remoteFileId" else "row_${winner.optInt("rowId")}"
+                }
+                remoteMap[effectiveDocId] = winner
+
+                // Clean up any older duplicate rows in the Google Sheet
+                for (duplicate in sortedGroup.drop(1)) {
+                    val dDocId = duplicate.optString("docId").ifBlank { duplicate.optString("docID") }
+                    val dFileId = duplicate.optString("fileId").ifBlank { duplicate.optString("fileID") }
+                    val dName = duplicate.optString("name").ifBlank { duplicate.optString("vendor") }
+                    deleteDocRemoteAsync(dDocId, dFileId, dName)
+                }
             }
 
             // Start with current local documents
@@ -682,7 +709,9 @@ class VaultRepository(private val context: Context) {
                 }
             }
 
-            // 3. Handle local docs that need upload (any local doc missing from remote)
+            // 3. Handle local docs:
+            // - If local doc was already synced (isSynced == true) but is missing from remoteMap, it was deleted from cloud! Delete it locally!
+            // - If local doc has unsynced local changes (!isSynced), upload it to cloud!
             val finalDocs = mutableListOf<VaultDocument>()
             for (doc in localList) {
                 if (deletedIds.contains(doc.id) || (!doc.driveFileId.isNullOrBlank() && deletedIds.contains(doc.driveFileId))) {
@@ -702,12 +731,19 @@ class VaultRepository(private val context: Context) {
                 }
 
                 if (!existsRemotely) {
-                    val uploadedDoc = uploadDocumentToCloud(scriptUrl, doc)
-                    if (uploadedDoc != null) {
-                        finalDocs.add(uploadedDoc)
-                        uploadedCount++
+                    if (!doc.isSynced) {
+                        // Brand-new document created on this phone that needs upload
+                        val uploadedDoc = uploadDocumentToCloud(scriptUrl, doc)
+                        if (uploadedDoc != null) {
+                            finalDocs.add(uploadedDoc)
+                            uploadedCount++
+                        } else {
+                            finalDocs.add(doc)
+                        }
                     } else {
-                        finalDocs.add(doc)
+                        // This file was previously synced, but NO LONGER EXISTS in the cloud!
+                        // It was deleted from the shared cabinet, so purge it locally!
+                        try { File(doc.filePath).delete() } catch (_: Exception) {}
                     }
                 } else {
                     finalDocs.add(doc.copy(isSynced = true))

@@ -2011,6 +2011,21 @@ fun MainScreen(
                                 if (isScriptConnected) {
                                     OutlinedButton(
                                         onClick = {
+                                            repository.clearAllDocuments()
+                                            documents = emptyList()
+                                            Toast.makeText(context, "Pulling fresh copy from Shared Cabinet...", Toast.LENGTH_SHORT).show()
+                                            triggerSync(silent = false)
+                                        },
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier.fillMaxWidth().height(36.dp)
+                                    ) {
+                                        Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(14.dp), tint = TextDark)
+                                        Spacer(Modifier.width(6.dp))
+                                        Text("Fresh Sync (Replace with Shared Cabinet)", fontSize = 11.sp, color = TextDark, fontWeight = FontWeight.SemiBold)
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = {
                                             val shareText = "Here is our Clean Filing shared cabinet link. In Clean Filing Settings, paste this under 'Option 3: Shared File Cabinet':\n\n" + appsScriptUrlInput.trim()
                                             val intent = Intent(Intent.ACTION_SEND).apply {
                                                 type = "text/plain"
