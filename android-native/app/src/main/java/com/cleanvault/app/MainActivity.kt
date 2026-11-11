@@ -1019,7 +1019,7 @@ fun MainScreen(
                                             NeonHandle(width = 110.dp, height = 14.dp)
                                             Spacer(modifier = Modifier.height(6.dp))
                                             Text(
-                                                text = "OUT",
+                                                text = "FILES",
                                                 color = Color.White,
                                                 fontSize = 16.sp,
                                                 fontWeight = FontWeight.Black,
