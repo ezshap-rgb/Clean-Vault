@@ -797,48 +797,100 @@ fun MainScreen(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Header: Clean Filing + Clay Pill with Sync & Settings
-                        Row(
+                        // Professional App Header Card (App Icon, Clean Filing, STUDIO badge, Document filing system subheader)
+                        Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            shape = RoundedCornerShape(20.dp),
+                            color = CardWhite,
+                            shadowElevation = 3.dp,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
                         ) {
-                            Text(
-                                text = "🗄️ Clean Filing",
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.Black,
-                                color = TextDark
-                            )
-
-                            // Top-right white clay pill
-                            Surface(
-                                shape = RoundedCornerShape(20.dp),
-                                color = CardWhite,
-                                shadowElevation = 3.dp,
-                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
+                                // Left: App Icon + Clean Filing + STUDIO badge + Subtitle
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.app_icon),
+                                        contentDescription = "Clean Filing",
+                                        modifier = Modifier
+                                            .size(42.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .border(1.dp, BorderColor, RoundedCornerShape(12.dp)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    Column(verticalArrangement = Arrangement.Center) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = "Clean Filing",
+                                                fontSize = 17.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = TextDark
+                                            )
+                                            Surface(
+                                                shape = RoundedCornerShape(8.dp),
+                                                color = PurpleAccent.copy(alpha = 0.15f),
+                                                border = androidx.compose.foundation.BorderStroke(0.8.dp, PurpleAccent.copy(alpha = 0.5f))
+                                            ) {
+                                                Text(
+                                                    text = "STUDIO",
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = PurpleDark,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp)
+                                                )
+                                            }
+                                        }
+                                        Text(
+                                            text = "Document filing system",
+                                            fontSize = 11.5.sp,
+                                            color = TextSubtle,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
+
+                                // Right: Sync & Settings buttons
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    val hasCloud = repository.hasCloudConnection()
+                                    // Sync Button with animated rotation
                                     IconButton(
                                         onClick = { triggerSync(silent = false) },
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(32.dp)
                                     ) {
-                                        Text(
-                                            text = "☁️",
-                                            fontSize = 18.sp,
+                                        Icon(
+                                            Icons.Filled.Sync,
+                                            contentDescription = "Sync",
+                                            tint = if (isSyncing) AmberGold else if (hasCloud) EmeraldGreen else TextSubtle,
                                             modifier = if (isSyncing) Modifier.rotate(syncRotation) else Modifier
                                         )
                                     }
+
+                                    // Settings Button
                                     IconButton(
                                         onClick = { showSettingsModal = true },
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(32.dp)
                                     ) {
-                                        Text(text = "⚙️", fontSize = 18.sp)
+                                        Icon(
+                                            Icons.Filled.Settings,
+                                            contentDescription = "Settings",
+                                            tint = TextSubtle
+                                        )
                                     }
                                 }
                             }
