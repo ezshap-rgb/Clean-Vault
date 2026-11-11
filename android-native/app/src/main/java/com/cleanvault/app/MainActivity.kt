@@ -1367,7 +1367,7 @@ fun MainScreen(
                                                 docNameText = ""
                                                 labelsText = ""
                                                 isPinned = false
-                                                Toast.makeText(context, "Saved to Vault! 🗄️", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "Filed to Cabinet! 🗄️", Toast.LENGTH_SHORT).show()
                                                 currentScreen = AppScreen.FILE_CABINET
                                                 scope.launch {
                                                     repository.uploadDocAsync(doc)
@@ -1381,7 +1381,7 @@ fun MainScreen(
                                     shape = RoundedCornerShape(22.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = PurpleDark)
                                 ) {
-                                    Text("Save to Vault 🗄️", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                    Text("File to Cabinet 🗄️", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                 }
 
                                 // Cancel Button

@@ -175,10 +175,18 @@ class VaultRepository(private val context: Context) {
         val valid = rawList.filter { !deleted.contains(it.id) && (it.driveFileId == null || !deleted.contains(it.driveFileId)) }
 
         val dedupedMap = LinkedHashMap<String, VaultDocument>()
+        val genericNames = setOf("document", "doc", "unknown", "receipt", "scan", "vaultdocument", "")
         for (doc in valid) {
             val cleanName = doc.name.trim().lowercase()
-            val key = if (cleanName.isNotBlank()) "name_$cleanName" else {
-                if (!doc.driveFileId.isNullOrBlank()) "file_${doc.driveFileId}" else "id_${doc.id}"
+            val isGeneric = genericNames.contains(cleanName) || cleanName.matches(Regex("document \\d+.*"))
+            val key = if (cleanName.isNotBlank() && !isGeneric) {
+                "name_$cleanName"
+            } else if (!doc.driveFileId.isNullOrBlank()) {
+                "file_${doc.driveFileId}"
+            } else if (doc.filePath.isNotBlank()) {
+                "path_${doc.filePath}"
+            } else {
+                "id_${doc.id}"
             }
 
             val existing = dedupedMap[key]
@@ -238,7 +246,11 @@ class VaultRepository(private val context: Context) {
             )
         }
         val deduped = deduplicateList(list)
-        return deduped.sortedByDescending { if (it.timestamp > 0) it.timestamp else it.lastModified }
+        return deduped.sortedWith(
+            compareByDescending<VaultDocument> { if (it.timestamp > 0) it.timestamp else it.lastModified }
+                .thenByDescending { it.date }
+                .thenBy { it.name.lowercase() }
+        )
     }
 
     private fun saveDocuments(docs: List<VaultDocument>) {
@@ -467,7 +479,7 @@ class VaultRepository(private val context: Context) {
                         driveFileUrl = rUrl,
                         filePath = actualPath,
                         isSynced = true,
-                        timestamp = if (existing.timestamp > 0) existing.timestamp else remoteTimestamp
+                        timestamp = if (remoteTimestamp > 0) remoteTimestamp else existing.timestamp
                     )
                 } else {
                     val ext = if (rMime.contains("pdf")) "pdf" else if (rMime.contains("text")) "txt" else "jpg"
@@ -585,32 +597,16 @@ class VaultRepository(private val context: Context) {
                 rawRemoteList.add(r)
             }
 
-            // Deduplicate remote records by document name: keep only the newest record, clean older duplicate rows
+            // Map remote records: never auto-delete rows from cloud during fetch
             val remoteMap = LinkedHashMap<String, JSONObject>()
-            val nameGroups = rawRemoteList.groupBy { (it.optString("name").ifBlank { it.optString("vendor") }).trim().lowercase() }
-            for ((normName, group) in nameGroups) {
-                if (normName.isBlank()) continue
-                // Sort group so newest row is first
-                val sortedGroup = group.sortedByDescending {
-                    val ts = parseTimestamp(it.opt("timestamp"), it.opt("date"))
-                    val rowId = it.optInt("rowId", 0)
-                    ts + rowId
-                }
-                val winner = sortedGroup.first()
-                val rawDocId = winner.optString("docId").ifBlank { winner.optString("docID") }
-                val remoteFileId = winner.optString("fileId").ifBlank { winner.optString("fileID") }
+            val genericNames = setOf("document", "doc", "unknown", "receipt", "scan", "vaultdocument", "")
+            for (r in rawRemoteList) {
+                val rawDocId = r.optString("docId").ifBlank { r.optString("docID") }
+                val remoteFileId = r.optString("fileId").ifBlank { r.optString("fileID") }
                 val effectiveDocId = rawDocId.ifBlank {
-                    if (remoteFileId.isNotBlank()) "file_$remoteFileId" else "row_${winner.optInt("rowId")}"
+                    if (remoteFileId.isNotBlank()) "file_$remoteFileId" else "row_${r.optInt("rowId")}"
                 }
-                remoteMap[effectiveDocId] = winner
-
-                // Clean up any older duplicate rows in the Google Sheet
-                for (duplicate in sortedGroup.drop(1)) {
-                    val dDocId = duplicate.optString("docId").ifBlank { duplicate.optString("docID") }
-                    val dFileId = duplicate.optString("fileId").ifBlank { duplicate.optString("fileID") }
-                    val dName = duplicate.optString("name").ifBlank { duplicate.optString("vendor") }
-                    deleteDocRemoteAsync(dDocId, dFileId, dName)
-                }
+                remoteMap[effectiveDocId] = r
             }
 
             // Start with current local documents
@@ -671,7 +667,7 @@ class VaultRepository(private val context: Context) {
                         driveFileUrl = remoteFileUrl.ifBlank { existing.driveFileUrl },
                         filePath = actualPath,
                         isSynced = true,
-                        timestamp = if (existing.timestamp > 0) existing.timestamp else remoteTimestamp
+                        timestamp = if (remoteTimestamp > 0) remoteTimestamp else existing.timestamp
                     )
                 } else {
                     var localFilePath = ""
