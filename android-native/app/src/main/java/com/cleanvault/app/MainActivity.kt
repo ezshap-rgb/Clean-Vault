@@ -410,7 +410,6 @@ fun MainScreen(
     var isPinned by remember { mutableStateOf(false) }
 
     var showSettingsModal by remember { mutableStateOf(false) }
-    var showGuideModal by remember { mutableStateOf(false) }
     var appsScriptUrlInput by remember { mutableStateOf(repository.getScriptUrl()) }
     var isTestingScript by remember { mutableStateOf(false) }
     var cabinetSearchQuery by remember { mutableStateOf("") }
@@ -1698,59 +1697,86 @@ fun MainScreen(
                             }
                         }
 
-                        // 1. Direct Google Drive Connection (Wife / Self)
+                        // ============================================
+                        // OPTION 1: LOCAL ONLY (NO CLOUD SETUP)
+                        // ============================================
+                        val hasAnyCloud = googleAccountEmail.isNotBlank() || appsScriptUrlInput.isNotBlank()
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(18.dp),
-                            color = SurfaceRaised,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, if (googleAccountEmail.isNotBlank()) EmeraldGreen.copy(alpha = 0.5f) else BorderColor)
+                            color = if (!hasAnyCloud) Color(0xFFF0FDF4) else SurfaceRaised,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (!hasAnyCloud) EmeraldGreen.copy(alpha = 0.5f) else BorderColor)
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text("📱", fontSize = 18.sp)
+                                    Text("Option 1: Local Only (Offline)", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
+                                    if (!hasAnyCloud) {
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = EmeraldGreen.copy(alpha = 0.15f)
+                                        ) {
+                                            Text("ACTIVE", fontSize = 9.sp, fontWeight = FontWeight.Black, color = EmeraldGreen, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                                        }
+                                    }
+                                }
+                                Text(
+                                    "Everything stays private on this phone. Zero cloud connection or accounts required.",
+                                    fontSize = 11.5.sp,
+                                    color = TextSubtle,
+                                    lineHeight = 16.sp
+                                )
+                            }
+                        }
+
+                        // ============================================
+                        // OPTION 2: PRIVATE GOOGLE DRIVE (1-TAP)
+                        // ============================================
+                        val isDriveConnected = googleAccountEmail.isNotBlank()
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            color = if (isDriveConnected) Color(0xFFFAF5FF) else SurfaceRaised,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isDriveConnected) PurpleAccent.copy(alpha = 0.5f) else BorderColor)
                         ) {
                             Column(
                                 modifier = Modifier.padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Surface(
-                                        modifier = Modifier.size(28.dp),
-                                        shape = CircleShape,
-                                        color = if (googleAccountEmail.isNotBlank()) EmeraldGreen.copy(alpha = 0.2f) else PurpleDark.copy(alpha = 0.15f)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Text(
-                                                if (googleAccountEmail.isNotBlank()) "✓" else "G",
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (googleAccountEmail.isNotBlank()) EmeraldGreen else PurpleDark,
-                                                fontSize = 13.sp
-                                            )
+                                    Text("☁️", fontSize = 18.sp)
+                                    Text("Option 2: Private Google Drive", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
+                                    if (isDriveConnected) {
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = PurpleAccent.copy(alpha = 0.15f)
+                                        ) {
+                                            Text("CONNECTED", fontSize = 9.sp, fontWeight = FontWeight.Black, color = PurpleDark, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
                                         }
                                     }
-                                    Text("Google Drive Backup", fontWeight = FontWeight.Bold, fontSize = 14.5.sp, color = TextDark)
                                 }
+                                Text(
+                                    "One-tap connection for your own private backup. Automatically stores and syncs your documents and notes in a 'Clean Filing' folder in your personal Google Drive.",
+                                    fontSize = 11.5.sp,
+                                    color = TextSubtle,
+                                    lineHeight = 16.sp
+                                )
 
-                                if (googleAccountEmail.isNotBlank()) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                        Text("Connected account:", fontSize = 11.sp, color = TextSubtle)
-                                        Text(
-                                            text = googleAccountEmail,
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = EmeraldGreen
-                                        )
-                                        Text(
-                                            text = "Sync folder: Google Drive / Clean Filing",
-                                            fontSize = 11.sp,
-                                            color = TextFaint
-                                        )
+                                if (isDriveConnected) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text("Account: $googleAccountEmail", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = EmeraldGreen)
+                                        Text("Folder: Google Drive / Clean Filing", fontSize = 11.sp, color = TextFaint)
                                     }
-
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        // Sync Now Button
                                         Button(
                                             onClick = { triggerSync(silent = false) },
                                             colors = ButtonDefaults.buttonColors(containerColor = PurpleDark),
@@ -1761,27 +1787,6 @@ fun MainScreen(
                                             Spacer(Modifier.width(4.dp))
                                             Text("Sync Now", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
                                         }
-
-                                        // Share Folder with Wife / Family
-                                        OutlinedButton(
-                                            onClick = {
-                                                val folderId = repository.getGoogleFolderId()
-                                                val folderUrl = if (folderId.isNotBlank()) "https://drive.google.com/drive/folders/$folderId" else "https://drive.google.com"
-                                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                                    type = "text/plain"
-                                                    putExtra(Intent.EXTRA_TEXT, "Here is our shared Clean Filing folder on Google Drive:\n$folderUrl")
-                                                }
-                                                context.startActivity(Intent.createChooser(shareIntent, "Share Clean Filing folder"))
-                                            },
-                                            shape = RoundedCornerShape(12.dp),
-                                            modifier = Modifier.weight(1f).height(38.dp)
-                                        ) {
-                                            Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = PurpleDark)
-                                            Spacer(Modifier.width(4.dp))
-                                            Text("Share Folder", fontSize = 11.sp, color = PurpleDark, fontWeight = FontWeight.SemiBold)
-                                        }
-
-                                        // Disconnect Button
                                         OutlinedButton(
                                             onClick = { disconnectGoogleAccount() },
                                             shape = RoundedCornerShape(12.dp),
@@ -1792,13 +1797,6 @@ fun MainScreen(
                                         }
                                     }
                                 } else {
-                                    Text(
-                                        text = "One-tap connection to your personal Google Drive. Automatically stores and syncs documents with your family in a visible 'Clean Filing' folder with zero server setup.",
-                                        color = TextSubtle,
-                                        fontSize = 12.sp,
-                                        lineHeight = 16.sp
-                                    )
-
                                     Button(
                                         onClick = { startGoogleSignIn() },
                                         colors = ButtonDefaults.buttonColors(containerColor = PurpleDark),
@@ -1813,12 +1811,15 @@ fun MainScreen(
                             }
                         }
 
-                        // 2. Family Cloud Backup & Son Setup Card
+                        // ============================================
+                        // OPTION 3: SHARED FILE CABINET (PASTE URL)
+                        // ============================================
+                        val isScriptConnected = appsScriptUrlInput.isNotBlank()
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(18.dp),
-                            color = Color(0xFFFAF5FF),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDDD6FE))
+                            color = if (isScriptConnected) Color(0xFFEFF6FF) else SurfaceRaised,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isScriptConnected) Color(0xFF60A5FA) else BorderColor)
                         ) {
                             Column(
                                 modifier = Modifier.padding(14.dp),
@@ -1828,66 +1829,24 @@ fun MainScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Text("👨‍👩‍👧", fontSize = 18.sp)
-                                    Text("Family & Son Setup Guide", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
+                                    Text("🤝", fontSize = 18.sp)
+                                    Text("Option 3: Shared File Cabinet", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
+                                    if (isScriptConnected) {
+                                        Surface(
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = Color(0xFFDBEAFE)
+                                        ) {
+                                            Text("SHARED", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color(0xFF1D4ED8), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                                        }
+                                    }
                                 }
                                 Text(
-                                    text = "Instructions and complete backend code to set up private cloud backup for your wife or son on their phone.",
+                                    "To share a mutual cabinet between spouses or partners: paste the shared vault link you received below.",
                                     fontSize = 11.5.sp,
                                     color = TextSubtle,
                                     lineHeight = 16.sp
                                 )
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Button(
-                                        onClick = { showGuideModal = true },
-                                        colors = ButtonDefaults.buttonColors(containerColor = PurpleDark),
-                                        shape = RoundedCornerShape(12.dp),
-                                        modifier = Modifier.weight(1f).height(38.dp)
-                                    ) {
-                                        Text("📖 Open Setup Guide", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                    OutlinedButton(
-                                        onClick = {
-                                            val shareText = "Clean Vault Setup Instructions for Family:\n\n" +
-                                                    "Option 1 (Easiest): Install CleanVault.apk and tap 'Sign in with Google' in Settings.\n\n" +
-                                                    "Option 2 (Google Apps Script): Open script.google.com, create a project, paste Code.gs, deploy as Web App (Anyone), and paste the Web App URL in Clean Vault Settings."
-                                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                                type = "text/plain"
-                                                putExtra(Intent.EXTRA_TEXT, shareText)
-                                            }
-                                            context.startActivity(Intent.createChooser(sendIntent, "Share Setup Instructions"))
-                                        },
-                                        shape = RoundedCornerShape(12.dp),
-                                        modifier = Modifier.weight(1f).height(38.dp)
-                                    ) {
-                                        Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = PurpleDark)
-                                        Spacer(Modifier.width(4.dp))
-                                        Text("Share with Son", fontSize = 11.sp, color = PurpleDark, fontWeight = FontWeight.SemiBold)
-                                    }
-                                }
-                            }
-                        }
 
-                        // 3. Custom Google Apps Script Web App (Optional / Advanced)
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
-                            color = SurfaceRaised,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text("Google Apps Script Web App (Optional)", fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = TextDark)
-                                Text(
-                                    "If using a custom Google Apps Script project, enter the deployed Web App URL here:",
-                                    fontSize = 11.sp,
-                                    color = TextSubtle
-                                )
                                 BasicTextField(
                                     value = appsScriptUrlInput,
                                     onValueChange = { appsScriptUrlInput = it },
@@ -1900,6 +1859,7 @@ fun MainScreen(
                                         .padding(horizontal = 10.dp, vertical = 8.dp),
                                     singleLine = true
                                 )
+
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1907,195 +1867,50 @@ fun MainScreen(
                                     Button(
                                         onClick = {
                                             repository.setScriptUrl(appsScriptUrlInput.trim())
-                                            Toast.makeText(context, "Saved Apps Script URL", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, if (appsScriptUrlInput.isNotBlank()) "Connected to Shared Cabinet!" else "Disconnected Shared Cabinet", Toast.LENGTH_SHORT).show()
                                             if (appsScriptUrlInput.isNotBlank()) triggerSync(silent = false)
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = PurpleDark),
                                         shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.weight(1f).height(34.dp)
+                                        modifier = Modifier.weight(1f).height(36.dp)
                                     ) {
-                                        Text("Save URL", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        Text(if (isScriptConnected) "Save Link" else "Connect Shared Link", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                     }
-                                    OutlinedButton(
-                                        onClick = {
-                                            if (appsScriptUrlInput.isBlank()) {
-                                                Toast.makeText(context, "Please enter a URL first", Toast.LENGTH_SHORT).show()
-                                            } else {
-                                                isTestingScript = true
-                                                scope.launch {
-                                                    val (ok, msg) = repository.testConnection(appsScriptUrlInput.trim())
-                                                    isTestingScript = false
-                                                    Toast.makeText(context, if (ok) "✓ $msg" else "Error: $msg", Toast.LENGTH_LONG).show()
-                                                }
-                                            }
-                                        },
-                                        shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.weight(1f).height(34.dp)
-                                    ) {
-                                        Text(if (isTestingScript) "Testing..." else "Test Connection", fontSize = 11.sp)
+
+                                    if (isScriptConnected) {
+                                        OutlinedButton(
+                                            onClick = {
+                                                appsScriptUrlInput = ""
+                                                repository.setScriptUrl("")
+                                                Toast.makeText(context, "Removed Shared Link", Toast.LENGTH_SHORT).show()
+                                            },
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.height(36.dp)
+                                        ) {
+                                            Text("Disconnect", fontSize = 11.sp, color = RoseRed)
+                                        }
                                     }
                                 }
 
-                                if (appsScriptUrlInput.isNotBlank()) {
+                                if (isScriptConnected) {
                                     OutlinedButton(
                                         onClick = {
-                                            val shareText = "Here is our Clean Vault shared URL. Paste this into Clean Vault Settings on your phone:\\n\\n" + appsScriptUrlInput.trim()
+                                            val shareText = "Here is our Clean Vault shared cabinet link. In Clean Vault Settings, paste this under 'Option 3: Shared File Cabinet':\n\n" + appsScriptUrlInput.trim()
                                             val intent = Intent(Intent.ACTION_SEND).apply {
                                                 type = "text/plain"
                                                 putExtra(Intent.EXTRA_TEXT, shareText)
                                             }
-                                            context.startActivity(Intent.createChooser(intent, "Share Shared Vault URL with Wife"))
+                                            context.startActivity(Intent.createChooser(intent, "Share Vault Link"))
                                         },
                                         shape = RoundedCornerShape(10.dp),
                                         modifier = Modifier.fillMaxWidth().height(36.dp)
                                     ) {
                                         Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = PurpleDark)
                                         Spacer(Modifier.width(6.dp))
-                                        Text("Share Shared Vault URL with Wife", fontSize = 11.sp, color = PurpleDark, fontWeight = FontWeight.SemiBold)
+                                        Text("Send Shared Link to Partner / Wife", fontSize = 11.sp, color = PurpleDark, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
                             }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // BACKUP SETUP GUIDE MODAL (FOR SON / FAMILY)
-    if (showGuideModal) {
-        BasicAlertDialog(
-            onDismissRequest = { showGuideModal = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            val dialogDensity = LocalDensity.current
-            CompositionLocalProvider(
-                LocalDensity provides Density(
-                    density = dialogDensity.density,
-                    fontScale = 1.0f
-                )
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(26.dp),
-                    color = CardWhite,
-                    shadowElevation = 6.dp,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .padding(20.dp)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        // Header
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("📖", fontSize = 20.sp)
-                                Text("Cloud Backup Setup Guide", fontSize = 17.sp, fontWeight = FontWeight.Black, color = TextDark)
-                            }
-                            IconButton(onClick = { showGuideModal = false }, modifier = Modifier.size(28.dp)) {
-                                Icon(Icons.Filled.Close, contentDescription = null, tint = TextSubtle)
-                            }
-                        }
-
-                        // Card 1: Easy Method (Google Sign-In)
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            color = SurfaceRaised,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
-                        ) {
-                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text("Option A: 1-Tap Google Drive (Easiest)", fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = TextDark)
-                                Text(
-                                    "1. Install CleanVault.apk on their Android phone.\n" +
-                                    "2. Open Clean Vault and tap Settings ⚙️ at top right.\n" +
-                                    "3. Tap 'Sign in with Google' and choose their account.\n\n" +
-                                    "That's all! Their documents and notes will back up to their own Google Drive in a 'Clean Filing' folder automatically with zero server setup.",
-                                    fontSize = 12.sp,
-                                    color = TextSubtle,
-                                    lineHeight = 17.sp
-                                )
-                            }
-                        }
-
-                        // Card 2: Google Apps Script Method (With code to paste)
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFFFAF5FF),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFDDD6FE))
-                        ) {
-                            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("Option B: Custom Google Apps Script Backend", fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = TextDark)
-                                Text(
-                                    "If they want a shared family ledger or a standalone script backend:\n\n" +
-                                    "1. On a computer or browser, go to: script.google.com\n" +
-                                    "2. Click '+ New project'.\n" +
-                                    "3. Delete default code, then tap the button below to copy the complete Code.gs script to your clipboard and paste it into the editor.\n" +
-                                    "4. Click Deploy → New deployment → Web app.\n" +
-                                    "   • Set 'Execute as': Me\n" +
-                                    "   • Set 'Who has access': Anyone\n" +
-                                    "5. Copy the Web App URL and paste it into Clean Vault Settings.",
-                                    fontSize = 12.sp,
-                                    color = TextSubtle,
-                                    lineHeight = 17.sp
-                                )
-
-                                // Big prominent Copy Code button!
-                                Button(
-                                    onClick = {
-                                        try {
-                                            val codeText = context.assets.open("Code.gs").bufferedReader().use { it.readText() }
-                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                            val clip = ClipData.newPlainText("Clean Vault Code.gs", codeText)
-                                            clipboard.setPrimaryClip(clip)
-                                            Toast.makeText(context, "Copied Code.gs to clipboard! (381 lines) 📋", Toast.LENGTH_LONG).show()
-                                        } catch (e: Exception) {
-                                            Toast.makeText(context, "Could not load script: ${e.message}", Toast.LENGTH_SHORT).show()
-                                        }
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = PurpleDark),
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.fillMaxWidth().height(42.dp)
-                                ) {
-                                    Icon(Icons.Filled.ContentCopy, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("📋 Copy Complete Code.gs Script", fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        }
-
-                        // Share Guide Button
-                        Button(
-                            onClick = {
-                                val guide = "Clean Vault Cloud Backup Guide:\n\n" +
-                                        "Option 1 (One-Tap Google Drive):\n" +
-                                        "Open Clean Vault on phone -> Settings ⚙️ -> Sign in with Google.\n\n" +
-                                        "Option 2 (Google Apps Script):\n" +
-                                        "1. Open https://script.google.com\n" +
-                                        "2. Create project 'Clean Vault Backend'\n" +
-                                        "3. Paste Code.gs backend script\n" +
-                                        "4. Deploy as Web App (Execute as: Me, Access: Anyone)\n" +
-                                        "5. Paste the Web App URL in Clean Vault Settings."
-                                val intent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, guide)
-                                }
-                                context.startActivity(Intent.createChooser(intent, "Share Setup Guide with Family"))
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = PurpleAccent),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth().height(40.dp)
-                        ) {
-                            Icon(Icons.Filled.Share, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("↗️ Share Instructions with Son", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
