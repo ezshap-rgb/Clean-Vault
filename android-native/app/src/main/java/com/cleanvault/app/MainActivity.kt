@@ -399,6 +399,8 @@ fun MainScreen(
 
     var documents by remember { mutableStateOf(repository.getDocuments()) }
     var isSyncing by remember { mutableStateOf(false) }
+    var syncRequested by remember { mutableStateOf(false) }
+    var cloudSyncStatus by remember { mutableStateOf(repository.getCloudSyncStatus()) }
 
     var currentScreen by remember { mutableStateOf(AppScreen.HOME) }
 
@@ -419,6 +421,9 @@ fun MainScreen(
     // Rename Dialog state
     var docToRename by remember { mutableStateOf<VaultDocument?>(null) }
     var docToDelete by remember { mutableStateOf<VaultDocument?>(null) }
+    var showTrash by remember { mutableStateOf(false) }
+    var trashedDocuments by remember { mutableStateOf(repository.getTrash()) }
+    var isUpdatingTrash by remember { mutableStateOf(false) }
 
     // Quick Note Dialog & Reader state
     var showNoteDialog by remember { mutableStateOf(false) }
@@ -457,7 +462,6 @@ fun MainScreen(
 
     // Cloud Sync Runner
     fun triggerSync(silent: Boolean = false) {
-        if (isSyncing) return
         val hasCloud = repository.hasCloudConnection()
         if (!hasCloud) {
             if (!silent) {
@@ -466,21 +470,36 @@ fun MainScreen(
             }
             return
         }
+        if (isSyncing) {
+            syncRequested = true
+            return
+        }
 
         isSyncing = true
         scope.launch {
-            val result = repository.syncWithCloud()
-            isSyncing = false
-            result.onSuccess { summary ->
-                documents = repository.getDocuments()
-                val msg = if (summary.downloaded > 0 || summary.uploaded > 0) {
-                    "Synced: +${summary.downloaded} new, ^${summary.uploaded} uploaded (${summary.total} total)"
-                } else {
-                    "Clean Filing up to date (${summary.total} docs)"
-                }
-                if (!silent) Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-            }.onFailure { err ->
-                if (!silent) Toast.makeText(context, "Sync error: ${err.message}", Toast.LENGTH_LONG).show()
+            try {
+                do {
+                    syncRequested = false
+                    val result = repository.syncWithCloud()
+                    documents = repository.getDocuments()
+                    cloudSyncStatus = repository.getCloudSyncStatus()
+                    if (!silent) {
+                        val message = result.fold(
+                            onSuccess = { summary ->
+                                when {
+                                    summary.failed > 0 -> "Sync incomplete. ${summary.failed} files need retry."
+                                    summary.downloaded > 0 || summary.uploaded > 0 ->
+                                        "Synced ${summary.downloaded} new and ${summary.uploaded} uploaded"
+                                    else -> "Clean Filing up to date"
+                                }
+                            },
+                            onFailure = { "Sync failed. Tap Retry in the File Cabinet." }
+                        )
+                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                    }
+                } while (syncRequested && repository.hasCloudConnection())
+            } finally {
+                isSyncing = false
             }
         }
     }
@@ -532,9 +551,7 @@ fun MainScreen(
                     triggerSync(silent = true)
                 }
                 Lifecycle.Event.ON_STOP -> {
-                    scope.launch {
-                        repository.syncWithCloud()
-                    }
+                    triggerSync(silent = true)
                 }
                 else -> {}
             }
@@ -1355,7 +1372,7 @@ fun MainScreen(
                                         if (temp != null && temp.exists()) {
                                             val finalName = if (docNameText.isNotBlank()) docNameText.trim() else "Document ${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}"
                                             scope.launch {
-                                                val doc = repository.saveFileToVault(
+                                                repository.saveFileToVault(
                                                     name = finalName,
                                                     notes = labelsText.trim(),
                                                     isPinned = isPinned,
@@ -1369,9 +1386,7 @@ fun MainScreen(
                                                 isPinned = false
                                                 Toast.makeText(context, "Filed to Cabinet! 🗄️", Toast.LENGTH_SHORT).show()
                                                 currentScreen = AppScreen.FILE_CABINET
-                                                scope.launch {
-                                                    repository.uploadDocAsync(doc)
-                                                }
+                                                triggerSync(silent = true)
                                             }
                                         }
                                     },
@@ -1501,10 +1516,10 @@ fun MainScreen(
                                             }
                                         },
                                         onTogglePin = {
-                                            val updated = repository.togglePin(doc.id)
-                                            documents = updated
-                                            val targetDoc = updated.find { it.id == doc.id } ?: doc.copy(isPinned = !doc.isPinned)
-                                            scope.launch { repository.togglePinRemoteAsync(targetDoc) }
+                                            scope.launch {
+                                                documents = repository.togglePin(doc.id)
+                                                triggerSync(silent = true)
+                                            }
                                         },
                                         onShare = { shareDocumentFile(context, doc) },
                                         onDelete = { docToDelete = doc }
@@ -1560,12 +1575,43 @@ fun MainScreen(
                                     color = TextDark
                                 )
                             }
-                            Text(
-                                text = "${documents.size} files",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextSubtle
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "${documents.size} files",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextSubtle
+                                )
+                                IconButton(onClick = {
+                                    trashedDocuments = repository.getTrash()
+                                    showTrash = true
+                                }) {
+                                    Icon(Icons.Filled.Delete, contentDescription = "Open Trash", tint = TextSubtle)
+                                }
+                            }
+                        }
+
+                        if (repository.hasCloudConnection()) {
+                            val pending = documents.count { !it.isSynced }
+                            val status = when {
+                                isSyncing -> "Syncing…"
+                                cloudSyncStatus.needsRetry -> "Sync incomplete"
+                                pending > 0 -> "$pending pending"
+                                cloudSyncStatus.lastSuccess > 0 ->
+                                    "Last synced ${java.text.DateFormat.getDateTimeInstance().format(Date(cloudSyncStatus.lastSuccess))}"
+                                else -> "Ready to sync"
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(status, modifier = Modifier.weight(1f), fontSize = 12.sp, color = TextSubtle)
+                                if (!isSyncing && (cloudSyncStatus.needsRetry || pending > 0)) {
+                                    TextButton(onClick = { triggerSync() }) {
+                                        Text(if (cloudSyncStatus.needsRetry) "Retry" else "Sync now")
+                                    }
+                                }
+                            }
                         }
 
                         // Search Bar & Filter
@@ -1692,10 +1738,10 @@ fun MainScreen(
                                             }
                                         },
                                         onTogglePin = {
-                                            val updated = repository.togglePin(doc.id)
-                                            documents = updated
-                                            val targetDoc = updated.find { it.id == doc.id } ?: doc.copy(isPinned = !doc.isPinned)
-                                            scope.launch { repository.togglePinRemoteAsync(targetDoc) }
+                                            scope.launch {
+                                                documents = repository.togglePin(doc.id)
+                                                triggerSync(silent = true)
+                                            }
                                         },
                                         onShare = { shareDocumentFile(context, doc) },
                                         onDelete = { docToDelete = doc }
@@ -2011,10 +2057,12 @@ fun MainScreen(
                                 if (isScriptConnected) {
                                     OutlinedButton(
                                         onClick = {
-                                            repository.clearAllDocuments()
-                                            documents = emptyList()
-                                            Toast.makeText(context, "Pulling fresh copy from Shared Cabinet...", Toast.LENGTH_SHORT).show()
-                                            triggerSync(silent = false)
+                                            scope.launch {
+                                                repository.clearAllDocuments()
+                                                documents = repository.getDocuments()
+                                                Toast.makeText(context, "Pulling fresh copy from Shared Cabinet...", Toast.LENGTH_SHORT).show()
+                                                triggerSync(silent = false)
+                                            }
                                         },
                                         shape = RoundedCornerShape(10.dp),
                                         modifier = Modifier.fillMaxWidth().height(36.dp)
@@ -2139,14 +2187,14 @@ fun MainScreen(
 
                             Button(
                                 onClick = {
-                                    val updated = repository.renameDocument(target.id, editName.trim(), editLabels.trim())
-                                    documents = updated
-                                    val targetDoc = updated.find { it.id == target.id } ?: target
-                                    scope.launch {
-                                        repository.updateDocRemoteAsync(targetDoc, editName.trim(), editLabels.trim())
-                                    }
+                                    val name = editName.trim()
+                                    val labels = editLabels.trim()
                                     docToRename = null
-                                    Toast.makeText(context, "Document updated", Toast.LENGTH_SHORT).show()
+                                    scope.launch {
+                                        documents = repository.renameDocument(target.id, name, labels)
+                                        triggerSync(silent = true)
+                                        Toast.makeText(context, "Document updated", Toast.LENGTH_SHORT).show()
+                                    }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = AccentColor),
                                 shape = RoundedCornerShape(10.dp),
@@ -2164,42 +2212,108 @@ fun MainScreen(
     // FILE CABINET FULL SCREEN MODAL / DIALOG (WIDE, SPACIOUS, NOT THIN)
 
     
-    // DELETE CONFIRMATION DIALOG
+    if (showTrash) {
+        AlertDialog(
+            onDismissRequest = { if (!isUpdatingTrash) showTrash = false },
+            containerColor = CardWhite,
+            title = { Text("Trash", color = TextDark, fontWeight = FontWeight.Bold) },
+            text = {
+                if (trashedDocuments.isEmpty()) {
+                    Text("Trash is empty.", color = TextSubtle)
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.heightIn(max = 360.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(trashedDocuments, key = { it.document.id }) { entry ->
+                            val document = entry.document
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(document.name, color = TextDark, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                    val date = java.text.DateFormat.getDateInstance().format(Date(entry.trashedAt))
+                                    Text("Moved to Trash $date", fontSize = 12.sp, color = TextSubtle)
+                                }
+                                TextButton(
+                                    enabled = !isUpdatingTrash,
+                                    onClick = {
+                                        isUpdatingTrash = true
+                                        scope.launch {
+                                            try {
+                                                if (repository.restoreFromTrash(document.id)) {
+                                                    documents = repository.getDocuments()
+                                                    trashedDocuments = repository.getTrash()
+                                                    Toast.makeText(context, "Restored \"${document.name}\"", Toast.LENGTH_SHORT).show()
+                                                    triggerSync(silent = true)
+                                                } else {
+                                                    Toast.makeText(context, "The local file is missing.", Toast.LENGTH_LONG).show()
+                                                }
+                                            } finally {
+                                                isUpdatingTrash = false
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Text("Restore")
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = !isUpdatingTrash, onClick = { showTrash = false }) {
+                    Text("Done")
+                }
+            }
+        )
+    }
+
+    // MOVE TO TRASH CONFIRMATION DIALOG
     if (docToDelete != null) {
         val target = docToDelete!!
         AlertDialog(
-            onDismissRequest = { docToDelete = null },
+            onDismissRequest = { if (!isUpdatingTrash) docToDelete = null },
             shape = RoundedCornerShape(24.dp),
             containerColor = CardWhite,
             title = {
-                Text("Delete Document", fontWeight = FontWeight.Bold, color = TextDark)
+                Text("Move to Trash", fontWeight = FontWeight.Bold, color = TextDark)
             },
             text = {
                 Text(
-                    "Are you sure you want to delete \"${target.name}\"? This cannot be undone.",
+                    "Move \"${target.name}\" to Trash? You can restore it from the File Cabinet on this device.",
                     color = TextSubtle,
                     fontSize = 14.sp
                 )
             },
             confirmButton = {
                 Button(
+                    enabled = !isUpdatingTrash,
                     onClick = {
-                        val updated = repository.deleteDocument(target.id)
-                        documents = updated
+                        isUpdatingTrash = true
                         scope.launch {
-                            repository.deleteDocRemoteAsync(target.id, target.driveFileId, target.name)
+                            try {
+                                if (repository.moveToTrash(target.id)) {
+                                    documents = repository.getDocuments()
+                                    docToDelete = null
+                                    Toast.makeText(context, "Moved to Trash", Toast.LENGTH_SHORT).show()
+                                    triggerSync(silent = true)
+                                } else {
+                                    Toast.makeText(context, "Could not save a recoverable copy. Try syncing and try again.", Toast.LENGTH_LONG).show()
+                                }
+                            } finally {
+                                isUpdatingTrash = false
+                            }
                         }
-                        Toast.makeText(context, "Deleted \"${target.name}\"", Toast.LENGTH_SHORT).show()
-                        docToDelete = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = RedPin),
                     shape = RoundedCornerShape(14.dp)
                 ) {
-                    Text("Delete", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text("Move to Trash", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(
+                    enabled = !isUpdatingTrash,
                     onClick = { docToDelete = null },
                     shape = RoundedCornerShape(14.dp)
                 ) {
@@ -2615,24 +2729,22 @@ fun MainScreen(
 
                                 Button(
                                     onClick = {
-                                        try {
-                                            val updatedName = noteTitleEdit.trim().ifBlank { noteDoc.name }
-                                            val updatedNotes = noteLabelsEdit.trim()
-                                            repository.renameDocument(noteDoc.id, updatedName, updatedNotes)
-                                            val updated = repository.updateNoteContent(noteDoc.id, noteEditText)
-                                            if (updated != null) {
-                                                val finalDoc = updated.copy(name = updatedName, notes = updatedNotes)
-                                                noteDocToView = finalDoc
-                                                documents = repository.getDocuments()
-                                                scope.launch {
-                                                    repository.updateDocRemoteAsync(finalDoc, updatedName, updatedNotes)
-                                                    repository.updateNoteRemoteAsync(finalDoc, noteEditText)
+                                        val updatedName = noteTitleEdit.trim().ifBlank { noteDoc.name }
+                                        val updatedNotes = noteLabelsEdit.trim()
+                                        val content = noteEditText
+                                        scope.launch {
+                                            try {
+                                                val updated = repository.updateNote(noteDoc.id, updatedName, updatedNotes, content)
+                                                if (updated != null) {
+                                                    noteDocToView = updated
+                                                    documents = repository.getDocuments()
+                                                    isEditingNote = false
+                                                    triggerSync(silent = true)
+                                                    Toast.makeText(context, "Note saved", Toast.LENGTH_SHORT).show()
                                                 }
+                                            } catch (e: java.io.IOException) {
+                                                Toast.makeText(context, "Failed to save: ${e.message}", Toast.LENGTH_SHORT).show()
                                             }
-                                            isEditingNote = false
-                                            Toast.makeText(context, "Note saved successfully! ✅", Toast.LENGTH_SHORT).show()
-                                        } catch (e: Exception) {
-                                            Toast.makeText(context, "Failed to save: ${e.message}", Toast.LENGTH_SHORT).show()
                                         }
                                     },
                                     colors = ButtonDefaults.buttonColors(containerColor = PurpleDark),

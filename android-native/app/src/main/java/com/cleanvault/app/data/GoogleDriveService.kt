@@ -170,10 +170,11 @@ class GoogleDriveService(private val context: Context) {
         }
     }
 
-    suspend fun updateFileProperties(token: String, fileId: String, properties: Map<String, String>): Result<Boolean> = withContext(Dispatchers.IO) {
+    suspend fun updateFileProperties(token: String, fileId: String, name: String, properties: Map<String, String>): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
             val url = "https://www.googleapis.com/drive/v3/files/$fileId?fields=id,properties"
             val json = JSONObject().apply {
+                put("name", name)
                 val propObj = JSONObject()
                 properties.forEach { (k, v) -> propObj.put(k, v) }
                 put("properties", propObj)
@@ -196,28 +197,28 @@ class GoogleDriveService(private val context: Context) {
     suspend fun listDocuments(token: String, folderId: String): Result<List<JSONObject>> = withContext(Dispatchers.IO) {
         try {
             val query = "'$folderId' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'"
-            val url = "https://www.googleapis.com/drive/v3/files?q=${java.net.URLEncoder.encode(query, "UTF-8")}&fields=files(id,name,mimeType,description,properties,webViewLink,createdTime,modifiedTime)&pageSize=200"
-
-            val req = Request.Builder()
-                .url(url)
-                .addHeader("Authorization", "Bearer $token")
-                .get()
-                .build()
-
-            httpClient.newCall(req).execute().use { res ->
-                val body = res.body?.string() ?: ""
-                if (res.isSuccessful) {
+            val url = "https://www.googleapis.com/drive/v3/files?q=${java.net.URLEncoder.encode(query, "UTF-8")}&fields=nextPageToken,files(id,name,mimeType,description,properties,webViewLink,createdTime,modifiedTime)&pageSize=200"
+            val result = mutableListOf<JSONObject>()
+            var pageToken = ""
+            do {
+                val pageUrl = if (pageToken.isEmpty()) url else
+                    "$url&pageToken=${java.net.URLEncoder.encode(pageToken, "UTF-8")}"
+                val request = Request.Builder()
+                    .url(pageUrl)
+                    .addHeader("Authorization", "Bearer $token")
+                    .build()
+                pageToken = httpClient.newCall(request).execute().use { res ->
+                    val body = res.body?.string().orEmpty()
+                    check(res.isSuccessful) { "Failed to list files: $body" }
                     val json = JSONObject(body)
-                    val filesArray = json.optJSONArray("files") ?: JSONArray()
-                    val result = mutableListOf<JSONObject>()
-                    for (i in 0 until filesArray.length()) {
-                        result.add(filesArray.getJSONObject(i))
+                    val files = json.optJSONArray("files") ?: JSONArray()
+                    for (i in 0 until files.length()) {
+                        result.add(files.getJSONObject(i))
                     }
-                    Result.success(result)
-                } else {
-                    Result.failure(Exception("Failed to list files: $body"))
+                    json.optString("nextPageToken")
                 }
-            }
+            } while (pageToken.isNotEmpty())
+            Result.success(result)
         } catch (e: Exception) {
             Result.failure(e)
         }

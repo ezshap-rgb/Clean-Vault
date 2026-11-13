@@ -3,7 +3,10 @@ package com.cleanvault.app.data
 import android.accounts.Account
 import android.content.Context
 import android.util.Base64
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -12,7 +15,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -38,13 +40,19 @@ data class VaultDocument(
     val driveFileId: String? = null,
     val driveFileUrl: String? = null,
     val isSynced: Boolean = false,
-    val lastModified: Long = System.currentTimeMillis()
+    val lastModified: Long = System.currentTimeMillis(),
+    val contentPending: Boolean = false
 )
+
+data class TrashedDocument(val document: VaultDocument, val trashedAt: Long)
+
+data class CloudSyncStatus(val lastSuccess: Long, val needsRetry: Boolean)
 
 class VaultRepository(private val context: Context) {
 
     private val prefs = context.getSharedPreferences("clean_vault_meta", Context.MODE_PRIVATE)
     private val docsDir = File(context.filesDir, "vault_documents").apply { mkdirs() }
+    private val cloudMutex = Mutex()
 
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -82,6 +90,17 @@ class VaultRepository(private val context: Context) {
 
     fun hasCloudConnection(): Boolean {
         return getActiveCloudMode() != CloudSyncMode.LOCAL_ONLY
+    }
+
+    private fun syncStatusKey(): String = when (getActiveCloudMode()) {
+        CloudSyncMode.SHARED_CABINET -> "sync_shared:${getScriptUrl()}"
+        CloudSyncMode.GOOGLE_DRIVE -> "sync_drive:${getGoogleEmail()}"
+        CloudSyncMode.LOCAL_ONLY -> "sync_local"
+    }
+
+    fun getCloudSyncStatus(): CloudSyncStatus {
+        val key = syncStatusKey()
+        return CloudSyncStatus(prefs.getLong("$key:last_success", 0L), prefs.getBoolean("$key:retry", false))
     }
 
     fun getGoogleEmail(): String {
@@ -135,13 +154,6 @@ class VaultRepository(private val context: Context) {
         return prefs.getStringSet("deleted_doc_ids", emptySet()) ?: emptySet()
     }
 
-    private fun addDeletedId(id: String) {
-        if (id.isBlank()) return
-        val current = getDeletedIds().toMutableSet()
-        current.add(id.trim())
-        prefs.edit().putStringSet("deleted_doc_ids", current).apply()
-    }
-
     fun parseTimestamp(raw: Any?, fallbackDate: Any? = null): Long {
         if (raw is Number) return raw.toLong()
         val str = raw?.toString()?.trim() ?: ""
@@ -175,13 +187,8 @@ class VaultRepository(private val context: Context) {
         val valid = rawList.filter { !deleted.contains(it.id) && (it.driveFileId == null || !deleted.contains(it.driveFileId)) }
 
         val dedupedMap = LinkedHashMap<String, VaultDocument>()
-        val genericNames = setOf("document", "doc", "unknown", "receipt", "scan", "vaultdocument", "")
         for (doc in valid) {
-            val cleanName = doc.name.trim().lowercase()
-            val isGeneric = genericNames.contains(cleanName) || cleanName.matches(Regex("document \\d+.*"))
-            val key = if (cleanName.isNotBlank() && !isGeneric) {
-                "name_$cleanName"
-            } else if (!doc.driveFileId.isNullOrBlank()) {
+            val key = if (!doc.driveFileId.isNullOrBlank()) {
                 "file_${doc.driveFileId}"
             } else if (doc.filePath.isNotBlank()) {
                 "path_${doc.filePath}"
@@ -195,9 +202,6 @@ class VaultRepository(private val context: Context) {
             } else {
                 val winner = if (doc.lastModified >= existing.lastModified) doc else existing
                 val loser = if (doc.lastModified >= existing.lastModified) existing else doc
-                if (loser.filePath != winner.filePath && loser.filePath.isNotBlank()) {
-                    try { File(loser.filePath).delete() } catch (_: Exception) {}
-                }
                 val merged = winner.copy(
                     isPinned = if (winner.isSynced != loser.isSynced) {
                         if (!winner.isSynced) winner.isPinned else loser.isPinned
@@ -213,12 +217,12 @@ class VaultRepository(private val context: Context) {
         return dedupedMap.values.toList()
     }
 
-        fun clearAllDocuments() {
+    suspend fun clearAllDocuments() = cloudMutex.withLock {
         val current = getDocuments()
-        for (doc in current) {
+        for (doc in current.filter { it.isSynced }) {
             try { File(doc.filePath).delete() } catch (_: Exception) {}
         }
-        prefs.edit().putString("documents_list", "[]").apply()
+        saveDocuments(current.filterNot { it.isSynced })
     }
 
     fun getDocuments(): List<VaultDocument> {
@@ -227,59 +231,63 @@ class VaultRepository(private val context: Context) {
         val list = mutableListOf<VaultDocument>()
         for (i in 0 until array.length()) {
             val obj = array.getJSONObject(i)
-            list.add(
-                VaultDocument(
-                    id = obj.getString("id"),
-                    name = obj.getString("name"),
-                    notes = obj.optString("notes", ""),
-                    fileName = obj.getString("fileName"),
-                    filePath = obj.getString("filePath"),
-                    mimeType = obj.optString("mimeType", "image/jpeg"),
-                    date = obj.optString("date", ""),
-                    isPinned = obj.optBoolean("isPinned", false),
-                    timestamp = obj.optLong("timestamp", 0L),
-                    driveFileId = obj.optString("driveFileId").takeIf { !it.isNullOrBlank() },
-                    driveFileUrl = obj.optString("driveFileUrl").takeIf { !it.isNullOrBlank() },
-                    isSynced = obj.optBoolean("isSynced", false),
-                    lastModified = obj.optLong("lastModified", obj.optLong("timestamp", 0L))
-                )
-            )
+            list.add(decodeDocument(obj))
         }
-        val deduped = deduplicateList(list)
-        return deduped.sortedWith(
+        return deduplicateList(list).sortedWith(
             compareByDescending<VaultDocument> { if (it.timestamp > 0) it.timestamp else it.lastModified }
                 .thenByDescending { it.date }
                 .thenBy { it.name.lowercase() }
         )
     }
 
+    private fun decodeDocument(obj: JSONObject): VaultDocument =
+        VaultDocument(
+            id = obj.getString("id"),
+            name = obj.getString("name"),
+            notes = obj.optString("notes", ""),
+            fileName = obj.getString("fileName"),
+            filePath = obj.getString("filePath"),
+            mimeType = obj.optString("mimeType", "image/jpeg"),
+            date = obj.optString("date", ""),
+            isPinned = obj.optBoolean("isPinned", false),
+            timestamp = obj.optLong("timestamp", 0L),
+            driveFileId = obj.optString("driveFileId").takeIf { !it.isNullOrBlank() },
+            driveFileUrl = obj.optString("driveFileUrl").takeIf { !it.isNullOrBlank() },
+            isSynced = obj.optBoolean("isSynced", false),
+            lastModified = obj.optLong("lastModified", obj.optLong("timestamp", 0L)),
+            contentPending = obj.optBoolean("contentPending", false)
+        )
+
     private fun saveDocuments(docs: List<VaultDocument>) {
-        val deduped = deduplicateList(docs)
-        val array = JSONArray()
-        deduped.forEach { doc ->
-            val obj = JSONObject().apply {
-                put("id", doc.id)
-                put("name", doc.name)
-                put("notes", doc.notes)
-                put("fileName", doc.fileName)
-                put("filePath", doc.filePath)
-                put("mimeType", doc.mimeType)
-                put("date", doc.date)
-                put("isPinned", doc.isPinned)
-                put("timestamp", doc.timestamp)
-                put("driveFileId", doc.driveFileId ?: "")
-                put("driveFileUrl", doc.driveFileUrl ?: "")
-                put("isSynced", doc.isSynced)
-                put("lastModified", doc.lastModified)
-            }
-            array.put(obj)
-        }
-        prefs.edit().putString("documents_list", array.toString()).apply()
+        prefs.edit().putString("documents_list", encodeDocuments(deduplicateList(docs))).apply()
     }
 
-    fun saveFileToVault(name: String, notes: String, isPinned: Boolean, sourceFile: File, mimeType: String): VaultDocument {
+    private fun encodeDocuments(docs: List<VaultDocument>): String {
+        val array = JSONArray()
+        docs.forEach { doc -> array.put(encodeDocument(doc)) }
+        return array.toString()
+    }
+
+    private fun encodeDocument(doc: VaultDocument): JSONObject = JSONObject().apply {
+        put("id", doc.id)
+        put("name", doc.name)
+        put("notes", doc.notes)
+        put("fileName", doc.fileName)
+        put("filePath", doc.filePath)
+        put("mimeType", doc.mimeType)
+        put("date", doc.date)
+        put("isPinned", doc.isPinned)
+        put("timestamp", doc.timestamp)
+        put("driveFileId", doc.driveFileId ?: "")
+        put("driveFileUrl", doc.driveFileUrl ?: "")
+        put("isSynced", doc.isSynced)
+        put("lastModified", doc.lastModified)
+        put("contentPending", doc.contentPending)
+    }
+
+    suspend fun saveFileToVault(name: String, notes: String, isPinned: Boolean, sourceFile: File, mimeType: String): VaultDocument = cloudMutex.withLock {
         val ext = sourceFile.extension.ifEmpty { if (mimeType.contains("pdf")) "pdf" else if (mimeType.contains("text")) "txt" else "jpg" }
-        val targetFile = File(docsDir, "Vault_${System.currentTimeMillis()}.$ext")
+        val targetFile = File(docsDir, "Vault_${UUID.randomUUID()}.$ext")
         sourceFile.copyTo(targetFile, overwrite = true)
 
         val now = System.currentTimeMillis()
@@ -298,18 +306,18 @@ class VaultRepository(private val context: Context) {
         val current = getDocuments().toMutableList()
         current.add(0, doc)
         saveDocuments(current)
-        return doc
+        doc
     }
 
-    fun togglePin(docId: String): List<VaultDocument> {
+    suspend fun togglePin(docId: String): List<VaultDocument> = cloudMutex.withLock {
         val list = getDocuments().map {
             if (it.id == docId) it.copy(isPinned = !it.isPinned, isSynced = false, lastModified = System.currentTimeMillis()) else it
         }
         saveDocuments(list)
-        return list
+        list
     }
 
-    fun renameDocument(docId: String, newName: String, newNotes: String): List<VaultDocument> {
+    suspend fun renameDocument(docId: String, newName: String, newNotes: String): List<VaultDocument> = cloudMutex.withLock {
         val list = getDocuments().map {
             if (it.id == docId) {
                 it.copy(
@@ -321,42 +329,95 @@ class VaultRepository(private val context: Context) {
             } else it
         }
         saveDocuments(list)
-        return list
+        list
     }
 
-    fun updateNoteContent(docId: String, newContent: String): VaultDocument? {
+    suspend fun updateNote(docId: String, name: String, notes: String, newContent: String): VaultDocument? = cloudMutex.withLock {
         val list = getDocuments().toMutableList()
         val index = list.indexOfFirst { it.id == docId }
-        if (index == -1) return null
+        if (index == -1) return@withLock null
         val target = list[index]
         val file = File(target.filePath)
-        try {
-            file.writeText(newContent)
-        } catch (_: Exception) {}
+        file.writeText(newContent)
         val updated = target.copy(
+            name = name,
+            notes = notes,
             isSynced = false,
+            contentPending = true,
             lastModified = System.currentTimeMillis()
         )
         list[index] = updated
         saveDocuments(list)
-        return updated
+        updated
     }
 
-    fun deleteDocument(docId: String): List<VaultDocument> {
-        val list = getDocuments().toMutableList()
-        val target = list.find { it.id == docId }
-        if (target != null) {
-            addDeletedId(target.id)
-            if (!target.driveFileId.isNullOrBlank()) {
-                addDeletedId(target.driveFileId!!)
+    fun getTrash(): List<TrashedDocument> {
+        val array = JSONArray(prefs.getString("trashed_documents", "[]"))
+        return (0 until array.length()).map { index ->
+            val entry = array.getJSONObject(index)
+            TrashedDocument(decodeDocument(entry), entry.getLong("trashedAt"))
+        }.sortedByDescending { it.trashedAt }
+    }
+
+    suspend fun moveToTrash(docId: String): Boolean = cloudMutex.withLock {
+        val documents = getDocuments()
+        val current = documents.find { it.id == docId } ?: return@withLock false
+        // Keep a recoverable local copy before sync removes the remote copy.
+        val target = withContext(Dispatchers.IO) { cacheForTrash(current) } ?: return@withLock false
+        val stableId = target.id.takeUnless { it.startsWith("row_") && target.driveFileId != null }
+        val deleted = getDeletedIds() + listOfNotNull(stableId, target.driveFileId)
+        saveTrashState(
+            getDocuments().filterNot { it.id == docId },
+            getTrash() + TrashedDocument(target, System.currentTimeMillis()),
+            deleted
+        )
+        true
+    }
+
+    private suspend fun cacheForTrash(doc: VaultDocument): VaultDocument? {
+        if (File(doc.filePath).isFile) return doc
+        val fileId = doc.driveFileId ?: return null
+        val path = when (getActiveCloudMode()) {
+            CloudSyncMode.SHARED_CABINET -> downloadAndSaveFile(getScriptUrl(), fileId, doc.fileName)
+            CloudSyncMode.GOOGLE_DRIVE -> {
+                val email = getGoogleEmail().ifBlank { return null }
+                val token = googleDriveService.getAccessToken(Account(email, "com.google")) ?: return null
+                val target = File(docsDir, "Vault_${UUID.randomUUID()}_${File(doc.fileName).name}")
+                val file = googleDriveService.downloadFile(token, fileId, target).getOrNull()
+                if (file == null) target.delete()
+                file?.absolutePath
             }
-            try {
-                File(target.filePath).delete()
-            } catch (_: Exception) {}
-            list.remove(target)
-            saveDocuments(list)
-        }
-        return list
+            CloudSyncMode.LOCAL_ONLY -> null
+        } ?: return null
+        return doc.copy(filePath = path)
+    }
+
+    suspend fun restoreFromTrash(docId: String): Boolean = cloudMutex.withLock {
+        val trash = getTrash()
+        val target = trash.find { it.document.id == docId }?.document ?: return@withLock false
+        if (!File(target.filePath).isFile) return@withLock false
+        val deleted = getDeletedIds() - listOfNotNull(target.id, target.driveFileId).toSet()
+        val restored = target.copy(
+            id = if (target.id.startsWith("row_")) UUID.randomUUID().toString() else target.id,
+            isSynced = false,
+            lastModified = System.currentTimeMillis()
+        )
+        saveTrashState(getDocuments() + restored, trash.filterNot { it.document.id == docId }, deleted)
+        true
+    }
+
+    private fun saveTrashState(
+        documents: List<VaultDocument>,
+        trash: List<TrashedDocument>,
+        deleted: Set<String>
+    ) {
+        val entries = JSONArray()
+        trash.forEach { entries.put(encodeDocument(it.document).put("trashedAt", it.trashedAt)) }
+        prefs.edit()
+            .putString("documents_list", encodeDocuments(documents))
+            .putString("trashed_documents", entries.toString())
+            .putStringSet("deleted_doc_ids", deleted)
+            .apply()
     }
 
     // --- Cloud Sync Logic ---
@@ -381,15 +442,27 @@ class VaultRepository(private val context: Context) {
         }
     }
 
-    suspend fun syncWithCloud(): Result<SyncSummary> = withContext(Dispatchers.IO) {
-        when (getActiveCloudMode()) {
-            CloudSyncMode.SHARED_CABINET -> syncAppsScriptCloud()
-            CloudSyncMode.GOOGLE_DRIVE -> syncDirectGoogleDrive()
-            CloudSyncMode.LOCAL_ONLY -> Result.failure(Exception("Cloud sync is disabled (Local Only mode)."))
+    suspend fun syncWithCloud(): Result<SyncSummary> = cloudMutex.withLock {
+        withContext(Dispatchers.IO) {
+            val mode = getActiveCloudMode()
+            val key = syncStatusKey()
+            val result = when (mode) {
+                CloudSyncMode.SHARED_CABINET -> syncAppsScriptCloud()
+                CloudSyncMode.GOOGLE_DRIVE -> syncDirectGoogleDrive()
+                CloudSyncMode.LOCAL_ONLY -> Result.failure(Exception("Cloud sync is disabled (Local Only mode)."))
+            }
+            if (mode != CloudSyncMode.LOCAL_ONLY) {
+                val successful = result.getOrNull()?.failed == 0
+                prefs.edit().apply {
+                    putBoolean("$key:retry", !successful)
+                    if (successful) putLong("$key:last_success", System.currentTimeMillis())
+                }.apply()
+            }
+            result
         }
     }
 
-    suspend fun syncDirectGoogleDrive(): Result<SyncSummary> = withContext(Dispatchers.IO) {
+    private suspend fun syncDirectGoogleDrive(): Result<SyncSummary> = withContext(Dispatchers.IO) {
         val email = getGoogleEmail()
         if (email.isBlank()) {
             return@withContext Result.failure(Exception("Not signed into Google Drive. Please tap Sign in with Google in Settings."))
@@ -426,7 +499,7 @@ class VaultRepository(private val context: Context) {
 
                 // If marked deleted, remove from Drive and skip
                 if (deletedIds.contains(fId) || (propDocId.isNotBlank() && deletedIds.contains(propDocId))) {
-                    googleDriveService.deleteFile(token, fId)
+                    googleDriveService.deleteFile(token, fId).getOrThrow()
                     continue
                 }
                 remoteMap[effectiveKey] = rf
@@ -435,6 +508,7 @@ class VaultRepository(private val context: Context) {
             var localList = getDocuments().toMutableList()
             var addedCount = 0
             var uploadedCount = 0
+            val failed = mutableSetOf<String>()
 
             // 3. Download any remote file that doesn't exist locally
             for ((key, rf) in remoteMap) {
@@ -450,8 +524,7 @@ class VaultRepository(private val context: Context) {
                 val remoteTimestamp = parseTimestamp(rf.optString("createdTime", ""), rf.optString("modifiedTime", ""))
 
                 val existingIndex = localList.indexOfFirst {
-                    it.driveFileId == fId || it.id == propDocId || (it.driveFileUrl?.isNotBlank() == true && it.driveFileUrl == rUrl) ||
-                    (it.name.isNotBlank() && it.name.trim().equals(rName.trim(), ignoreCase = true))
+                    it.driveFileId == fId || it.id == propDocId || (it.driveFileUrl?.isNotBlank() == true && it.driveFileUrl == rUrl)
                 }
 
                 if (existingIndex >= 0) {
@@ -461,15 +534,31 @@ class VaultRepository(private val context: Context) {
                         val ext = if (rMime.contains("pdf")) "pdf" else if (rMime.contains("text")) "txt" else "jpg"
                         val target = File(docsDir, "Vault_${System.currentTimeMillis()}_${existing.fileName.ifBlank { "doc.$ext" }}")
                         val dlResult = googleDriveService.downloadFile(token, fId, target)
-                        if (dlResult.isSuccess) target.absolutePath else existing.filePath
+                        if (dlResult.isSuccess) target.absolutePath else {
+                            target.delete()
+                            failed.add(existing.id)
+                            existing.filePath
+                        }
                     } else {
                         existing.filePath
                     }
 
                     val hasUnsyncedLocalEdits = !existing.isSynced
                     val finalPinned = if (hasUnsyncedLocalEdits) existing.isPinned else propPinned
-                    val finalName = if (hasUnsyncedLocalEdits && existing.name.isNotBlank()) existing.name else existing.name.ifBlank { rName }
-                    val finalNotes = if (hasUnsyncedLocalEdits && existing.notes.isNotBlank()) existing.notes else if (existing.notes.isBlank()) propNotes else existing.notes
+                    val remoteName = props?.optString("vaultName").orEmpty().ifBlank {
+                        if (rName == existing.fileName) existing.name else rName.substringBeforeLast('.')
+                    }
+                    val finalName = if (hasUnsyncedLocalEdits) existing.name else remoteName
+                    val finalNotes = if (hasUnsyncedLocalEdits) existing.notes else propNotes
+                    val metadataSynced = !hasUnsyncedLocalEdits ||
+                        (finalName == remoteName && finalNotes == propNotes && finalPinned == propPinned) ||
+                        googleDriveService.updateFileProperties(
+                            token, fId, finalName,
+                            mapOf("vaultName" to finalName, "notes" to finalNotes, "isPinned" to finalPinned.toString())
+                        ).isSuccess
+                    val contentSynced = !existing.contentPending || (fileOnDisk.isFile &&
+                        googleDriveService.updateFileContent(token, fId, fileOnDisk, existing.mimeType).isSuccess)
+                    if (!metadataSynced || !contentSynced) failed.add(existing.id)
 
                     localList[existingIndex] = existing.copy(
                         name = finalName,
@@ -478,7 +567,8 @@ class VaultRepository(private val context: Context) {
                         driveFileId = fId,
                         driveFileUrl = rUrl,
                         filePath = actualPath,
-                        isSynced = true,
+                        isSynced = metadataSynced && contentSynced,
+                        contentPending = !contentSynced,
                         timestamp = if (remoteTimestamp > 0) remoteTimestamp else existing.timestamp
                     )
                 } else {
@@ -486,10 +576,14 @@ class VaultRepository(private val context: Context) {
                     val target = File(docsDir, "Vault_${System.currentTimeMillis()}_$rName.$ext")
                     val dlResult = googleDriveService.downloadFile(token, fId, target)
                     val localPath = if (dlResult.isSuccess) target.absolutePath else ""
+                    if (dlResult.isFailure) {
+                        target.delete()
+                        failed.add(propDocId)
+                    }
 
                     val newDoc = VaultDocument(
                         id = propDocId,
-                        name = rName.substringBeforeLast('.'),
+                        name = props?.optString("vaultName").orEmpty().ifBlank { rName.substringBeforeLast('.') },
                         notes = propNotes,
                         fileName = target.name,
                         filePath = localPath,
@@ -514,7 +608,7 @@ class VaultRepository(private val context: Context) {
                     continue
                 }
 
-                val existsInDrive = remoteFiles.any { rf ->
+                val existsInDrive = remoteMap.values.any { rf ->
                     val fId = rf.getString("id")
                     val props = rf.optJSONObject("properties")
                     val propDocId = props?.optString("docId", "")
@@ -523,7 +617,7 @@ class VaultRepository(private val context: Context) {
 
                 if (!existsInDrive) {
                     val localFile = File(doc.filePath)
-                    if (localFile.exists() && localFile.length() > 0) {
+                    if (localFile.isFile) {
                         val uploadResult = googleDriveService.uploadDocument(
                             token = token,
                             folderId = folderId,
@@ -536,27 +630,31 @@ class VaultRepository(private val context: Context) {
                         )
                         if (uploadResult.isSuccess) {
                             val (fId, link) = uploadResult.getOrThrow()
-                            finalDocs.add(doc.copy(driveFileId = fId, driveFileUrl = link, isSynced = true))
+                            finalDocs.add(doc.copy(driveFileId = fId, driveFileUrl = link, isSynced = true, contentPending = false))
                             uploadedCount++
                         } else {
-                            finalDocs.add(doc)
+                            failed.add(doc.id)
+                            finalDocs.add(doc.copy(isSynced = false))
                         }
                     } else {
-                        finalDocs.add(doc)
+                        failed.add(doc.id)
+                        finalDocs.add(doc.copy(isSynced = false))
                     }
                 } else {
-                    finalDocs.add(doc.copy(isSynced = true))
+                    finalDocs.add(doc)
                 }
             }
 
             saveDocuments(finalDocs)
-            Result.success(SyncSummary(addedCount, uploadedCount, 0, finalDocs.size))
+            Result.success(SyncSummary(addedCount, uploadedCount, finalDocs.size, failed.size))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun syncAppsScriptCloud(): Result<SyncSummary> = withContext(Dispatchers.IO) {
+    private suspend fun syncAppsScriptCloud(): Result<SyncSummary> = withContext(Dispatchers.IO) {
         val scriptUrl = getScriptUrl()
         if (scriptUrl.isBlank()) {
             return@withContext Result.failure(Exception("Shared Cabinet URL is blank. Please enter your shared link in Settings."))
@@ -579,19 +677,19 @@ class VaultRepository(private val context: Context) {
             val records = json.optJSONArray("records") ?: JSONArray()
             val deletedIds = getDeletedIds()
 
-            // Group remote records by normalized document name to eliminate duplicate rows in Google Sheet
+            // Process pending deletions before merging active records.
             val rawRemoteList = mutableListOf<JSONObject>()
             for (i in 0 until records.length()) {
                 val r = records.getJSONObject(i)
                 val rawDocId = r.optString("docId").ifBlank { r.optString("docID") }
                 val remoteFileId = r.optString("fileId").ifBlank { r.optString("fileID") }
-                val remoteName = r.optString("name").ifBlank { r.optString("vendor", "") }
                 val effectiveDocId = rawDocId.ifBlank {
                     if (remoteFileId.isNotBlank()) "file_$remoteFileId" else "row_${r.optInt("rowId")}"
                 }
 
-                if (deletedIds.contains(effectiveDocId) || (remoteFileId.isNotBlank() && deletedIds.contains(remoteFileId))) {
-                    deleteDocRemoteAsync(effectiveDocId, remoteFileId, remoteName)
+                if ((deletedIds.contains(effectiveDocId) && !effectiveDocId.startsWith("row_")) ||
+                    (remoteFileId.isNotBlank() && deletedIds.contains(remoteFileId))) {
+                    deleteSharedRecord(scriptUrl, effectiveDocId, remoteFileId)
                     continue
                 }
                 rawRemoteList.add(r)
@@ -599,7 +697,6 @@ class VaultRepository(private val context: Context) {
 
             // Map remote records: never auto-delete rows from cloud during fetch
             val remoteMap = LinkedHashMap<String, JSONObject>()
-            val genericNames = setOf("document", "doc", "unknown", "receipt", "scan", "vaultdocument", "")
             for (r in rawRemoteList) {
                 val rawDocId = r.optString("docId").ifBlank { r.optString("docID") }
                 val remoteFileId = r.optString("fileId").ifBlank { r.optString("fileID") }
@@ -613,6 +710,8 @@ class VaultRepository(private val context: Context) {
             var localList = getDocuments().toMutableList()
             var addedCount = 0
             var uploadedCount = 0
+            val failed = mutableSetOf<String>()
+            val matchedLocalIds = mutableSetOf<String>()
 
             // 2. Merge each remote record with matching local document
             for ((docId, r) in remoteMap) {
@@ -624,22 +723,25 @@ class VaultRepository(private val context: Context) {
                 val remotePinned = r.optBoolean("pinned", false)
                 val remoteTimestamp = parseTimestamp(r.opt("timestamp"), remoteDate)
 
-                // Match by ID, File ID, Drive URL, OR Document Name (case-insensitive)
+                // Display names can be shared by distinct documents.
                 val existingIndex = localList.indexOfFirst {
-                    it.id == docId ||
+                    (it.id == docId && (!docId.startsWith("row_") || remoteFileId.isBlank())) ||
                     (remoteFileId.isNotBlank() && it.driveFileId == remoteFileId) ||
-                    (remoteFileUrl.isNotBlank() && it.driveFileUrl == remoteFileUrl) ||
-                    (it.name.isNotBlank() && remoteVendor.isNotBlank() && it.name.trim().equals(remoteVendor.trim(), ignoreCase = true))
+                    (remoteFileUrl.isNotBlank() && it.driveFileUrl == remoteFileUrl)
                 }
 
                 if (existingIndex >= 0) {
                     val existing = localList[existingIndex]
                     val fileOnDisk = File(existing.filePath)
-                    val actualPath = if ((!fileOnDisk.exists() || existing.filePath.isBlank()) && remoteFileId.isNotBlank()) {
-                        downloadAndSaveFile(scriptUrl, remoteFileId, existing.fileName) ?: existing.filePath
-                    } else {
-                        existing.filePath
-                    }
+                    val needsDownload = !fileOnDisk.isFile ||
+                        (existing.isSynced && remoteFileId != existing.driveFileId)
+                    val downloadedPath = if (needsDownload && remoteFileId.isNotBlank()) {
+                        downloadAndSaveFile(scriptUrl, remoteFileId, existing.fileName).also {
+                            if (it == null) failed.add(existing.id)
+                        }
+                    } else null
+                    val adoptedRemoteFile = !needsDownload || downloadedPath != null
+                    val actualPath = downloadedPath ?: existing.filePath
 
                     // Conflict resolution:
                     // If local has unsynced user edits (!existing.isSynced), local wins and updates remote.
@@ -649,26 +751,29 @@ class VaultRepository(private val context: Context) {
                     val finalNotes = if (hasUnsyncedLocalEdits) existing.notes else remoteNotes
                     val finalPinned = if (hasUnsyncedLocalEdits) existing.isPinned else remotePinned
 
-                    if (hasUnsyncedLocalEdits) {
-                        if (existing.name != remoteVendor || existing.notes != remoteNotes) {
-                            updateDocRemoteAsync(existing.copy(driveFileId = remoteFileId.ifBlank { existing.driveFileId }), finalName, finalNotes)
-                        }
-                        if (existing.isPinned != remotePinned) {
-                            togglePinRemoteAsync(existing.copy(isPinned = finalPinned, driveFileId = remoteFileId.ifBlank { existing.driveFileId }))
-                        }
-                    }
-
-                    localList[existingIndex] = existing.copy(
+                    val metadataSynced = !hasUnsyncedLocalEdits || syncSharedMetadata(
+                        scriptUrl, docId, remoteFileId, finalName, finalNotes, finalPinned,
+                        finalName != remoteVendor || finalNotes != remoteNotes, finalPinned != remotePinned
+                    )
+                    val merged = existing.copy(
                         id = if (existing.id.startsWith("row_") && !docId.startsWith("row_")) docId else existing.id,
                         name = finalName,
                         notes = finalNotes,
                         isPinned = finalPinned,
-                        driveFileId = remoteFileId.ifBlank { existing.driveFileId },
+                        driveFileId = if (adoptedRemoteFile || existing.driveFileId.isNullOrBlank()) {
+                            remoteFileId.ifBlank { existing.driveFileId }
+                        } else existing.driveFileId,
                         driveFileUrl = remoteFileUrl.ifBlank { existing.driveFileUrl },
                         filePath = actualPath,
-                        isSynced = true,
+                        isSynced = metadataSynced,
                         timestamp = if (remoteTimestamp > 0) remoteTimestamp else existing.timestamp
                     )
+                    val updated = if (existing.contentPending && fileOnDisk.isFile) {
+                        uploadDocumentToCloud(scriptUrl, merged)
+                    } else null
+                    if (!metadataSynced || (existing.contentPending && updated == null)) failed.add(existing.id)
+                    localList[existingIndex] = updated ?: merged.copy(isSynced = metadataSynced && !existing.contentPending)
+                    matchedLocalIds.add(localList[existingIndex].id)
                 } else {
                     var localFilePath = ""
                     var localFileName = "Vault_Doc_${System.currentTimeMillis()}.jpg"
@@ -682,6 +787,8 @@ class VaultRepository(private val context: Context) {
                             val targetFile = File(docsDir, "Vault_${System.currentTimeMillis()}_${downloaded.name}")
                             targetFile.writeBytes(downloaded.bytes)
                             localFilePath = targetFile.absolutePath
+                        } else {
+                            failed.add(docId)
                         }
                     }
 
@@ -715,15 +822,14 @@ class VaultRepository(private val context: Context) {
                     continue
                 }
 
-                val existsRemotely = remoteMap.values.any { r ->
+                val existsRemotely = doc.id in matchedLocalIds || remoteMap.values.any { r ->
                     val rFileId = r.optString("fileId").ifBlank { r.optString("fileID") }
                     val rDocId = r.optString("docId").ifBlank { r.optString("docID") }
                     val rUrl = r.optString("driveFileUrl").ifBlank { r.optString("fileUrl") }
-                    val rName = r.optString("name").ifBlank { r.optString("vendor") }
-                    (doc.id.isNotBlank() && doc.id == rDocId) ||
+                    (doc.id.isNotBlank() && doc.id == rDocId &&
+                        (!doc.id.startsWith("row_") || doc.driveFileId.isNullOrBlank())) ||
                     (!doc.driveFileId.isNullOrBlank() && doc.driveFileId == rFileId) ||
-                    (!doc.driveFileUrl.isNullOrBlank() && doc.driveFileUrl == rUrl) ||
-                    (doc.name.isNotBlank() && doc.name.trim().equals(rName.trim(), ignoreCase = true))
+                    (!doc.driveFileUrl.isNullOrBlank() && doc.driveFileUrl == rUrl)
                 }
 
                 if (!existsRemotely) {
@@ -734,6 +840,7 @@ class VaultRepository(private val context: Context) {
                             finalDocs.add(uploadedDoc)
                             uploadedCount++
                         } else {
+                            failed.add(doc.id)
                             finalDocs.add(doc)
                         }
                     } else {
@@ -742,200 +849,80 @@ class VaultRepository(private val context: Context) {
                         try { File(doc.filePath).delete() } catch (_: Exception) {}
                     }
                 } else {
-                    finalDocs.add(doc.copy(isSynced = true))
+                    finalDocs.add(doc)
                 }
             }
 
             saveDocuments(finalDocs)
-            Result.success(SyncSummary(addedCount, uploadedCount, 0, finalDocs.size))
+            Result.success(SyncSummary(addedCount, uploadedCount, finalDocs.size, failed.size))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun uploadDocAsync(doc: VaultDocument): VaultDocument? = withContext(Dispatchers.IO) {
-        when (getActiveCloudMode()) {
-            CloudSyncMode.SHARED_CABINET -> {
-                val scriptUrl = getScriptUrl()
-                if (scriptUrl.isBlank()) return@withContext null
-                val uploaded = uploadDocumentToCloud(scriptUrl, doc)
-                if (uploaded != null) {
-                    val list = getDocuments().map { if (it.id == doc.id) uploaded else it }
-                    saveDocuments(list)
-                }
-                uploaded
+    private fun deleteSharedRecord(scriptUrl: String, docId: String, fileId: String) {
+        val payload = JSONObject().apply {
+            put("action", "delete_receipt")
+            if (fileId.isNotBlank()) put("fileId", fileId) else put("docId", docId)
+        }
+        val body = payload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+        val request = Request.Builder().url(scriptUrl).post(body).build()
+        httpClient.newCall(request).execute().use { response ->
+            check(response.isSuccessful) { "Could not sync document removal (HTTP ${response.code})" }
+            val result = JSONObject(response.body?.string().orEmpty())
+            check(result.optString("status") == "success") {
+                result.optString("message", "Could not sync document removal")
             }
-            CloudSyncMode.GOOGLE_DRIVE -> {
-                try {
-                    val email = getGoogleEmail()
-                    val account = Account(email, "com.google")
-                    val token = googleDriveService.getAccessToken(account) ?: return@withContext null
-                    var folderId = getGoogleFolderId()
-                    if (folderId.isBlank()) {
-                        folderId = googleDriveService.findOrCreateAppFolder(token).getOrNull() ?: return@withContext null
-                        setGoogleFolderId(folderId)
-                    }
-                    val localFile = File(doc.filePath)
-                    if (!localFile.exists()) return@withContext null
-
-                    val res = googleDriveService.uploadDocument(
-                        token = token,
-                        folderId = folderId,
-                        file = localFile,
-                        docName = doc.name,
-                        notes = doc.notes,
-                        mimeType = doc.mimeType,
-                        docId = doc.id,
-                        isPinned = doc.isPinned
-                    )
-                    if (res.isSuccess) {
-                        val (fId, link) = res.getOrThrow()
-                        val updated = doc.copy(driveFileId = fId, driveFileUrl = link, isSynced = true)
-                        val list = getDocuments().map { if (it.id == doc.id) updated else it }
-                        saveDocuments(list)
-                        return@withContext updated
-                    }
-                } catch (_: Exception) {}
-                null
-            }
-            CloudSyncMode.LOCAL_ONLY -> null
         }
     }
 
-    suspend fun deleteDocRemoteAsync(docId: String, fileId: String? = null, name: String? = null) = withContext(Dispatchers.IO) {
-        when (getActiveCloudMode()) {
-            CloudSyncMode.SHARED_CABINET -> {
-                val scriptUrl = getScriptUrl()
-                if (scriptUrl.isBlank()) return@withContext
-                try {
-                    val jsonPayload = JSONObject().apply {
-                        put("action", "delete_receipt")
-                        put("docId", docId)
-                        if (!fileId.isNullOrBlank()) put("fileId", fileId)
-                        if (!name.isNullOrBlank()) put("name", name)
-                        if (!name.isNullOrBlank()) put("vendor", name)
-                    }
-                    val body = jsonPayload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-                    val req = Request.Builder().url(scriptUrl).post(body).build()
-                    httpClient.newCall(req).execute().close()
-                } catch (_: Exception) {}
+    private fun syncSharedMetadata(
+        scriptUrl: String,
+        docId: String,
+        fileId: String,
+        name: String,
+        notes: String,
+        pinned: Boolean,
+        updateDetails: Boolean,
+        updatePin: Boolean
+    ): Boolean {
+        fun send(action: String, fields: JSONObject.() -> Unit): Boolean {
+            val payload = JSONObject().apply {
+                put("action", action)
+                if (fileId.isNotBlank()) put("fileId", fileId) else put("docId", docId)
+                fields()
             }
-            CloudSyncMode.GOOGLE_DRIVE -> {
-                if (!fileId.isNullOrBlank()) {
-                    try {
-                        val email = getGoogleEmail()
-                        val account = Account(email, "com.google")
-                        val token = googleDriveService.getAccessToken(account) ?: return@withContext
-                        googleDriveService.deleteFile(token, fileId)
-                    } catch (_: Exception) {}
+            return try {
+                val body = payload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+                val request = Request.Builder().url(scriptUrl).post(body).build()
+                httpClient.newCall(request).execute().use { response ->
+                    response.isSuccessful &&
+                        JSONObject(response.body?.string().orEmpty()).optString("status") == "success"
                 }
+            } catch (_: Exception) {
+                false
             }
-            CloudSyncMode.LOCAL_ONLY -> {}
         }
-    }
 
-    suspend fun togglePinRemoteAsync(doc: VaultDocument) = withContext(Dispatchers.IO) {
-        when (getActiveCloudMode()) {
-            CloudSyncMode.SHARED_CABINET -> {
-                val scriptUrl = getScriptUrl()
-                if (scriptUrl.isBlank()) return@withContext
-                try {
-                    val jsonPayload = JSONObject().apply {
-                        put("action", "toggle_pin")
-                        put("docId", doc.id)
-                        put("name", doc.name)
-                        put("vendor", doc.name)
-                        if (!doc.driveFileId.isNullOrBlank()) put("fileId", doc.driveFileId)
-                        if (!doc.driveFileUrl.isNullOrBlank()) put("driveFileUrl", doc.driveFileUrl)
-                        put("pinned", doc.isPinned)
-                    }
-                    val body = jsonPayload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-                    val req = Request.Builder().url(scriptUrl).post(body).build()
-                    httpClient.newCall(req).execute().close()
-                } catch (_: Exception) {}
-            }
-            CloudSyncMode.GOOGLE_DRIVE -> {
-                if (!doc.driveFileId.isNullOrBlank()) {
-                    try {
-                        val email = getGoogleEmail()
-                        val account = Account(email, "com.google")
-                        val token = googleDriveService.getAccessToken(account) ?: return@withContext
-                        googleDriveService.updateFileProperties(token, doc.driveFileId, mapOf("isPinned" to doc.isPinned.toString()))
-                    } catch (_: Exception) {}
-                }
-            }
-            CloudSyncMode.LOCAL_ONLY -> {}
+        val detailsSaved = !updateDetails || send("update_receipt") {
+            put("name", name)
+            put("notes", notes)
         }
-    }
-
-    suspend fun updateDocRemoteAsync(doc: VaultDocument, newName: String, newNotes: String) = withContext(Dispatchers.IO) {
-        when (getActiveCloudMode()) {
-            CloudSyncMode.SHARED_CABINET -> {
-                val scriptUrl = getScriptUrl()
-                if (scriptUrl.isBlank()) return@withContext
-                try {
-                    val jsonPayload = JSONObject().apply {
-                        put("action", "update_receipt")
-                        put("docId", doc.id)
-                        if (!doc.driveFileId.isNullOrBlank()) put("fileId", doc.driveFileId)
-                        if (!doc.driveFileUrl.isNullOrBlank()) put("driveFileUrl", doc.driveFileUrl)
-                        put("name", newName)
-                        put("labels", newNotes)
-                        put("notes", newNotes)
-                    }
-                    val body = jsonPayload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-                    val req = Request.Builder().url(scriptUrl).post(body).build()
-                    httpClient.newCall(req).execute().close()
-                } catch (_: Exception) {}
-            }
-            CloudSyncMode.GOOGLE_DRIVE -> {
-                if (!doc.driveFileId.isNullOrBlank()) {
-                    try {
-                        val email = getGoogleEmail()
-                        val account = Account(email, "com.google")
-                        val token = googleDriveService.getAccessToken(account) ?: return@withContext
-                        googleDriveService.updateFileProperties(token, doc.driveFileId, mapOf("notes" to newNotes))
-                    } catch (_: Exception) {}
-                }
-            }
-            CloudSyncMode.LOCAL_ONLY -> {}
-        }
-    }
-
-    suspend fun updateNoteRemoteAsync(doc: VaultDocument, newContent: String) = withContext(Dispatchers.IO) {
-        val file = File(doc.filePath)
-        try {
-            file.writeText(newContent)
-        } catch (_: Exception) {}
-
-        when (getActiveCloudMode()) {
-            CloudSyncMode.SHARED_CABINET -> {
-                val scriptUrl = getScriptUrl()
-                if (scriptUrl.isNotBlank()) {
-                    uploadDocumentToCloud(scriptUrl, doc)
-                }
-            }
-            CloudSyncMode.GOOGLE_DRIVE -> {
-                if (!doc.driveFileId.isNullOrBlank()) {
-                    try {
-                        val email = getGoogleEmail()
-                        val account = Account(email, "com.google")
-                        val token = googleDriveService.getAccessToken(account) ?: return@withContext
-                        googleDriveService.updateFileContent(token, doc.driveFileId!!, file, "text/plain")
-                    } catch (_: Exception) {}
-                }
-            }
-            CloudSyncMode.LOCAL_ONLY -> {}
-        }
+        val pinSaved = !updatePin || send("toggle_pin") { put("pinned", pinned) }
+        return detailsSaved && pinSaved
     }
 
     private fun uploadDocumentToCloud(scriptUrl: String, doc: VaultDocument): VaultDocument? {
         return try {
             val file = File(doc.filePath)
             var base64Data = ""
-            if (file.exists() && file.length() > 0) {
+            if (file.isFile) {
                 val bytes = file.readBytes()
                 base64Data = Base64.encodeToString(bytes, Base64.NO_WRAP)
+            } else if (doc.filePath.isNotBlank() || doc.driveFileId.isNullOrBlank()) {
+                return null
             }
 
             val metaObj = JSONObject().apply {
@@ -961,14 +948,16 @@ class VaultRepository(private val context: Context) {
             val req = Request.Builder().url(scriptUrl).post(reqBody).build()
             httpClient.newCall(req).execute().use { res ->
                 val bodyStr = res.body?.string() ?: ""
-                if (res.isSuccessful && bodyStr.contains("success")) {
+                if (res.isSuccessful) {
                     val resJson = JSONObject(bodyStr)
+                    if (resJson.optString("status") != "success") return null
                     val returnedFileId = resJson.optString("fileId").ifBlank { resJson.optString("fileID") }
                     val returnedFileUrl = resJson.optString("fileUrl").ifBlank { resJson.optString("driveFileUrl") }
                     doc.copy(
                         driveFileId = returnedFileId.takeIf { it.isNotBlank() } ?: doc.driveFileId,
                         driveFileUrl = returnedFileUrl.takeIf { it.isNotBlank() } ?: doc.driveFileUrl,
-                        isSynced = true
+                        isSynced = true,
+                        contentPending = false
                     )
                 } else {
                     null
@@ -1004,7 +993,8 @@ class VaultRepository(private val context: Context) {
     fun downloadAndSaveFile(scriptUrl: String, fileId: String, fileName: String): String? {
         val downloaded = downloadFileContent(scriptUrl, fileId) ?: return null
         return try {
-            val targetFile = File(docsDir, "Vault_${System.currentTimeMillis()}_${downloaded.name.ifBlank { fileName }}")
+            val name = File(downloaded.name.ifBlank { fileName }).name
+            val targetFile = File(docsDir, "Vault_${UUID.randomUUID()}_$name")
             targetFile.writeBytes(downloaded.bytes)
             targetFile.absolutePath
         } catch (_: Exception) {
@@ -1016,6 +1006,6 @@ class VaultRepository(private val context: Context) {
 data class SyncSummary(
     val downloaded: Int,
     val uploaded: Int,
-    val deleted: Int,
-    val total: Int
+    val total: Int,
+    val failed: Int
 )
