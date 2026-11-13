@@ -8,6 +8,122 @@
 const FOLDER_NAME = "Clean_Vault_Files";
 const SHEET_NAME = "Clean_Vault_Ledger";
 
+function verifyCabinetIdentity_(token) {
+  const audience = PropertiesService.getScriptProperties().getProperty("GOOGLE_WEB_CLIENT_ID");
+  if (!audience || typeof token !== "string" || token.length > 8192) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3 || parts.some(part => !/^[A-Za-z0-9_-]+$/.test(part))) return null;
+  const decode = part => JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(part)).getDataAsString());
+  const header = decode(parts[0]);
+  const claims = decode(parts[1]);
+  if (header.alg !== "RS256" || claims.aud !== audience ||
+      !["accounts.google.com", "https://accounts.google.com"].includes(claims.iss) ||
+      !Number.isFinite(claims.exp) || claims.exp <= Date.now() / 1000 ||
+      claims.email_verified !== true || typeof claims.sub !== "string" || !claims.sub ||
+      typeof claims.email !== "string" || !claims.email) return null;
+
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get("google_signing_keys");
+  let keys = cached ? JSON.parse(cached) : [];
+  let key = keys.find(entry => entry.kid === header.kid);
+  if (!cached) {
+    const response = UrlFetchApp.fetch("https://www.googleapis.com/oauth2/v3/certs");
+    keys = JSON.parse(response.getContentText()).keys;
+    const headers = response.getAllHeaders();
+    const maxAge = /max-age=(\d+)/i.exec(String(headers["Cache-Control"] || headers["cache-control"] || ""));
+    if (maxAge && Number(maxAge[1]) > 0) {
+      cache.put("google_signing_keys", JSON.stringify(keys), Math.min(Number(maxAge[1]), 3600));
+    }
+    key = keys.find(entry => entry.kid === header.kid);
+  }
+  if (!key || key.kty !== "RSA" || key.alg !== "RS256") return null;
+  if (!verifyRsaSignature_(parts, key)) return null;
+  return claims;
+}
+
+function verifyRsaSignature_(parts, key) {
+  // Verify the fixed RS256 DigestInfo encoding using Google's RSA public key.
+  const hex = bytes => bytes.map(byte => (byte & 255).toString(16).padStart(2, "0")).join("");
+  const modulus = hex(Utilities.base64DecodeWebSafe(key.n));
+  const signature = hex(Utilities.base64DecodeWebSafe(parts[2]));
+  if (signature.length !== modulus.length) return false;
+  const n = BigInt("0x" + modulus);
+  let value = BigInt("0x" + signature);
+  let exponent = BigInt("0x" + hex(Utilities.base64DecodeWebSafe(key.e)));
+  if (value >= n) return false;
+  let decoded = 1n;
+  while (exponent > 0n) {
+    if (exponent & 1n) decoded = decoded * value % n;
+    value = value * value % n;
+    exponent >>= 1n;
+  }
+  const digest = hex(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, parts[0] + "." + parts[1]));
+  const digestInfo = "3031300d060960864801650304020105000420" + digest;
+  const padding = (modulus.length - 6 - digestInfo.length) / 2;
+  return padding >= 8 &&
+    decoded.toString(16).padStart(modulus.length, "0") === "0001" + "ff".repeat(padding) + "00" + digestInfo;
+}
+
+function cabinetAccess_(identity, action, payload) {
+  const properties = PropertiesService.getScriptProperties();
+  const email = identity.email.toLowerCase();
+  const authoritativeEmail = email.endsWith("@gmail.com") || Boolean(identity.hd);
+  const state = JSON.parse(properties.getProperty("CABINET_MEMBERSHIP") || '{"owner":"","members":[]}');
+  if (!state.owner && action === "join" && authoritativeEmail &&
+      email === Session.getEffectiveUser().getEmail().toLowerCase()) {
+    state.owner = identity.sub;
+    properties.setProperty("CABINET_MEMBERSHIP", JSON.stringify(state));
+  }
+  const owner = state.owner === identity.sub;
+  const member = state.members.find(entry => entry.sub === identity.sub);
+  if (!owner && !member && action === "join" && authoritativeEmail) {
+    const invite = state.members.find(entry => entry.email === email && !entry.sub);
+    if (invite) {
+      invite.sub = identity.sub;
+      properties.setProperty("CABINET_MEMBERSHIP", JSON.stringify(state));
+      return { status: "success", role: "member" };
+    }
+  }
+  if (!owner && !member) return { status: "error", message: "This Google account has not been invited." };
+  if (action === "join") return { status: "success", role: owner ? "owner" : "member" };
+  if (!["invite", "members", "remove_member"].includes(action)) return null;
+  if (!owner) return { status: "error", message: "Only the cabinet owner can manage members." };
+  const address = String(payload.email || "").trim().toLowerCase();
+  if (action === "invite") {
+    if (address.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address) || address === email) {
+      return { status: "error", message: "Enter your partner's Google account email." };
+    }
+    if (!state.members.some(entry => entry.email === address)) {
+      state.members.push({ email: address, sub: "" });
+    }
+  } else if (action === "remove_member") {
+    state.members = state.members.filter(entry => entry.email !== address);
+  }
+  if (action !== "members") properties.setProperty("CABINET_MEMBERSHIP", JSON.stringify(state));
+  return { status: "success", members: state.members.map(entry => ({ email: entry.email, joined: Boolean(entry.sub) })) };
+}
+
+function getCabinetFile_(fileId) {
+  const file = DriveApp.getFileById(fileId);
+  const folder = getOrCreateFolder(FOLDER_NAME);
+  const parents = file.getParents();
+  while (parents.hasNext()) {
+    if (parents.next().getId() === folder.getId()) return file;
+  }
+  throw new Error("File is outside this cabinet");
+}
+
+// Run from the Apps Script editor when upgrading an existing cabinet.
+function privatizeCabinetFiles() {
+  const files = getOrCreateFolder(FOLDER_NAME).getFiles();
+  while (files.hasNext()) {
+    const file = files.next();
+    if (file.getSharingAccess() !== DriveApp.Access.PRIVATE) {
+      file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.VIEW);
+    }
+  }
+}
+
 const HEADERS = [
   "Timestamp", 
   "Date", 
@@ -25,6 +141,7 @@ const HEADERS = [
 ];
 
 function doPost(e) {
+  let lock;
   try {
     if (!e || !e.postData || !e.postData.contents) {
       return createJsonResponse({ status: "error", message: "Missing POST payload" }, 400);
@@ -38,6 +155,16 @@ function doPost(e) {
     }
 
     const action = payload.action || "save_receipt";
+    const identity = verifyCabinetIdentity_(payload.idToken);
+    if (!identity) return createJsonResponse({ status: "error", message: "Google sign-in required" });
+    lock = LockService.getScriptLock();
+    lock.waitLock(10000);
+    const access = cabinetAccess_(identity, action, payload);
+    if (access) return createJsonResponse(access);
+
+    if (action === "get_records" || action === "download_file") {
+      return readCabinet_(action, payload);
+    }
 
     // 1. Action: Ping / Test
     if (action === "test_connection" || action === "ping") {
@@ -72,11 +199,6 @@ function doPost(e) {
         const blob = Utilities.newBlob(decodedBytes, mimeType, fileName);
         const file = folder.createFile(blob);
         
-        try {
-          file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-        } catch (shareErr) {}
-
-        fileUrl = file.getUrl();
         fileId = file.getId();
       }
 
@@ -84,18 +206,18 @@ function doPost(e) {
       const docId = meta.docId || Utilities.getUuid();
       const row = [
         new Date().toISOString(),
-        meta.date || new Date().toISOString().slice(0, 10),
-        meta.vendor || "Unknown",
+        cabinetText_(meta.date || new Date().toISOString().slice(0, 10)),
+        cabinetText_(meta.vendor || "Unknown"),
         meta.totalAmount !== undefined && meta.totalAmount !== null ? Number(meta.totalAmount) : 0,
-        meta.currency || "USD",
-        meta.category || "General",
-        meta.itemsSummary || "",
-        meta.notes || "",
-        meta.rawOcr || "",
+        cabinetText_(meta.currency || "USD"),
+        cabinetText_(meta.category || "General"),
+        cabinetText_(meta.itemsSummary || ""),
+        cabinetText_(meta.notes || ""),
+        cabinetText_(meta.rawOcr || ""),
         fileUrl,
         fileId,
         meta.pinned ? "true" : "false",
-        docId
+        cabinetText_(docId)
       ];
 
       sheet.appendRow(row);
@@ -134,11 +256,13 @@ function doPost(e) {
       const targetRow = findRowByPayload(sheet, payload);
 
       if (targetRow > 1) {
-        const fileId = sheet.getRange(targetRow, 11).getValue();
-        if (fileId) {
-          try { DriveApp.getFileById(fileId).setTrashed(true); } catch (e) {}
-        }
-        sheet.deleteRow(targetRow);
+        const rows = sheet.getDataRange().getValues();
+        const docId = String(rows[targetRow - 1][12] || "");
+        const matchingRows = rows.slice(1).map((row, index) => ({ row: row, number: index + 2 }))
+          .filter(entry => entry.number === targetRow || (docId && String(entry.row[12]) === docId));
+        const files = [...new Set(matchingRows.map(entry => entry.row[10]).filter(Boolean))].map(getCabinetFile_);
+        files.forEach(file => file.setTrashed(true));
+        matchingRows.reverse().forEach(entry => sheet.deleteRow(entry.number));
         return createJsonResponse({ status: "success", deletedRow: targetRow });
       }
       return createJsonResponse({ status: "error", message: "Row not found for delete_receipt" }, 404);
@@ -151,15 +275,12 @@ function doPost(e) {
 
       if (targetRow > 1) {
         if (payload.name !== undefined && String(payload.name).trim() !== "") {
-          sheet.getRange(targetRow, 3).setValue(payload.name);
+          sheet.getRange(targetRow, 3).setValue(cabinetText_(payload.name));
         }
         if (payload.labels !== undefined) {
-          sheet.getRange(targetRow, 8).setValue(payload.labels);
+          sheet.getRange(targetRow, 8).setValue(cabinetText_(payload.labels));
         } else if (payload.notes !== undefined) {
-          sheet.getRange(targetRow, 8).setValue(payload.notes);
-        }
-        if (payload.docId && sheet.getLastColumn() >= 13) {
-          sheet.getRange(targetRow, 13).setValue(payload.docId);
+          sheet.getRange(targetRow, 8).setValue(cabinetText_(payload.notes));
         }
         return createJsonResponse({ status: "success", rowId: targetRow });
       }
@@ -168,18 +289,25 @@ function doPost(e) {
 
     return createJsonResponse({ status: "error", message: "Unrecognized action" }, 400);
   } catch (err) {
-    return createJsonResponse({ status: "error", message: err.toString() }, 500);
+    return createJsonResponse({ status: "error", message: "Cabinet request failed. Check the deployment and try again." });
+  } finally {
+    if (lock && lock.hasLock()) {
+      try { SpreadsheetApp.flush(); } finally { lock.releaseLock(); }
+    }
   }
 }
 
-function doGet(e) {
+function doGet() {
+  return createJsonResponse({ status: "error", message: "Open this cabinet from Clean Filing and sign in with Google." });
+}
+
+function cabinetText_(value) {
+  const text = String(value);
+  return /^\s*=/.test(text) ? "'" + text : text;
+}
+
+function readCabinet_(action, payload) {
   try {
-    const action = (e && e.parameter && e.parameter.action) || "get_records";
-
-    if (action === "ping" || action === "test") {
-      return createJsonResponse({ status: "success", message: "Online" });
-    }
-
     if (action === "get_records") {
       const sheet = getOrCreateSheet(SHEET_NAME);
       const data = sheet.getDataRange().getValues();
@@ -195,6 +323,10 @@ function doGet(e) {
 
       const records = rows.map((row, index) => {
         let record = { rowId: index + 2 };
+        if (!row[12]) {
+          row[12] = Utilities.getUuid();
+          sheet.getRange(index + 2, 13).setValue(row[12]);
+        }
         headers.forEach((header, colIdx) => {
           record[toCamelCase(header)] = row[colIdx];
         });
@@ -206,8 +338,9 @@ function doGet(e) {
         record.name = row[2] || record.name || record.vendor || "";
         record.notes = row[7] || record.notes || "";
         record.labels = row[7] || record.labels || record.notes || "";
-        record.driveFileUrl = row[9] || record.driveFileUrl || record.driveFileURL || "";
-        record.fileUrl = record.driveFileUrl;
+        delete record.driveFileURL;
+        record.driveFileUrl = "";
+        record.fileUrl = "";
         record.fileId = row[10] || record.fileId || record.fileID || "";
         
         // Dynamically evaluate pinned status from dedicated column or camelCase field
@@ -220,8 +353,8 @@ function doGet(e) {
 
       // Traverse newest first and deduplicate by fileId / docId to eliminate duplicate rows
       records.reverse();
-      const seenFileIds = {};
-      const seenDocIds = {};
+      const seenFileIds = Object.create(null);
+      const seenDocIds = Object.create(null);
       const uniqueRecords = [];
 
       for (let i = 0; i < records.length; i++) {
@@ -243,10 +376,14 @@ function doGet(e) {
 
     // Download a file directly as base64 for native synchronization
     if (action === "download_file") {
-      const fileId = e.parameter.fileId;
+      const fileId = payload.fileId;
       if (!fileId) return createJsonResponse({ status: "error", message: "Missing fileId" }, 400);
 
-      const file = DriveApp.getFileById(fileId);
+      const sheet = getOrCreateSheet(SHEET_NAME);
+      if (findRowByPayload(sheet, { fileId: fileId }) < 2) {
+        return createJsonResponse({ status: "error", message: "File is outside this cabinet" });
+      }
+      const file = getCabinetFile_(fileId);
       const blob = file.getBlob();
       const base64 = Utilities.base64Encode(blob.getBytes());
       return createJsonResponse({
@@ -259,7 +396,7 @@ function doGet(e) {
 
     return createJsonResponse({ status: "error", message: "Unknown action" }, 400);
   } catch (err) {
-    return createJsonResponse({ status: "error", message: err.toString() }, 500);
+    return createJsonResponse({ status: "error", message: "Could not read cabinet data" });
   }
 }
 
@@ -270,64 +407,17 @@ function findRowByPayload(sheet, payload) {
 
   const docId = payload.docId ? String(payload.docId).trim() : "";
   const fileId = payload.fileId ? String(payload.fileId).trim() : "";
-  const rowId = parseInt(payload.rowId, 10);
-
-  // 1. Direct rowId match
-  if (!isNaN(rowId) && rowId > 1 && rowId <= sheet.getLastRow()) {
-    return rowId;
-  }
-
-  // 2. docId formatted as "row_X"
-  if (docId && docId.startsWith("row_")) {
-    const parsedRow = parseInt(docId.replace("row_", ""), 10);
-    if (!isNaN(parsedRow) && parsedRow > 1 && parsedRow <= sheet.getLastRow()) {
-      return parsedRow;
-    }
-  }
-
-  // 3. Match Col 13 (Doc ID)
-  if (docId) {
-    for (let r = 1; r < data.length; r++) {
-      if (data[r].length > 12 && String(data[r][12]).trim() === docId) {
-        return r + 1;
-      }
-    }
-  }
-
-  // 4. Match Col 11 (File ID)
   if (fileId) {
-    for (let r = 1; r < data.length; r++) {
-      if (data[r].length > 10 && String(data[r][10]).trim() === fileId) {
-        return r + 1;
-      }
-    }
-  }
-
-  // 5. Match Col 10 (Drive URL)
-  const fileUrl = (payload.fileUrl || payload.driveFileUrl || "").toString().trim();
-  if (fileUrl) {
-    for (let r = 1; r < data.length; r++) {
-      if (data[r].length > 9 && String(data[r][9]).trim() === fileUrl) {
-        return r + 1;
-      }
-    }
-  }
-
-  // 6. Match by Document Name / Vendor (Col 3, index 2)
-  const name = (payload.name || payload.vendor || "").toString().trim().toLowerCase();
-  if (name) {
     for (let r = data.length - 1; r >= 1; r--) {
-      if (data[r].length > 2 && String(data[r][2]).trim().toLowerCase() === name) {
-        return r + 1;
-      }
+      if (String(data[r][10]).trim() === fileId) return r + 1;
+    }
+  } else if (docId && !docId.startsWith("row_")) {
+    for (let r = data.length - 1; r >= 1; r--) {
+      if (String(data[r][12]).trim() === docId) return r + 1;
     }
   }
 
   return -1;
-}
-
-function findRowByDocIdOrRowId(sheet, docId, rowId) {
-  return findRowByPayload(sheet, { docId: docId, rowId: rowId });
 }
 
 function getColumnIndexByName(sheet, colName) {
@@ -343,15 +433,33 @@ function getColumnIndexByName(sheet, colName) {
 }
 
 function getOrCreateFolder(folderName) {
+  const properties = PropertiesService.getScriptProperties();
+  const folderId = properties.getProperty("CABINET_FOLDER_ID");
+  if (folderId) return DriveApp.getFolderById(folderId);
   const folders = DriveApp.getFoldersByName(folderName);
-  if (folders.hasNext()) return folders.next();
-  return DriveApp.createFolder(folderName);
+  const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(folderName);
+  if (folders.hasNext()) throw new Error("Set CABINET_FOLDER_ID to the intended cabinet folder");
+  properties.setProperty("CABINET_FOLDER_ID", folder.getId());
+  return folder;
 }
 
 function getOrCreateSheet(sheetName) {
-  const files = DriveApp.getFilesByName(sheetName);
-  let spreadsheet = files.hasNext() ? SpreadsheetApp.open(files.next()) : SpreadsheetApp.create(sheetName);
-  let sheet = spreadsheet.getActiveSheet();
+  const properties = PropertiesService.getScriptProperties();
+  const spreadsheetId = properties.getProperty("CABINET_SPREADSHEET_ID");
+  let spreadsheet;
+  if (spreadsheetId) {
+    spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+  } else {
+    const files = DriveApp.getFilesByName(sheetName);
+    spreadsheet = files.hasNext() ? SpreadsheetApp.open(files.next()) : SpreadsheetApp.create(sheetName);
+    if (files.hasNext()) throw new Error("Set CABINET_SPREADSHEET_ID to the intended ledger");
+    properties.setProperty("CABINET_SPREADSHEET_ID", spreadsheet.getId());
+  }
+  const sheetId = properties.getProperty("CABINET_SHEET_ID");
+  const sheet = sheetId ? spreadsheet.getSheets().find(tab => String(tab.getSheetId()) === sheetId)
+    : spreadsheet.getActiveSheet();
+  if (!sheet) throw new Error("Cabinet ledger tab is missing");
+  if (!sheetId) properties.setProperty("CABINET_SHEET_ID", String(sheet.getSheetId()));
 
   if (sheet.getLastRow() === 0) {
     sheet.appendRow(HEADERS);

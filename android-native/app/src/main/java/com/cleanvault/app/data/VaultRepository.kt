@@ -3,6 +3,8 @@ package com.cleanvault.app.data
 import android.accounts.Account
 import android.content.Context
 import android.util.Base64
+import com.cleanvault.app.BuildConfig
+import com.google.android.gms.auth.GoogleAuthUtil
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -12,6 +14,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -63,6 +66,94 @@ class VaultRepository(private val context: Context) {
         .build()
 
     private val googleDriveService = GoogleDriveService(context)
+    private val cabinetClient = httpClient.newBuilder().followRedirects(false).build()
+    @Volatile private var cabinetToken: Pair<String, String>? = null
+
+    fun getCabinetEmail(): String = prefs.getString("cabinet_email", "").orEmpty()
+    fun isCabinetOwner(): Boolean = prefs.getBoolean("cabinet_owner", false)
+
+    private fun cabinetEndpoint(url: String): String {
+        val parsed = url.toHttpUrlOrNull()
+        require(parsed != null && parsed.isHttps && parsed.host == "script.google.com" &&
+            parsed.port == 443 && parsed.username.isEmpty() && parsed.password.isEmpty() &&
+            parsed.query == null && parsed.fragment == null &&
+            Regex("/macros/s/[A-Za-z0-9_-]+/exec").matches(parsed.encodedPath) &&
+            BuildConfig.TRUSTED_CABINET_URLS.split(',').any { it.trim() == parsed.toString() }) {
+            "This cabinet URL is not configured in this build."
+        }
+        return parsed.toString()
+    }
+
+    suspend fun joinCabinet(url: String, email: String, idToken: String): JSONObject = cloudMutex.withLock {
+        withContext(Dispatchers.IO) {
+            val endpoint = cabinetEndpoint(url)
+            val previous = prefs.getString("bound_cabinet", getScriptUrl()).orEmpty()
+            check(previous.isBlank() || previous == endpoint) {
+                "This installation already contains files from a different cabinet."
+            }
+            val result = cabinetRequest(endpoint, idToken, JSONObject().put("action", "join"))
+            val role = result.optString("role")
+            check(role == "owner" || role == "member") { "Update this cabinet to the authenticated deployment." }
+            prefs.edit().putString("cabinet_email", email)
+                .putString("bound_cabinet", endpoint)
+                .putBoolean("cabinet_owner", role == "owner").apply()
+            cabinetToken = endpoint to idToken
+            setScriptUrl(endpoint)
+            result
+        }
+    }
+
+    suspend fun cabinetMembers(action: String, email: String): JSONObject = cloudMutex.withLock {
+        withContext(Dispatchers.IO) {
+            val url = getScriptUrl()
+            val token = sharedToken(url)
+            cabinetRequest(url, token, JSONObject().put("action", action).put("email", email))
+        }
+    }
+
+    private fun sharedToken(url: String): String {
+        val endpoint = cabinetEndpoint(url)
+        val cached = cabinetToken
+        if (cached?.first == endpoint) {
+            val claims = JSONObject(String(Base64.decode(cached.second.split('.')[1], Base64.URL_SAFE)))
+            if (claims.optLong("exp") > System.currentTimeMillis() / 1000 + 60) return cached.second
+        }
+        val email = getCabinetEmail()
+        check(email.isNotBlank()) { "Sign in to Shared Cabinet again." }
+        val scope = "audience:server:client_id:${BuildConfig.CABINET_GOOGLE_CLIENT_ID}"
+        val token = try {
+            GoogleAuthUtil.getToken(context, Account(email, "com.google"), scope)
+        } catch (e: com.google.android.gms.auth.UserRecoverableAuthException) {
+            throw IllegalStateException("Sign in to Shared Cabinet again.", e)
+        }
+        cabinetToken = endpoint to token
+        return token
+    }
+
+    private fun cabinetRequest(url: String, token: String, payload: JSONObject): JSONObject {
+        val endpoint = cabinetEndpoint(url)
+        val body = payload.put("idToken", token).toString()
+            .toRequestBody("application/json; charset=utf-8".toMediaType())
+        val request = Request.Builder().url(endpoint).post(body).build()
+        val responseBody = cabinetClient.newCall(request).execute().use { response ->
+            if (response.code !in listOf(302, 303)) {
+                check(response.isSuccessful) { "Cabinet request failed (HTTP ${response.code})." }
+                return@use response.body?.string().orEmpty()
+            }
+            val location = response.header("Location")?.toHttpUrlOrNull()
+            check(location != null && location.isHttps && location.host == "script.googleusercontent.com" &&
+                location.port == 443 && location.username.isEmpty() && location.password.isEmpty()) {
+                "Unexpected response from the cabinet."
+            }
+            cabinetClient.newCall(Request.Builder().url(location).build()).execute().use { redirected ->
+                check(redirected.isSuccessful) { "Could not read the cabinet response." }
+                redirected.body?.string().orEmpty()
+            }
+        }
+        val result = JSONObject(responseBody)
+        check(result.optString("status") == "success") { result.optString("message", "Cabinet request failed.") }
+        return result
+    }
 
     fun getActiveCloudMode(): CloudSyncMode {
         val prefMode = prefs.getString("active_cloud_mode", null)
@@ -144,8 +235,12 @@ class VaultRepository(private val context: Context) {
         val editor = prefs.edit().putString("apps_script_url", trimmed)
         if (trimmed.isNotBlank()) {
             editor.putString("active_cloud_mode", CloudSyncMode.SHARED_CABINET.name)
-        } else if (getActiveCloudMode() == CloudSyncMode.SHARED_CABINET) {
-            editor.putString("active_cloud_mode", if (isGoogleDriveConnected()) CloudSyncMode.GOOGLE_DRIVE.name else CloudSyncMode.LOCAL_ONLY.name)
+        } else {
+            cabinetToken = null
+            editor.remove("cabinet_email").remove("cabinet_owner")
+            if (getActiveCloudMode() == CloudSyncMode.SHARED_CABINET) {
+                editor.putString("active_cloud_mode", CloudSyncMode.LOCAL_ONLY.name)
+            }
         }
         editor.apply()
     }
@@ -662,17 +757,7 @@ class VaultRepository(private val context: Context) {
 
         try {
             // 1. Fetch remote records
-            val getUrl = "$scriptUrl?action=get_records&_t=${System.currentTimeMillis()}"
-            val req = Request.Builder().url(getUrl).get().build()
-            val responseBody = httpClient.newCall(req).execute().use { response ->
-                if (!response.isSuccessful) throw Exception("Failed to fetch records: HTTP ${response.code}")
-                response.body?.string() ?: throw Exception("Empty response from server")
-            }
-
-            val json = JSONObject(responseBody)
-            if (json.optString("status") != "success") {
-                throw Exception("Server returned error: ${json.optString("message", "Unknown error")}")
-            }
+            val json = cabinetRequest(scriptUrl, sharedToken(scriptUrl), JSONObject().put("action", "get_records"))
 
             val records = json.optJSONArray("records") ?: JSONArray()
             val deletedIds = getDeletedIds()
@@ -763,7 +848,7 @@ class VaultRepository(private val context: Context) {
                         driveFileId = if (adoptedRemoteFile || existing.driveFileId.isNullOrBlank()) {
                             remoteFileId.ifBlank { existing.driveFileId }
                         } else existing.driveFileId,
-                        driveFileUrl = remoteFileUrl.ifBlank { existing.driveFileUrl },
+                        driveFileUrl = remoteFileUrl.takeIf { it.isNotBlank() },
                         filePath = actualPath,
                         isSynced = metadataSynced,
                         timestamp = if (remoteTimestamp > 0) remoteTimestamp else existing.timestamp
@@ -867,15 +952,7 @@ class VaultRepository(private val context: Context) {
             put("action", "delete_receipt")
             if (fileId.isNotBlank()) put("fileId", fileId) else put("docId", docId)
         }
-        val body = payload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-        val request = Request.Builder().url(scriptUrl).post(body).build()
-        httpClient.newCall(request).execute().use { response ->
-            check(response.isSuccessful) { "Could not sync document removal (HTTP ${response.code})" }
-            val result = JSONObject(response.body?.string().orEmpty())
-            check(result.optString("status") == "success") {
-                result.optString("message", "Could not sync document removal")
-            }
-        }
+        cabinetRequest(scriptUrl, sharedToken(scriptUrl), payload)
     }
 
     private fun syncSharedMetadata(
@@ -895,12 +972,8 @@ class VaultRepository(private val context: Context) {
                 fields()
             }
             return try {
-                val body = payload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-                val request = Request.Builder().url(scriptUrl).post(body).build()
-                httpClient.newCall(request).execute().use { response ->
-                    response.isSuccessful &&
-                        JSONObject(response.body?.string().orEmpty()).optString("status") == "success"
-                }
+                cabinetRequest(scriptUrl, sharedToken(scriptUrl), payload)
+                true
             } catch (_: Exception) {
                 false
             }
@@ -944,25 +1017,13 @@ class VaultRepository(private val context: Context) {
                 put("metadata", metaObj)
             }
 
-            val reqBody = payload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-            val req = Request.Builder().url(scriptUrl).post(reqBody).build()
-            httpClient.newCall(req).execute().use { res ->
-                val bodyStr = res.body?.string() ?: ""
-                if (res.isSuccessful) {
-                    val resJson = JSONObject(bodyStr)
-                    if (resJson.optString("status") != "success") return null
-                    val returnedFileId = resJson.optString("fileId").ifBlank { resJson.optString("fileID") }
-                    val returnedFileUrl = resJson.optString("fileUrl").ifBlank { resJson.optString("driveFileUrl") }
-                    doc.copy(
-                        driveFileId = returnedFileId.takeIf { it.isNotBlank() } ?: doc.driveFileId,
-                        driveFileUrl = returnedFileUrl.takeIf { it.isNotBlank() } ?: doc.driveFileUrl,
-                        isSynced = true,
-                        contentPending = false
-                    )
-                } else {
-                    null
-                }
-            }
+            val result = cabinetRequest(scriptUrl, sharedToken(scriptUrl), payload)
+            doc.copy(
+                driveFileId = result.optString("fileId").takeIf { it.isNotBlank() },
+                driveFileUrl = null,
+                isSynced = true,
+                contentPending = false
+            )
         } catch (_: Exception) {
             null
         }
@@ -972,19 +1033,10 @@ class VaultRepository(private val context: Context) {
 
     private fun downloadFileContent(scriptUrl: String, fileId: String): DownloadedFileData? {
         return try {
-            val url = "$scriptUrl?action=download_file&fileId=$fileId&_t=${System.currentTimeMillis()}"
-            val req = Request.Builder().url(url).get().build()
-            httpClient.newCall(req).execute().use { res ->
-                if (!res.isSuccessful) return null
-                val bodyStr = res.body?.string() ?: return null
-                val json = JSONObject(bodyStr)
-                if (json.optString("status") != "success") return null
-                val base64 = json.getString("base64")
-                val name = json.optString("name", "Document_$fileId.jpg")
-                val mimeType = json.optString("mimeType", "image/jpeg")
-                val bytes = Base64.decode(base64, Base64.DEFAULT)
-                DownloadedFileData(name, mimeType, bytes)
-            }
+            val payload = JSONObject().put("action", "download_file").put("fileId", fileId)
+            val json = cabinetRequest(scriptUrl, sharedToken(scriptUrl), payload)
+            val bytes = Base64.decode(json.getString("base64"), Base64.DEFAULT)
+            DownloadedFileData(json.optString("name", "Document_$fileId"), json.optString("mimeType"), bytes)
         } catch (_: Exception) {
             null
         }

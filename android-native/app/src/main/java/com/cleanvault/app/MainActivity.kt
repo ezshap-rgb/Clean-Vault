@@ -91,6 +91,8 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.SCANNER
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -414,6 +416,13 @@ fun MainScreen(
 
     var showSettingsModal by remember { mutableStateOf(false) }
     var appsScriptUrlInput by remember { mutableStateOf(repository.getScriptUrl()) }
+    var cabinetEmail by remember { mutableStateOf(repository.getCabinetEmail()) }
+    var cabinetOwner by remember { mutableStateOf(repository.isCabinetOwner()) }
+    var cabinetBusy by remember { mutableStateOf(false) }
+    var cabinetMessage by remember { mutableStateOf("") }
+    var cabinetMembers by remember { mutableStateOf(emptyList<Pair<String, Boolean>>()) }
+    var inviteEmail by remember { mutableStateOf("") }
+    var joiningCabinetUrl by remember { mutableStateOf("") }
     var isTestingScript by remember { mutableStateOf(false) }
     var cabinetSearchQuery by remember { mutableStateOf("") }
     var cabinetFilterPinnedOnly by remember { mutableStateOf(false) }
@@ -500,6 +509,55 @@ fun MainScreen(
                 } while (syncRequested && repository.hasCloudConnection())
             } finally {
                 isSyncing = false
+            }
+        }
+    }
+
+    fun manageCabinet(action: String, email: String = "") {
+        cabinetBusy = true
+        cabinetMessage = ""
+        scope.launch {
+            try {
+                val result = repository.cabinetMembers(action, email).getJSONArray("members")
+                cabinetMembers = (0 until result.length()).map { index ->
+                    val member = result.getJSONObject(index)
+                    member.getString("email") to member.getBoolean("joined")
+                }
+                if (action == "invite") {
+                    inviteEmail = ""
+                    cabinetMessage = "Invitation saved. Share the cabinet link with ${email.trim()}."
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                cabinetMessage = e.message ?: "Could not update cabinet membership."
+            } finally {
+                cabinetBusy = false
+            }
+        }
+    }
+
+    val cabinetSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        scope.launch {
+            try {
+                val account = GoogleSignIn.getSignedInAccountFromIntent(result.data).getResult(ApiException::class.java)
+                val email = requireNotNull(account.email) { "Google account email is missing." }
+                val idToken = requireNotNull(account.idToken) { "Google sign-in did not return an identity token." }
+                repository.joinCabinet(joiningCabinetUrl, email, idToken)
+                cabinetEmail = repository.getCabinetEmail()
+                cabinetOwner = repository.isCabinetOwner()
+                appsScriptUrlInput = repository.getScriptUrl()
+                cabinetMessage = "Connected as $cabinetEmail"
+                triggerSync(silent = true)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                cabinetMessage = if (e is ApiException) "Google sign-in failed (${e.statusCode})."
+                    else e.message ?: "Could not sign in to Shared Cabinet."
+            } finally {
+                cabinetBusy = false
             }
         }
     }
@@ -1501,7 +1559,7 @@ fun MainScreen(
                                                 noteDocToView = doc
                                                 isEditingNote = false
                                             } else {
-                                                openDocumentFile(context, doc, repository)
+                                                scope.launch { openDocumentFile(context, doc, repository) }
                                             }
                                         },
                                         onDownload = {
@@ -1723,7 +1781,7 @@ fun MainScreen(
                                                 noteDocToView = doc
                                                 isEditingNote = false
                                             } else {
-                                                openDocumentFile(context, doc, repository)
+                                                scope.launch { openDocumentFile(context, doc, repository) }
                                             }
                                         },
                                         onDownload = {
@@ -1796,7 +1854,7 @@ fun MainScreen(
                             }
                         }
 
-                        var activeCloudMode by remember { mutableStateOf(repository.getActiveCloudMode()) }
+                        var activeCloudMode by remember(cabinetEmail) { mutableStateOf(repository.getActiveCloudMode()) }
 
                         // ============================================
                         // OPTION 1: LOCAL ONLY (NO CLOUD SETUP)
@@ -1961,7 +2019,7 @@ fun MainScreen(
                         // ============================================
                         // OPTION 3: SHARED FILE CABINET (PASTE URL)
                         // ============================================
-                        val isScriptConnected = appsScriptUrlInput.isNotBlank()
+                        val isScriptConnected = cabinetEmail.isNotBlank()
                         val isScriptActive = (activeCloudMode == CloudSyncMode.SHARED_CABINET && isScriptConnected)
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
@@ -1992,7 +2050,8 @@ fun MainScreen(
                                     }
                                 }
                                 Text(
-                                    "Shared mutual vault between spouses or partners. Both devices sync to the same shared cabinet, pins, and documents.",
+                                    if (isScriptConnected) "Signed in as $cabinetEmail"
+                                    else "Paste your cabinet link and sign in with your invited Google account. Connecting syncs the files in your local cabinet with its members.",
                                     fontSize = 11.5.sp,
                                     color = TextSubtle,
                                     lineHeight = 16.sp
@@ -2001,6 +2060,7 @@ fun MainScreen(
                                 BasicTextField(
                                     value = appsScriptUrlInput,
                                     onValueChange = { appsScriptUrlInput = it },
+                                    enabled = !cabinetBusy && !isScriptConnected,
                                     textStyle = TextStyle(color = TextDark, fontSize = 12.sp),
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -2016,17 +2076,23 @@ fun MainScreen(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Button(
+                                        enabled = !cabinetBusy && appsScriptUrlInput.isNotBlank(),
                                         onClick = {
-                                            val trimmed = appsScriptUrlInput.trim()
-                                            repository.setScriptUrl(trimmed)
-                                            if (trimmed.isNotBlank()) {
+                                            if (isScriptConnected) {
                                                 repository.setActiveCloudMode(CloudSyncMode.SHARED_CABINET)
                                                 activeCloudMode = CloudSyncMode.SHARED_CABINET
-                                                Toast.makeText(context, "Connected to Shared Cabinet! Syncing...", Toast.LENGTH_SHORT).show()
                                                 triggerSync(silent = false)
+                                            } else if (BuildConfig.CABINET_GOOGLE_CLIENT_ID.isBlank()) {
+                                                cabinetMessage = "Shared Cabinet sign-in is unavailable in this build."
                                             } else {
-                                                activeCloudMode = repository.getActiveCloudMode()
-                                                Toast.makeText(context, "URL is blank", Toast.LENGTH_SHORT).show()
+                                                joiningCabinetUrl = appsScriptUrlInput.trim()
+                                                cabinetBusy = true
+                                                cabinetMessage = ""
+                                                val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                                                    .requestEmail()
+                                                    .requestIdToken(BuildConfig.CABINET_GOOGLE_CLIENT_ID)
+                                                    .build()
+                                                cabinetSignInLauncher.launch(GoogleSignIn.getClient(context, options).signInIntent)
                                             }
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = PurpleDark),
@@ -2035,14 +2101,29 @@ fun MainScreen(
                                     ) {
                                         Icon(Icons.Filled.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
                                         Spacer(Modifier.width(4.dp))
-                                        Text(if (isScriptActive) "Sync Shared Cabinet" else "Connect & Sync Shared", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        Text(if (isScriptConnected) "Sync Shared Cabinet" else "Sign in with Google", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                     }
 
                                     if (isScriptConnected) {
+                                        TextButton(enabled = !cabinetBusy, onClick = {
+                                            joiningCabinetUrl = repository.getScriptUrl()
+                                            cabinetBusy = true
+                                            cabinetMessage = ""
+                                            val options = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                                                .requestEmail()
+                                                .requestIdToken(BuildConfig.CABINET_GOOGLE_CLIENT_ID)
+                                                .build()
+                                            cabinetSignInLauncher.launch(GoogleSignIn.getClient(context, options).signInIntent)
+                                        }) { Text("Sign in again") }
                                         OutlinedButton(
+                                            enabled = !cabinetBusy,
                                             onClick = {
                                                 appsScriptUrlInput = ""
                                                 repository.setScriptUrl("")
+                                                cabinetEmail = ""
+                                                cabinetOwner = false
+                                                cabinetMembers = emptyList()
+                                                cabinetMessage = ""
                                                 activeCloudMode = repository.getActiveCloudMode()
                                                 Toast.makeText(context, "Removed Shared Cabinet", Toast.LENGTH_SHORT).show()
                                             },
@@ -2054,7 +2135,38 @@ fun MainScreen(
                                     }
                                 }
 
-                                if (isScriptConnected) {
+                                if (cabinetMessage.isNotBlank()) {
+                                    Text(cabinetMessage, fontSize = 12.sp, color = TextDark)
+                                }
+                                if (isScriptConnected && cabinetOwner) {
+                                    OutlinedTextField(
+                                        value = inviteEmail,
+                                        onValueChange = { inviteEmail = it },
+                                        label = { Text("Partner’s Google email") },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Row {
+                                        TextButton(enabled = !cabinetBusy && inviteEmail.isNotBlank(), onClick = {
+                                            manageCabinet("invite", inviteEmail)
+                                        }) { Text("Invite") }
+                                        TextButton(enabled = !cabinetBusy, onClick = {
+                                            manageCabinet("members")
+                                        }) { Text("Load members") }
+                                    }
+                                    cabinetMembers.forEach { (email, joined) ->
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                if (joined) email else "$email · Invited",
+                                                modifier = Modifier.weight(1f),
+                                                fontSize = 12.sp,
+                                                color = TextDark
+                                            )
+                                            TextButton(enabled = !cabinetBusy, onClick = {
+                                                manageCabinet("remove_member", email)
+                                            }) { Text("Remove") }
+                                        }
+                                    }
                                     OutlinedButton(
                                         onClick = {
                                             scope.launch {
@@ -2074,7 +2186,7 @@ fun MainScreen(
 
                                     OutlinedButton(
                                         onClick = {
-                                            val shareText = "Here is our Clean Filing shared cabinet link. In Clean Filing Settings, paste this under 'Option 3: Shared File Cabinet':\n\n" + appsScriptUrlInput.trim()
+                                            val shareText = "In Clean Filing, open Settings → Shared File Cabinet, paste this link, and sign in with the Google account I invited:\n\n" + repository.getScriptUrl()
                                             val intent = Intent(Intent.ACTION_SEND).apply {
                                                 type = "text/plain"
                                                 putExtra(Intent.EXTRA_TEXT, shareText)
@@ -2086,7 +2198,7 @@ fun MainScreen(
                                     ) {
                                         Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = PurpleDark)
                                         Spacer(Modifier.width(6.dp))
-                                        Text("Send Shared Link to Partner / Wife", fontSize = 11.sp, color = PurpleDark, fontWeight = FontWeight.SemiBold)
+                                        Text("Share cabinet link", fontSize = 11.sp, color = PurpleDark, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
                             }
@@ -2764,15 +2876,18 @@ fun MainScreen(
     }
 }
 
-fun openDocumentFile(context: Context, doc: VaultDocument, repository: VaultRepository, forceChooser: Boolean = false) {
+suspend fun openDocumentFile(context: Context, doc: VaultDocument, repository: VaultRepository, forceChooser: Boolean = false) {
     try {
         var file = File(doc.filePath)
         // If file missing locally, attempt on-demand retrieval or drive URL fallback
         if (!file.exists() || file.length() == 0L) {
             val scriptUrl = repository.getScriptUrl()
-            if (scriptUrl.isNotBlank() && !doc.driveFileId.isNullOrBlank()) {
+            if (repository.getActiveCloudMode() == CloudSyncMode.SHARED_CABINET &&
+                scriptUrl.isNotBlank() && !doc.driveFileId.isNullOrBlank()) {
                 Toast.makeText(context, "Fetching file from Google Drive...", Toast.LENGTH_SHORT).show()
-                val downloadedPath = repository.downloadAndSaveFile(scriptUrl, doc.driveFileId, doc.fileName)
+                val downloadedPath = withContext(Dispatchers.IO) {
+                    repository.downloadAndSaveFile(scriptUrl, doc.driveFileId, doc.fileName)
+                }
                 if (downloadedPath != null) {
                     file = File(downloadedPath)
                 }
@@ -2781,7 +2896,7 @@ fun openDocumentFile(context: Context, doc: VaultDocument, repository: VaultRepo
 
         if (!file.exists() || file.length() == 0L) {
             // Direct Cloud Fallback: Open in Google Drive / Chrome
-            if (!doc.driveFileUrl.isNullOrBlank()) {
+            if (repository.getActiveCloudMode() == CloudSyncMode.GOOGLE_DRIVE && !doc.driveFileUrl.isNullOrBlank()) {
                 val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(doc.driveFileUrl)).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }

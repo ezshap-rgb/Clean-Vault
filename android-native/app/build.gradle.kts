@@ -20,6 +20,12 @@ android {
         versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        val clientId = providers.gradleProperty("cleanVaultGoogleClientId").orElse("").get()
+        val cabinetUrls = providers.gradleProperty("cleanVaultCabinetUrls").orElse("").get()
+        require(clientId.matches(Regex("[A-Za-z0-9.\\-]*"))) { "Invalid Google web client ID" }
+        require(cabinetUrls.matches(Regex("[A-Za-z0-9:/.,_\\-]*"))) { "Invalid cabinet URL list" }
+        buildConfigField("String", "CABINET_GOOGLE_CLIENT_ID", "\"$clientId\"")
+        buildConfigField("String", "TRUSTED_CABINET_URLS", "\"$cabinetUrls\"")
     }
 
     buildTypes {
@@ -46,6 +52,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
