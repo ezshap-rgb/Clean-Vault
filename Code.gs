@@ -8,12 +8,30 @@
 const FOLDER_NAME = "Clean_Vault_Files";
 const SHEET_NAME = "Clean_Vault_Ledger";
 
-function verifyCabinetIdentity_(token) {
+// Run from the Apps Script editor as the deployment owner to verify URL Fetch access.
+function checkCabinetSigningKeys() {
+  const response = fetchGoogleSigningKeys_();
+  const keys = JSON.parse(response.getContentText()).keys;
+  if (!Array.isArray(keys) || !keys.length) throw new Error("Google returned no signing keys.");
+  console.log("Google signing keys loaded successfully.");
+}
+
+function fetchGoogleSigningKeys_() {
+  return UrlFetchApp.fetch("https://www.googleapis.com/oauth2/v3/certs");
+}
+
+function decodeBase64Url_(value) {
+  return Utilities.base64DecodeWebSafe(value + "=".repeat((4 - value.length % 4) % 4));
+}
+
+function verifyCabinetIdentity_(token, setStage) {
+  setStage("read the Google sign-in configuration");
   const audience = PropertiesService.getScriptProperties().getProperty("GOOGLE_WEB_CLIENT_ID");
   if (!audience || typeof token !== "string" || token.length > 8192) return null;
   const parts = token.split(".");
   if (parts.length !== 3 || parts.some(part => !/^[A-Za-z0-9_-]+$/.test(part))) return null;
-  const decode = part => JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(part)).getDataAsString());
+  setStage("decode the Google sign-in token");
+  const decode = part => JSON.parse(Utilities.newBlob(decodeBase64Url_(part)).getDataAsString("UTF-8"));
   const header = decode(parts[0]);
   const claims = decode(parts[1]);
   if (header.alg !== "RS256" || claims.aud !== audience ||
@@ -22,12 +40,13 @@ function verifyCabinetIdentity_(token) {
       claims.email_verified !== true || typeof claims.sub !== "string" || !claims.sub ||
       typeof claims.email !== "string" || !claims.email) return null;
 
+  setStage("load Google's signing keys");
   const cache = CacheService.getScriptCache();
   const cached = cache.get("google_signing_keys");
   let keys = cached ? JSON.parse(cached) : [];
   let key = keys.find(entry => entry.kid === header.kid);
   if (!cached) {
-    const response = UrlFetchApp.fetch("https://www.googleapis.com/oauth2/v3/certs");
+    const response = fetchGoogleSigningKeys_();
     keys = JSON.parse(response.getContentText()).keys;
     const headers = response.getAllHeaders();
     const maxAge = /max-age=(\d+)/i.exec(String(headers["Cache-Control"] || headers["cache-control"] || ""));
@@ -37,25 +56,28 @@ function verifyCabinetIdentity_(token) {
     key = keys.find(entry => entry.kid === header.kid);
   }
   if (!key || key.kty !== "RSA" || key.alg !== "RS256") return null;
+  setStage("verify the Google token signature");
   if (!verifyRsaSignature_(parts, key)) return null;
   return claims;
 }
 
 function verifyRsaSignature_(parts, key) {
   // Verify the fixed RS256 DigestInfo encoding using Google's RSA public key.
-  const hex = bytes => bytes.map(byte => (byte & 255).toString(16).padStart(2, "0")).join("");
-  const modulus = hex(Utilities.base64DecodeWebSafe(key.n));
-  const signature = hex(Utilities.base64DecodeWebSafe(parts[2]));
+  const hex = bytes => Array.from(bytes, byte => (byte & 255).toString(16).padStart(2, "0")).join("");
+  const modulus = hex(decodeBase64Url_(key.n));
+  const signature = hex(decodeBase64Url_(parts[2]));
   if (signature.length !== modulus.length) return false;
   const n = BigInt("0x" + modulus);
   let value = BigInt("0x" + signature);
-  let exponent = BigInt("0x" + hex(Utilities.base64DecodeWebSafe(key.e)));
+  let exponent = BigInt("0x" + hex(decodeBase64Url_(key.e)));
   if (value >= n) return false;
-  let decoded = 1n;
-  while (exponent > 0n) {
-    if (exponent & 1n) decoded = decoded * value % n;
+  const zero = BigInt(0);
+  const one = BigInt(1);
+  let decoded = one;
+  while (exponent > zero) {
+    if ((exponent & one) === one) decoded = decoded * value % n;
     value = value * value % n;
-    exponent >>= 1n;
+    exponent >>= one;
   }
   const digest = hex(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, parts[0] + "." + parts[1]));
   const digestInfo = "3031300d060960864801650304020105000420" + digest;
@@ -69,10 +91,23 @@ function cabinetAccess_(identity, action, payload) {
   const email = identity.email.toLowerCase();
   const authoritativeEmail = email.endsWith("@gmail.com") || Boolean(identity.hd);
   const state = JSON.parse(properties.getProperty("CABINET_MEMBERSHIP") || '{"owner":"","members":[]}');
-  if (!state.owner && action === "join" && authoritativeEmail &&
-      email === Session.getEffectiveUser().getEmail().toLowerCase()) {
-    state.owner = identity.sub;
-    properties.setProperty("CABINET_MEMBERSHIP", JSON.stringify(state));
+  if (!state.owner && action === "join" && authoritativeEmail) {
+    const configuredOwner = (properties.getProperty("CABINET_OWNER_EMAIL") || "").trim().toLowerCase();
+    let ownerEmail = configuredOwner;
+    if (!ownerEmail) {
+      try {
+        ownerEmail = Session.getEffectiveUser().getEmail().trim().toLowerCase();
+      } catch (_) {
+        return { status: "error", message: "Set CABINET_OWNER_EMAIL in Apps Script project settings, then retry." };
+      }
+    }
+    if (!ownerEmail) {
+      return { status: "error", message: "Set CABINET_OWNER_EMAIL in Apps Script project settings, then retry." };
+    }
+    if (email === ownerEmail) {
+      state.owner = identity.sub;
+      properties.setProperty("CABINET_MEMBERSHIP", JSON.stringify(state));
+    }
   }
   const owner = state.owner === identity.sub;
   const member = state.members.find(entry => entry.sub === identity.sub);
@@ -142,6 +177,7 @@ const HEADERS = [
 
 function doPost(e) {
   let lock;
+  let stage = "read request";
   try {
     if (!e || !e.postData || !e.postData.contents) {
       return createJsonResponse({ status: "error", message: "Missing POST payload" }, 400);
@@ -155,13 +191,16 @@ function doPost(e) {
     }
 
     const action = payload.action || "save_receipt";
-    const identity = verifyCabinetIdentity_(payload.idToken);
+    const identity = verifyCabinetIdentity_(payload.idToken, step => { stage = step; });
     if (!identity) return createJsonResponse({ status: "error", message: "Google sign-in required" });
+    stage = "lock cabinet";
     lock = LockService.getScriptLock();
     lock.waitLock(10000);
+    stage = "check cabinet membership";
     const access = cabinetAccess_(identity, action, payload);
     if (access) return createJsonResponse(access);
 
+    stage = "process cabinet request";
     if (action === "get_records" || action === "download_file") {
       return readCabinet_(action, payload);
     }
@@ -289,6 +328,11 @@ function doPost(e) {
 
     return createJsonResponse({ status: "error", message: "Unrecognized action" }, 400);
   } catch (err) {
+    console.error("Shared Cabinet failed to " + stage + ": " + (err && err.name || "Error"));
+    if (["read the Google sign-in configuration", "decode the Google sign-in token", "load Google's signing keys",
+         "verify the Google token signature", "check cabinet membership"].includes(stage)) {
+      return createJsonResponse({ status: "error", message: "Cabinet could not " + stage + " (" + (err && err.name || "Error") + ")." });
+    }
     return createJsonResponse({ status: "error", message: "Cabinet request failed. Check the deployment and try again." });
   } finally {
     if (lock && lock.hasLock()) {
