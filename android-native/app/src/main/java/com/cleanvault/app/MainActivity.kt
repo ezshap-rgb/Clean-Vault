@@ -229,20 +229,20 @@ fun StreamlinedDocCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(18.dp))
             .clickable(onClick = onOpen),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(18.dp),
         color = CardWhite,
-        shadowElevation = 3.dp,
+        shadowElevation = 2.5.dp,
         border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 8.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Main Top Row: Icon, Title, Tags, Date, Cloud icon
+            // Main Top Row: Icon, File Name (in Plus Jakarta Sans), Date and Cloud synced indicator
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -250,70 +250,57 @@ fun StreamlinedDocCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
                         text = getFileTypeIcon(doc),
-                        fontSize = 24.sp
+                        fontSize = 22.sp
                     )
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(
-                            text = doc.name,
-                            fontSize = 14.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextDark,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = if (doc.notes.isNotBlank()) "🏷️ ${doc.notes}" else "🏷️ No labels",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = TextSubtle,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            if (doc.date.isNotBlank()) {
-                                Text(
-                                    text = "• ${doc.date}",
-                                    fontSize = 10.sp,
-                                    color = TextFaint
-                                )
-                            }
-                        }
-                    }
+                    Text(
+                        text = doc.name,
+                        fontFamily = PlusJakartaSans,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextDark,
+                        letterSpacing = (-0.2).sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
 
-                if (doc.isSynced || doc.driveFileId != null) {
-                    Text("☁️", fontSize = 16.sp, modifier = Modifier.padding(start = 6.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    modifier = Modifier.padding(start = 8.dp)
+                ) {
+                    if (doc.date.isNotBlank()) {
+                        Text(
+                            text = doc.date,
+                            fontFamily = PlusJakartaSans,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = TextSubtle
+                        )
+                    }
+                    if (doc.isSynced || doc.driveFileId != null) {
+                        Text("☁️", fontSize = 13.sp)
+                    }
                 }
             }
 
-            // Clean subtle divider
-            HorizontalDivider(
-                color = BorderColor.copy(alpha = 0.5f),
-                thickness = 0.8.dp,
-                modifier = Modifier.padding(vertical = 2.dp)
-            )
-
-            // Action Row: Download, Edit, Pin, Share, Delete
+            // Streamlined Centered Action Row: Download, Edit, Pin, Share, Delete
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 2.dp),
+                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // 1. Download
                 IconButton(
                     onClick = onDownload,
-                    modifier = Modifier.size(34.dp)
+                    modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Download,
@@ -323,10 +310,12 @@ fun StreamlinedDocCard(
                     )
                 }
 
+                Spacer(modifier = Modifier.width(10.dp))
+
                 // 2. Edit
                 IconButton(
                     onClick = onEdit,
-                    modifier = Modifier.size(34.dp)
+                    modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Edit,
@@ -336,10 +325,12 @@ fun StreamlinedDocCard(
                     )
                 }
 
+                Spacer(modifier = Modifier.width(10.dp))
+
                 // 3. Pin (RED when pinned!)
                 IconButton(
                     onClick = onTogglePin,
-                    modifier = Modifier.size(34.dp)
+                    modifier = Modifier.size(36.dp)
                 ) {
                     if (doc.isPinned) {
                         Icon(
@@ -358,10 +349,12 @@ fun StreamlinedDocCard(
                     }
                 }
 
+                Spacer(modifier = Modifier.width(10.dp))
+
                 // 4. Share
                 IconButton(
                     onClick = onShare,
-                    modifier = Modifier.size(34.dp)
+                    modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Share,
@@ -371,10 +364,12 @@ fun StreamlinedDocCard(
                     )
                 }
 
+                Spacer(modifier = Modifier.width(10.dp))
+
                 // 5. Delete
                 IconButton(
                     onClick = onDelete,
-                    modifier = Modifier.size(34.dp)
+                    modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Delete,
