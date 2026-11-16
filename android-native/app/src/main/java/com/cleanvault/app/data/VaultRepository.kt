@@ -125,6 +125,19 @@ class VaultRepository(private val context: Context) {
         prefs.edit().putString("google_drive_folder_id", folderId.trim()).apply()
     }
 
+    fun getCabinetOwnerEmail(): String {
+        return prefs.getString("cabinet_owner_email", "") ?: ""
+    }
+
+    fun setCabinetOwnerEmail(email: String) {
+        val trimmed = email.trim()
+        val old = getCabinetOwnerEmail()
+        if (old != trimmed) {
+            prefs.edit().putString("cabinet_owner_email", trimmed).apply()
+            setGoogleFolderId("")
+        }
+    }
+
     suspend fun shareGoogleDriveCabinet(partnerEmail: String): Result<String> = withContext(Dispatchers.IO) {
         val email = getGoogleEmail()
         if (email.isBlank()) return@withContext Result.failure(Exception("Please sign into Google Drive first."))
@@ -440,8 +453,9 @@ class VaultRepository(private val context: Context) {
             val token = googleDriveService.getAccessToken(account)
                 ?: return@withContext Result.failure(Exception("Could not obtain Google Drive access token. Please re-sign in."))
 
-            // 1. Get or Create "Clean Filing" folder
-            val folderResult = googleDriveService.findOrCreateAppFolder(token)
+            // 1. Get or Create "Clean Filing" folder (optionally under a linked owner's cabinet)
+            val targetOwner = getCabinetOwnerEmail().trim().ifBlank { null }
+            val folderResult = googleDriveService.findOrCreateAppFolder(token, targetOwner)
             if (folderResult.isFailure) {
                 return@withContext Result.failure(folderResult.exceptionOrNull() ?: Exception("Folder error"))
             }

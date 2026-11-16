@@ -273,7 +273,7 @@ fun StreamlinedDocCard(
                         text = doc.name,
                         fontFamily = PlusJakartaSans,
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
                         color = TextDark,
                         letterSpacing = (-0.2).sp,
                         maxLines = 1,
@@ -426,6 +426,7 @@ fun MainScreen(
     var cabinetFilterPinnedOnly by remember { mutableStateOf(false) }
     var partnerInviteEmail by remember { mutableStateOf("") }
     var isInvitingPartner by remember { mutableStateOf(false) }
+    var linkedCabinetOwnerEmail by remember { mutableStateOf(repository.getCabinetOwnerEmail()) }
 
     // Rename Dialog state
     var docToRename by remember { mutableStateOf<VaultDocument?>(null) }
@@ -1953,7 +1954,7 @@ fun MainScreen(
                                         }
                                     }
 
-                                    // Direct Partner Sharing Section (No Apps Script!)
+                                    // Direct Partner Sharing Section (Silent Background Sharing)
                                     Surface(
                                         shape = RoundedCornerShape(12.dp),
                                         color = CardWhite,
@@ -1972,7 +1973,7 @@ fun MainScreen(
                                                 Text("Share Cabinet with Partner / Wife", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = TextDark)
                                             }
                                             Text(
-                                                "Invite your partner directly with their Google email. Once invited, they just install Clean Filing and tap 'Sign in with Google' to sync the same cabinet!",
+                                                "Grant your partner access directly by entering their Google email. Access is granted silently in the background (no Google emails sent). They just enter your email under 'Cabinet Source / Owner' below on their device to sync!",
                                                 fontSize = 11.sp,
                                                 color = TextSubtle,
                                                 lineHeight = 15.sp
@@ -2009,7 +2010,7 @@ fun MainScreen(
                                                             if (res.isSuccess) {
                                                                 val emailSent = partnerInviteEmail.trim()
                                                                 partnerInviteEmail = ""
-                                                                Toast.makeText(context, "Cabinet shared with $emailSent! 🤝", Toast.LENGTH_LONG).show()
+                                                                Toast.makeText(context, "Access granted to $emailSent! 🤝", Toast.LENGTH_LONG).show()
                                                             } else {
                                                                 Toast.makeText(context, "Share failed: ${res.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
                                                             }
@@ -2023,14 +2024,14 @@ fun MainScreen(
                                                         CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
                                                         Spacer(Modifier.width(6.dp))
                                                     }
-                                                    Text("Send Invite ✉️", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                                    Text("Grant Access 🤝", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                                 }
 
                                                 val folderId = repository.getGoogleFolderId()
                                                 OutlinedButton(
                                                     onClick = {
                                                         val shareUrl = if (folderId.isNotBlank()) "https://drive.google.com/drive/folders/$folderId" else "https://drive.google.com"
-                                                        val shareText = "Here is our shared Clean Filing cabinet on Google Drive:\n$shareUrl\n\nInstall Clean Filing on your phone and tap 'Sign in with Google' under Option 2 to sync!"
+                                                        val shareText = "Here is our shared Clean Filing cabinet on Google Drive:\n$shareUrl\n\nInstall Clean Filing on your phone and tap 'Sign in with Google' to sync!"
                                                         val intent = Intent(Intent.ACTION_SEND).apply {
                                                             type = "text/plain"
                                                             putExtra(Intent.EXTRA_TEXT, shareText)
@@ -2043,6 +2044,79 @@ fun MainScreen(
                                                     Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = PurpleDark)
                                                     Spacer(Modifier.width(4.dp))
                                                     Text("Share Link", fontSize = 11.sp, color = PurpleDark, fontWeight = FontWeight.SemiBold)
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Linked Cabinet Owner (Optional - for partner devices)
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = CardWhite,
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(10.dp),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Text("📂", fontSize = 14.sp)
+                                                Text("Cabinet Source / Owner", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = TextDark)
+                                            }
+                                            Text(
+                                                "Leave blank to use your own private cabinet. If a partner shared their cabinet with you, enter their Gmail address below to bind directly to theirs.",
+                                                fontSize = 11.sp,
+                                                color = TextSubtle,
+                                                lineHeight = 15.sp
+                                            )
+                                            BasicTextField(
+                                                value = linkedCabinetOwnerEmail,
+                                                onValueChange = {
+                                                    linkedCabinetOwnerEmail = it
+                                                    repository.setCabinetOwnerEmail(it)
+                                                },
+                                                textStyle = TextStyle(color = TextDark, fontSize = 12.sp),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(ClayPageBg)
+                                                    .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
+                                                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                                                singleLine = true,
+                                                decorationBox = { innerTextField ->
+                                                    if (linkedCabinetOwnerEmail.isBlank()) {
+                                                        Text("Owner's Gmail (e.g. owner@gmail.com)", color = TextFaint, fontSize = 11.sp)
+                                                    }
+                                                    innerTextField()
+                                                }
+                                            )
+                                            if (linkedCabinetOwnerEmail.isNotBlank()) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Text(
+                                                        "Connecting to: ${linkedCabinetOwnerEmail.trim()}",
+                                                        fontSize = 10.5.sp,
+                                                        color = EmeraldGreen,
+                                                        fontWeight = FontWeight.SemiBold
+                                                    )
+                                                    TextButton(
+                                                        onClick = {
+                                                            linkedCabinetOwnerEmail = ""
+                                                            repository.setCabinetOwnerEmail("")
+                                                            Toast.makeText(context, "Reset to your own private cabinet", Toast.LENGTH_SHORT).show()
+                                                        },
+                                                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                                                        modifier = Modifier.height(26.dp)
+                                                    ) {
+                                                        Text("Reset to Mine", fontSize = 10.5.sp, color = RoseRed)
+                                                    }
                                                 }
                                             }
                                         }

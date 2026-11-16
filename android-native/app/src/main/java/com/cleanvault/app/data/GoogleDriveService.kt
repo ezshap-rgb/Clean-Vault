@@ -35,7 +35,7 @@ class GoogleDriveService(private val context: Context) {
         }
     }
 
-    suspend fun findOrCreateAppFolder(token: String): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun findOrCreateAppFolder(token: String, targetOwnerEmail: String? = null): Result<String> = withContext(Dispatchers.IO) {
         try {
             // Search for existing folder named "Clean Filing" (either owned or shared with user)
             val query = "name = 'Clean Filing' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
@@ -47,16 +47,44 @@ class GoogleDriveService(private val context: Context) {
                 .get()
                 .build()
 
+            val matchingFiles = mutableListOf<JSONObject>()
             httpClient.newCall(searchReq).execute().use { res ->
                 val body = res.body?.string() ?: ""
                 if (res.isSuccessful) {
                     val json = JSONObject(body)
                     val files = json.optJSONArray("files") ?: JSONArray()
-                    if (files.length() > 0) {
-                        val folderId = files.getJSONObject(0).getString("id")
-                        return@withContext Result.success(folderId)
+                    for (i in 0 until files.length()) {
+                        matchingFiles.add(files.getJSONObject(i))
                     }
                 }
+            }
+
+            if (matchingFiles.isNotEmpty()) {
+                // If a specific target owner email was requested, look for that folder
+                if (!targetOwnerEmail.isNullOrBlank()) {
+                    val target = targetOwnerEmail.trim().lowercase()
+                    for (f in matchingFiles) {
+                        val owners = f.optJSONArray("owners")
+                        if (owners != null) {
+                            for (j in 0 until owners.length()) {
+                                val o = owners.getJSONObject(j)
+                                val email = o.optString("emailAddress").trim().lowercase()
+                                if (email == target) {
+                                    return@withContext Result.success(f.getString("id"))
+                                }
+                            }
+                        }
+                    }
+                    return@withContext Result.failure(Exception("Cabinet owned by '$targetOwnerEmail' not found. Please ensure they granted your email access."))
+                }
+
+                // If no specific owner requested, default to the first matching folder
+                return@withContext Result.success(matchingFiles.first().getString("id"))
+            }
+
+            // If a specific owner was requested but no folder exists:
+            if (!targetOwnerEmail.isNullOrBlank()) {
+                return@withContext Result.failure(Exception("No Clean Filing cabinet found from '$targetOwnerEmail'. Please ensure they granted access."))
             }
 
             // Create new "Clean Filing" folder if not found
@@ -272,7 +300,7 @@ class GoogleDriveService(private val context: Context) {
 
     suspend fun shareFolder(token: String, folderId: String, email: String): Result<Boolean> = withContext(Dispatchers.IO) {
         try {
-            val url = "https://www.googleapis.com/drive/v3/files/$folderId/permissions?sendNotificationEmail=true&supportsAllDrives=true"
+            val url = "https://www.googleapis.com/drive/v3/files/$folderId/permissions?sendNotificationEmail=false&supportsAllDrives=true"
             val payload = JSONObject().apply {
                 put("role", "writer")
                 put("type", "user")
