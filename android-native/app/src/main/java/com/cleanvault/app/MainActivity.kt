@@ -422,8 +422,6 @@ fun MainScreen(
     var isPinned by remember { mutableStateOf(false) }
 
     var showSettingsModal by remember { mutableStateOf(false) }
-    var appsScriptUrlInput by remember { mutableStateOf(repository.getScriptUrl()) }
-    var isTestingScript by remember { mutableStateOf(false) }
     var cabinetSearchQuery by remember { mutableStateOf("") }
     var cabinetFilterPinnedOnly by remember { mutableStateOf(false) }
     var partnerInviteEmail by remember { mutableStateOf("") }
@@ -1827,7 +1825,7 @@ fun MainScreen(
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Text("📱", fontSize = 18.sp)
-                                        Text("Option 1: Local Only (Offline)", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
+                                        Text("Local Only (Offline)", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
                                     }
                                     if (isLocalActive) {
                                         Surface(
@@ -1882,7 +1880,7 @@ fun MainScreen(
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         Text("☁️", fontSize = 18.sp)
-                                        Text("Option 2: Private Google Drive", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
+                                        Text("Google Drive Cabinet", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
                                     }
                                     if (isDriveActive) {
                                         Surface(
@@ -2059,140 +2057,6 @@ fun MainScreen(
                                         Icon(Icons.Filled.AccountCircle, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                                         Spacer(Modifier.width(8.dp))
                                         Text("Sign in with Google", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 13.5.sp)
-                                    }
-                                }
-                            }
-                        }
-
-                        // ============================================
-                        // OPTION 3: SHARED FILE CABINET (PASTE URL)
-                        // ============================================
-                        val isScriptConnected = appsScriptUrlInput.isNotBlank()
-                        val isScriptActive = (activeCloudMode == CloudSyncMode.SHARED_CABINET && isScriptConnected)
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
-                            color = if (isScriptActive) Color(0xFFEFF6FF) else SurfaceRaised,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isScriptActive) Color(0xFF3B82F6) else BorderColor)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Text("🤝", fontSize = 18.sp)
-                                        Text("Option 3: Shared File Cabinet", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextDark)
-                                    }
-                                    if (isScriptActive) {
-                                        Surface(
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = Color(0xFFDBEAFE)
-                                        ) {
-                                            Text("ACTIVE (SHARED)", fontSize = 9.sp, fontWeight = FontWeight.Black, color = Color(0xFF1D4ED8), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
-                                        }
-                                    }
-                                }
-                                Text(
-                                    "Shared mutual vault between spouses or partners. Both devices sync to the same shared cabinet, pins, and documents.",
-                                    fontSize = 11.5.sp,
-                                    color = TextSubtle,
-                                    lineHeight = 16.sp
-                                )
-
-                                BasicTextField(
-                                    value = appsScriptUrlInput,
-                                    onValueChange = { appsScriptUrlInput = it },
-                                    textStyle = TextStyle(color = TextDark, fontSize = 12.sp),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(CardWhite)
-                                        .border(1.dp, BorderColor, RoundedCornerShape(10.dp))
-                                        .padding(horizontal = 10.dp, vertical = 8.dp),
-                                    singleLine = true
-                                )
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Button(
-                                        onClick = {
-                                            val trimmed = appsScriptUrlInput.trim()
-                                            repository.setScriptUrl(trimmed)
-                                            if (trimmed.isNotBlank()) {
-                                                repository.setActiveCloudMode(CloudSyncMode.SHARED_CABINET)
-                                                activeCloudMode = CloudSyncMode.SHARED_CABINET
-                                                Toast.makeText(context, "Connected to Shared Cabinet! Syncing...", Toast.LENGTH_SHORT).show()
-                                                triggerSync(silent = false)
-                                            } else {
-                                                activeCloudMode = repository.getActiveCloudMode()
-                                                Toast.makeText(context, "URL is blank", Toast.LENGTH_SHORT).show()
-                                            }
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = PurpleDark),
-                                        shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.weight(1f).height(38.dp)
-                                    ) {
-                                        Icon(Icons.Filled.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(Modifier.width(4.dp))
-                                        Text(if (isScriptConnected) "Sync Shared Cabinet" else "Connect & Sync", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                    }
-
-                                    if (isScriptConnected) {
-                                        OutlinedButton(
-                                            onClick = {
-                                                appsScriptUrlInput = ""
-                                                repository.setScriptUrl("")
-                                                activeCloudMode = repository.getActiveCloudMode()
-                                                Toast.makeText(context, "Removed Shared Cabinet", Toast.LENGTH_SHORT).show()
-                                            },
-                                            shape = RoundedCornerShape(10.dp),
-                                            modifier = Modifier.height(38.dp)
-                                        ) {
-                                            Text("Disconnect", fontSize = 11.sp, color = RoseRed)
-                                        }
-                                    }
-                                }
-
-                                if (isScriptConnected) {
-                                    OutlinedButton(
-                                        onClick = {
-                                            scope.launch {
-                                                repository.clearAllDocuments()
-                                                documents = repository.getDocuments()
-                                                Toast.makeText(context, "Pulling fresh copy from Shared Cabinet...", Toast.LENGTH_SHORT).show()
-                                                triggerSync(silent = false)
-                                            }
-                                        },
-                                        shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.fillMaxWidth().height(36.dp)
-                                    ) {
-                                        Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(14.dp), tint = TextDark)
-                                        Spacer(Modifier.width(6.dp))
-                                        Text("Fresh Sync (Replace with Shared Cabinet)", fontSize = 11.sp, color = TextDark, fontWeight = FontWeight.SemiBold)
-                                    }
-
-                                    OutlinedButton(
-                                        onClick = {
-                                            val shareText = "Here is our Clean Filing shared cabinet link. In Clean Filing Settings, paste this under 'Option 3: Shared File Cabinet':\n\n" + appsScriptUrlInput.trim()
-                                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                                type = "text/plain"
-                                                putExtra(Intent.EXTRA_TEXT, shareText)
-                                            }
-                                            context.startActivity(Intent.createChooser(intent, "Share Vault Link"))
-                                        },
-                                        shape = RoundedCornerShape(10.dp),
-                                        modifier = Modifier.fillMaxWidth().height(36.dp)
-                                    ) {
-                                        Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = PurpleDark)
-                                        Spacer(Modifier.width(6.dp))
-                                        Text("Send Shared Link to Partner / Wife", fontSize = 11.sp, color = PurpleDark, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
                             }
@@ -2873,15 +2737,12 @@ fun MainScreen(
 suspend fun openDocumentFile(context: Context, doc: VaultDocument, repository: VaultRepository, forceChooser: Boolean = false) {
     try {
         var file = File(doc.filePath)
-        // If file missing locally, attempt on-demand retrieval or drive URL fallback
+        // If file missing locally, attempt on-demand retrieval from Google Drive or browser fallback
         if (!file.exists() || file.length() == 0L) {
-            val scriptUrl = repository.getScriptUrl()
-            if (repository.getActiveCloudMode() == CloudSyncMode.SHARED_CABINET &&
-                scriptUrl.isNotBlank() && !doc.driveFileId.isNullOrBlank()) {
+            val fileId = doc.driveFileId.orEmpty()
+            if (repository.getActiveCloudMode() == CloudSyncMode.GOOGLE_DRIVE && fileId.isNotBlank()) {
                 Toast.makeText(context, "Fetching file from Google Drive...", Toast.LENGTH_SHORT).show()
-                val downloadedPath = withContext(Dispatchers.IO) {
-                    repository.downloadAndSaveFile(scriptUrl, doc.driveFileId, doc.fileName)
-                }
+                val downloadedPath = repository.downloadGoogleDriveFile(fileId, doc.fileName)
                 if (downloadedPath != null) {
                     file = File(downloadedPath)
                 }
