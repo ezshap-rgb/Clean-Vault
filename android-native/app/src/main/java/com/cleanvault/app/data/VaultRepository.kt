@@ -135,6 +135,29 @@ class VaultRepository(private val context: Context) {
         prefs.edit().putString("google_drive_folder_id", folderId.trim()).apply()
     }
 
+    suspend fun shareGoogleDriveCabinet(partnerEmail: String): Result<String> = withContext(Dispatchers.IO) {
+        val email = getGoogleEmail()
+        if (email.isBlank()) return@withContext Result.failure(Exception("Please sign into Google Drive first."))
+        val account = Account(email, "com.google")
+        val token = googleDriveService.getAccessToken(account)
+            ?: return@withContext Result.failure(Exception("Could not obtain Google Drive access token. Please re-sign in."))
+
+        var folderId = getGoogleFolderId()
+        if (folderId.isBlank()) {
+            val folderRes = googleDriveService.findOrCreateAppFolder(token)
+            if (folderRes.isFailure) return@withContext Result.failure(folderRes.exceptionOrNull() ?: Exception("Folder error"))
+            folderId = folderRes.getOrThrow()
+            setGoogleFolderId(folderId)
+        }
+
+        val shareRes = googleDriveService.shareFolder(token, folderId, partnerEmail.trim())
+        if (shareRes.isSuccess) {
+            Result.success(folderId)
+        } else {
+            Result.failure(shareRes.exceptionOrNull() ?: Exception("Failed to share folder"))
+        }
+    }
+
     fun getScriptUrl(): String {
         return prefs.getString("apps_script_url", "") ?: ""
     }

@@ -426,6 +426,8 @@ fun MainScreen(
     var isTestingScript by remember { mutableStateOf(false) }
     var cabinetSearchQuery by remember { mutableStateOf("") }
     var cabinetFilterPinnedOnly by remember { mutableStateOf(false) }
+    var partnerInviteEmail by remember { mutableStateOf("") }
+    var isInvitingPartner by remember { mutableStateOf(false) }
 
     // Rename Dialog state
     var docToRename by remember { mutableStateOf<VaultDocument?>(null) }
@@ -1950,6 +1952,101 @@ fun MainScreen(
                                             colors = ButtonDefaults.outlinedButtonColors(contentColor = RoseRed)
                                         ) {
                                             Text("Disconnect", fontSize = 11.sp)
+                                        }
+                                    }
+
+                                    // Direct Partner Sharing Section (No Apps Script!)
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = CardWhite,
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(10.dp),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Text("🤝", fontSize = 14.sp)
+                                                Text("Share Cabinet with Partner / Wife", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = TextDark)
+                                            }
+                                            Text(
+                                                "Invite your partner directly with their Google email. Once invited, they just install Clean Filing and tap 'Sign in with Google' to sync the same cabinet!",
+                                                fontSize = 11.sp,
+                                                color = TextSubtle,
+                                                lineHeight = 15.sp
+                                            )
+                                            BasicTextField(
+                                                value = partnerInviteEmail,
+                                                onValueChange = { partnerInviteEmail = it },
+                                                textStyle = TextStyle(color = TextDark, fontSize = 12.sp),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(ClayPageBg)
+                                                    .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
+                                                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                                                singleLine = true,
+                                                decorationBox = { innerTextField ->
+                                                    if (partnerInviteEmail.isBlank()) {
+                                                        Text("Partner's Gmail (e.g. spouse@gmail.com)", color = TextFaint, fontSize = 11.sp)
+                                                    }
+                                                    innerTextField()
+                                                }
+                                            )
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Button(
+                                                    enabled = !isInvitingPartner && partnerInviteEmail.isNotBlank(),
+                                                    onClick = {
+                                                        isInvitingPartner = true
+                                                        scope.launch {
+                                                            val res = repository.shareGoogleDriveCabinet(partnerInviteEmail)
+                                                            isInvitingPartner = false
+                                                            if (res.isSuccess) {
+                                                                val emailSent = partnerInviteEmail.trim()
+                                                                partnerInviteEmail = ""
+                                                                Toast.makeText(context, "Cabinet shared with $emailSent! 🤝", Toast.LENGTH_LONG).show()
+                                                            } else {
+                                                                Toast.makeText(context, "Share failed: ${res.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                                                            }
+                                                        }
+                                                    },
+                                                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldGreen),
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    modifier = Modifier.weight(1f).height(36.dp)
+                                                ) {
+                                                    if (isInvitingPartner) {
+                                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                                                        Spacer(Modifier.width(6.dp))
+                                                    }
+                                                    Text("Send Invite ✉️", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                                }
+
+                                                val folderId = repository.getGoogleFolderId()
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        val shareUrl = if (folderId.isNotBlank()) "https://drive.google.com/drive/folders/$folderId" else "https://drive.google.com"
+                                                        val shareText = "Here is our shared Clean Filing cabinet on Google Drive:\n$shareUrl\n\nInstall Clean Filing on your phone and tap 'Sign in with Google' under Option 2 to sync!"
+                                                        val intent = Intent(Intent.ACTION_SEND).apply {
+                                                            type = "text/plain"
+                                                            putExtra(Intent.EXTRA_TEXT, shareText)
+                                                        }
+                                                        context.startActivity(Intent.createChooser(intent, "Share Cabinet Link"))
+                                                    },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    modifier = Modifier.height(36.dp)
+                                                ) {
+                                                    Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(14.dp), tint = PurpleDark)
+                                                    Spacer(Modifier.width(4.dp))
+                                                    Text("Share Link", fontSize = 11.sp, color = PurpleDark, fontWeight = FontWeight.SemiBold)
+                                                }
+                                            }
                                         }
                                     }
                                 } else {

@@ -39,7 +39,7 @@ class GoogleDriveService(private val context: Context) {
         try {
             // Search for existing folder named "Clean Filing" (either owned or shared with user)
             val query = "name = 'Clean Filing' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-            val searchUrl = "https://www.googleapis.com/drive/v3/files?q=${java.net.URLEncoder.encode(query, "UTF-8")}&fields=files(id,name,owners)&spaces=drive"
+            val searchUrl = "https://www.googleapis.com/drive/v3/files?q=${java.net.URLEncoder.encode(query, "UTF-8")}&fields=files(id,name,owners)&supportsAllDrives=true&includeItemsFromAllDrives=true"
 
             val searchReq = Request.Builder()
                 .url(searchUrl)
@@ -263,6 +263,38 @@ class GoogleDriveService(private val context: Context) {
                     Result.success(true)
                 } else {
                     Result.failure(Exception("Delete failed: HTTP ${res.code}"))
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun shareFolder(token: String, folderId: String, email: String): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val url = "https://www.googleapis.com/drive/v3/files/$folderId/permissions?sendNotificationEmail=true&supportsAllDrives=true"
+            val payload = JSONObject().apply {
+                put("role", "writer")
+                put("type", "user")
+                put("emailAddress", email.trim())
+            }
+            val req = Request.Builder()
+                .url(url)
+                .addHeader("Authorization", "Bearer $token")
+                .post(payload.toString().toRequestBody("application/json; charset=utf-8".toMediaType()))
+                .build()
+
+            httpClient.newCall(req).execute().use { res ->
+                val body = res.body?.string().orEmpty()
+                if (res.isSuccessful) {
+                    Result.success(true)
+                } else {
+                    val errMsg = try {
+                        JSONObject(body).optJSONObject("error")?.optString("message") ?: body
+                    } catch (_: Exception) {
+                        body
+                    }
+                    Result.failure(Exception(errMsg.ifBlank { "Could not share folder (HTTP ${res.code})" }))
                 }
             }
         } catch (e: Exception) {
