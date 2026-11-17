@@ -3,14 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Clean Vault — Desktop File Cabinet</title>
+  <title>Clean Filing — Desktop File Cabinet</title>
   <link rel="icon" type="image/png" href="icon-192.png">
   <link rel="apple-touch-icon" href="icon-192.png">
 
-  <!-- Google Fonts: Outfit & JetBrains Mono -->
+  <!-- Google Identity Services for Direct Web Google Drive OAuth -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 
   <style>
     :root {
@@ -27,6 +30,7 @@
       --amber: #F59E0B;
       --emerald: #10B981;
       --rose: #EF4444;
+      --red-pin: #E11D48;
       --text-main: #FFFFFF;
       --text-muted: #94A3B8;
       --text-faint: #64748B;
@@ -43,7 +47,7 @@
     }
 
     body {
-      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background-color: var(--bg-base);
       color: var(--text-main);
       min-height: 100vh;
@@ -56,7 +60,6 @@
       background-attachment: fixed;
     }
 
-    /* Container */
     .container {
       max-width: 1280px;
       width: 100%;
@@ -104,7 +107,7 @@
 
     .brand-title {
       font-size: 1.25rem;
-      font-weight: 700;
+      font-weight: 800;
       letter-spacing: -0.02em;
     }
 
@@ -114,6 +117,7 @@
       display: flex;
       align-items: center;
       gap: 6px;
+      font-weight: 500;
     }
 
     .brand-subtitle.offline {
@@ -148,64 +152,61 @@
 
     .btn-icon.syncing svg {
       animation: spin 1s linear infinite;
-      color: var(--amber);
     }
 
     @keyframes spin {
       100% { transform: rotate(360deg); }
     }
 
-    /* Main Desktop Grid Layout */
+    /* Dashboard Layout */
     .dashboard-grid {
       display: grid;
       grid-template-columns: 360px 1fr;
       gap: 20px;
-      align-items: start;
     }
 
-    @media (max-width: 900px) {
+    @media (max-width: 960px) {
       .dashboard-grid {
         grid-template-columns: 1fr;
       }
     }
 
-    /* Cards */
     .card {
-      background: var(--surface);
+      background: var(--surface-card);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       padding: 20px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
       display: flex;
       flex-direction: column;
       gap: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
     }
 
     .card-title {
+      font-size: 1rem;
+      font-weight: 700;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--text-main);
     }
 
-    .card-title .tag {
-      font-size: 0.75rem;
-      color: var(--amber);
-      background: rgba(245, 158, 11, 0.12);
-      border: 1px solid rgba(245, 158, 11, 0.3);
+    .tag {
+      font-size: 0.7rem;
       padding: 3px 8px;
       border-radius: var(--radius-pill);
+      background: var(--surface-raised);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      font-weight: 600;
     }
 
-    /* Drop Zone / Intake */
+    /* Intake Section */
     .drop-zone {
       border: 2px dashed var(--border-highlight);
       border-radius: var(--radius-md);
       padding: 24px 16px;
       text-align: center;
-      background: rgba(14, 19, 36, 0.6);
+      background: rgba(14, 19, 36, 0.4);
       cursor: pointer;
       transition: all 0.2s ease;
       display: flex;
@@ -230,14 +231,18 @@
       color: var(--text-muted);
     }
 
+    .drop-zone-text strong {
+      color: var(--text-main);
+    }
+
     .file-preview {
       display: none;
       align-items: center;
       justify-content: space-between;
-      background: var(--surface-raised);
-      border: 1px solid var(--border-highlight);
-      border-radius: var(--radius-md);
       padding: 10px 14px;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
       font-size: 0.85rem;
     }
 
@@ -252,17 +257,19 @@
     }
 
     .input-label {
-      font-size: 0.8rem;
-      font-weight: 600;
+      font-size: 0.75rem;
+      font-weight: 700;
       color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
-    .text-input {
+    .text-input, .text-area {
       width: 100%;
-      background: var(--surface-raised);
+      padding: 10px 12px;
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 10px 14px;
+      border-radius: var(--radius-sm);
       color: var(--text-main);
       font-family: inherit;
       font-size: 0.9rem;
@@ -270,14 +277,19 @@
       transition: border-color 0.2s;
     }
 
-    .text-input:focus {
+    .text-area {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .text-input:focus, .text-area:focus {
       border-color: var(--accent);
     }
 
     .intake-actions {
       display: flex;
-      align-items: center;
-      gap: 8px;
+      gap: 10px;
+      margin-top: 4px;
     }
 
     .btn-pin-toggle {
@@ -286,48 +298,70 @@
       border-radius: var(--radius-md);
       background: var(--surface-raised);
       border: 1px solid var(--border);
+      font-size: 1.1rem;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.1rem;
       transition: all 0.2s;
     }
 
     .btn-pin-toggle.active {
-      background: rgba(245, 158, 11, 0.2);
-      border-color: var(--amber);
+      background: rgba(225, 29, 72, 0.2);
+      border-color: var(--red-pin);
     }
 
     .btn-primary {
       flex: 1;
       height: 44px;
-      background: var(--accent-gradient);
-      color: white;
-      border: none;
       border-radius: var(--radius-md);
-      font-family: inherit;
+      background: var(--accent);
+      color: #FFFFFF;
       font-weight: 700;
       font-size: 0.9rem;
+      border: none;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      box-shadow: 0 4px 15px rgba(92, 79, 238, 0.35);
-      transition: opacity 0.2s;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px rgba(92, 79, 238, 0.3);
     }
 
-    .btn-primary:hover {
-      opacity: 0.92;
+    .btn-primary:hover:not(:disabled) {
+      filter: brightness(1.1);
+      box-shadow: 0 4px 18px rgba(92, 79, 238, 0.5);
     }
 
     .btn-primary:disabled {
-      opacity: 0.5;
+      opacity: 0.45;
       cursor: not-allowed;
     }
 
-    /* Cabinet View Section */
+    .btn-secondary {
+      height: 38px;
+      padding: 0 14px;
+      border-radius: var(--radius-sm);
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      font-weight: 600;
+      font-size: 0.82rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-secondary:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-highlight);
+    }
+
+    /* Cabinet Controls */
     .cabinet-controls {
       display: flex;
       flex-direction: column;
@@ -335,209 +369,194 @@
     }
 
     .search-bar-wrap {
-      position: relative;
       display: flex;
       align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 0 14px;
+      height: 42px;
+      gap: 10px;
     }
 
     .search-bar-wrap svg {
-      position: absolute;
-      left: 14px;
       width: 18px;
       height: 18px;
       color: var(--text-faint);
     }
 
     .search-input {
-      width: 100%;
-      background: var(--surface-raised);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 12px 14px 12px 42px;
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
       color: var(--text-main);
       font-size: 0.9rem;
-      outline: none;
-      transition: border-color 0.2s;
+      font-family: inherit;
     }
 
-    .search-input:focus {
-      border-color: var(--accent);
-    }
-
-    /* Pinned Quick Access Pills */
+    /* Pinned Essentials Bar */
     .pinned-scroll-bar {
       display: flex;
-      align-items: center;
       gap: 8px;
       overflow-x: auto;
       padding-bottom: 4px;
     }
 
     .pinned-pill {
-      background: rgba(245, 158, 11, 0.12);
-      border: 1px solid rgba(245, 158, 11, 0.35);
-      color: var(--text-main);
-      padding: 6px 12px;
-      border-radius: var(--radius-pill);
-      font-size: 0.8rem;
-      display: inline-flex;
+      display: flex;
       align-items: center;
       gap: 6px;
+      background: rgba(225, 29, 72, 0.12);
+      border: 1px solid rgba(225, 29, 72, 0.35);
+      border-radius: var(--radius-pill);
+      padding: 5px 12px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #FDA4AF;
       white-space: nowrap;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all 0.2s;
     }
 
     .pinned-pill:hover {
-      background: rgba(245, 158, 11, 0.22);
-      border-color: var(--amber);
+      background: rgba(225, 29, 72, 0.22);
+      border-color: var(--red-pin);
     }
 
-    /* Documents List */
+    /* Documents Grid */
     .documents-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
       gap: 14px;
-      max-height: calc(100vh - 240px);
-      overflow-y: auto;
-      padding-right: 4px;
+      margin-top: 4px;
     }
 
     .doc-card {
-      background: var(--surface-card);
+      background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-md);
       padding: 14px;
       display: flex;
       flex-direction: column;
       gap: 10px;
-      transition: transform 0.15s, border-color 0.15s;
+      transition: all 0.2s;
+      position: relative;
     }
 
     .doc-card:hover {
       border-color: var(--border-highlight);
       transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
     }
 
     .doc-card.pinned {
-      border-color: rgba(245, 158, 11, 0.4);
-      background: #141026;
+      border-color: rgba(225, 29, 72, 0.4);
+      background: linear-gradient(180deg, rgba(225, 29, 72, 0.05) 0%, var(--surface) 100%);
     }
 
     .doc-header {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
-      gap: 10px;
+      gap: 8px;
     }
 
     .doc-name-group {
       display: flex;
-      align-items: flex-start;
-      gap: 8px;
+      align-items: center;
+      gap: 10px;
       flex: 1;
+      min-width: 0;
     }
 
-    .btn-pin-sm {
-      background: none;
-      border: none;
-      cursor: pointer;
-      font-size: 1rem;
-      padding: 2px 0 0 0;
-      opacity: 0.7;
-      transition: opacity 0.2s;
+    .doc-type-icon {
+      font-size: 1.35rem;
+      line-height: 1;
     }
 
-    .btn-pin-sm:hover, .doc-card.pinned .btn-pin-sm {
-      opacity: 1;
-    }
-
+    /* Document Name is explicitly BOLD Plus Jakarta Sans matching the mobile app! */
     .doc-name {
-      font-size: 0.95rem;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 0.96rem;
       font-weight: 700;
       color: var(--text-main);
-      word-break: break-word;
-      line-height: 1.35;
-    }
-
-    .doc-meta {
-      font-size: 0.75rem;
-      color: var(--text-faint);
-      display: flex;
-      align-items: center;
-      gap: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
       white-space: nowrap;
+      letter-spacing: -0.01em;
     }
 
     .doc-labels {
-      font-size: 0.8rem;
-      color: var(--text-muted);
       display: flex;
-      align-items: center;
-      gap: 6px;
       flex-wrap: wrap;
+      gap: 6px;
     }
 
     .label-badge {
-      background: rgba(168, 22, 223, 0.15);
-      border: 1px solid rgba(168, 22, 223, 0.35);
-      color: #D8B4FE;
-      padding: 2px 8px;
-      border-radius: var(--radius-pill);
       font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: var(--surface-raised);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      font-weight: 600;
     }
 
     .doc-actions {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       margin-top: 4px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
     }
 
     .btn-action {
       flex: 1;
       height: 32px;
       border-radius: var(--radius-sm);
-      border: 1px solid var(--border);
       background: var(--surface-raised);
+      border: 1px solid var(--border);
       color: var(--text-main);
-      font-size: 0.78rem;
-      font-weight: 600;
+      font-size: 0.75rem;
+      font-weight: 700;
       cursor: pointer;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 5px;
+      gap: 4px;
       text-decoration: none;
       transition: all 0.2s;
     }
 
-    .btn-action.view {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: white;
-    }
-
     .btn-action:hover {
       background: var(--surface-hover);
-      border-color: var(--border-highlight);
+      border-color: var(--accent);
+    }
+
+    .btn-action.view {
+      background: rgba(92, 79, 238, 0.15);
+      border-color: rgba(92, 79, 238, 0.4);
+      color: #A5B4FC;
     }
 
     .btn-action.view:hover {
-      opacity: 0.9;
+      background: rgba(92, 79, 238, 0.3);
     }
 
     .btn-action-icon {
       width: 32px;
       height: 32px;
       border-radius: var(--radius-sm);
-      border: 1px solid var(--border);
       background: var(--surface-raised);
+      border: 1px solid var(--border);
       color: var(--text-muted);
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
+      font-size: 0.82rem;
       transition: all 0.2s;
     }
 
@@ -546,21 +565,20 @@
       color: var(--text-main);
     }
 
+    .btn-action-icon.pinned-btn {
+      color: var(--red-pin);
+    }
+
     .btn-action-icon.delete:hover {
       color: var(--rose);
-      border-color: var(--rose);
+      border-color: rgba(239, 68, 68, 0.4);
+      background: rgba(239, 68, 68, 0.1);
     }
 
-    .btn-action-icon.edit:hover {
-      color: var(--amber);
-      border-color: var(--amber);
-    }
-
-    /* Empty state */
     .empty-state {
       grid-column: 1 / -1;
-      text-align: center;
       padding: 60px 20px;
+      text-align: center;
       color: var(--text-faint);
       display: flex;
       flex-direction: column;
@@ -574,19 +592,16 @@
       opacity: 0.4;
     }
 
-    /* Modal / Dialog */
+    /* Modal Backdrop */
     .modal-backdrop {
-      display: none;
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.75);
-      backdrop-filter: blur(4px);
-      z-index: 1000;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(6px);
+      display: none;
       align-items: center;
       justify-content: center;
+      z-index: 1000;
       padding: 16px;
     }
 
@@ -595,16 +610,18 @@
     }
 
     .modal-box {
-      background: var(--surface);
+      background: var(--surface-card);
       border: 1px solid var(--border-highlight);
       border-radius: var(--radius-lg);
       padding: 24px;
-      max-width: 500px;
       width: 100%;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      max-width: 520px;
+      max-height: 90vh;
+      overflow-y: auto;
       display: flex;
       flex-direction: column;
       gap: 16px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
     }
 
     .modal-header {
@@ -614,87 +631,107 @@
     }
 
     .modal-title {
-      font-size: 1.1rem;
-      font-weight: 700;
+      font-size: 1.15rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .btn-close {
       background: none;
       border: none;
       color: var(--text-faint);
-      cursor: pointer;
       font-size: 1.25rem;
+      cursor: pointer;
+      padding: 4px;
     }
 
     .btn-close:hover {
       color: var(--text-main);
     }
 
+    .modal-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .modal-section-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .modal-section-desc {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
     .modal-actions {
       display: flex;
-      gap: 10px;
+      align-items: center;
       justify-content: flex-end;
+      gap: 10px;
       margin-top: 8px;
     }
 
-    .btn-secondary {
-      height: 38px;
-      padding: 0 16px;
-      background: var(--surface-raised);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      color: var(--text-main);
-      font-family: inherit;
-      font-size: 0.85rem;
-      cursor: pointer;
-    }
-
-    /* Toast notification */
+    /* Toast */
     .toast {
       position: fixed;
       bottom: 24px;
-      right: 24px;
-      background: var(--surface-raised);
-      border: 1px solid var(--border-highlight);
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--surface-card);
+      border: 1px solid var(--accent);
       color: var(--text-main);
-      padding: 12px 20px;
-      border-radius: var(--radius-md);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      padding: 10px 20px;
+      border-radius: var(--radius-pill);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
       font-size: 0.85rem;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      z-index: 2000;
-      opacity: 0;
-      transform: translateY(10px);
-      transition: all 0.3s ease;
+      font-weight: 600;
       pointer-events: none;
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 2000;
     }
 
     .toast.active {
+      transform: translateX(-50%) translateY(0);
       opacity: 1;
-      transform: translateY(0);
     }
   </style>
 </head>
 <body>
-
   <div class="container">
     <!-- Header -->
     <header>
       <div class="brand">
         <div class="brand-icon">
-          <img src="favicon.png" alt="Clean Vault">
+          <img src="icon-192.png" alt="Clean Filing Logo">
         </div>
         <div>
-          <h1 class="brand-title">Clean Vault</h1>
+          <h1 class="brand-title">Clean Filing</h1>
           <div id="connectionStatus" class="brand-subtitle offline">
-            <span>●</span> <span id="statusText">Local / Not Connected</span>
+            <span>●</span> <span id="statusText">Local Only (Offline)</span>
           </div>
         </div>
       </div>
 
       <div class="header-actions">
+        <!-- Quick Note Button -->
+        <button id="btnQuickNote" class="btn-icon" title="New Quick Note 📝">
+          <span style="font-size: 1.1rem;">📝</span>
+        </button>
+
         <!-- Sync button -->
         <button id="btnSync" class="btn-icon" title="Sync with Google Drive">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -714,14 +751,14 @@
 
     <!-- Main Grid -->
     <div class="dashboard-grid">
-      <!-- Left: File Document on Desktop (Optional Drag & Drop) -->
+      <!-- Left: File Document on Desktop (Intake) -->
       <div class="card">
         <div class="card-title">
           <span>File Document</span>
           <span class="tag">Desktop Intake</span>
         </div>
 
-        <input type="file" id="fileInput" style="display: none;" accept="image/*,application/pdf,.doc,.docx">
+        <input type="file" id="fileInput" style="display: none;" accept="image/*,application/pdf,.doc,.docx,.txt">
 
         <div id="dropZone" class="drop-zone">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -730,12 +767,12 @@
             <line x1="12" y1="3" x2="12" y2="15"/>
           </svg>
           <div class="drop-zone-text"><strong>Drag & drop file</strong> or click to browse</div>
-          <div style="font-size: 0.72rem; color: var(--text-faint);">Photos, PDFs, Word docs</div>
+          <div style="font-size: 0.72rem; color: var(--text-faint);">Photos, PDFs, Word docs, Notes</div>
         </div>
 
         <div id="filePreview" class="file-preview">
-          <span id="filePreviewName" style="max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
-          <button id="btnClearFile" style="background: none; border: none; color: var(--rose); cursor: pointer;">✕</button>
+          <span id="filePreviewName" style="max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700;"></span>
+          <button id="btnClearFile" style="background: none; border: none; color: var(--rose); cursor: pointer; font-weight: bold;">✕</button>
         </div>
 
         <div class="input-group">
@@ -744,20 +781,20 @@
         </div>
 
         <div class="input-group">
-          <label class="input-label">Labels</label>
-          <input type="text" id="inputLabels" class="text-input" placeholder="e.g. taxes, medical, 2026...">
+          <label class="input-label">Labels / Tags</label>
+          <input type="text" id="inputLabels" class="text-input" placeholder="e.g. taxes, medical, receipts...">
         </div>
 
         <div class="intake-actions">
-          <button id="btnPinToggle" class="btn-pin-toggle" title="Toggle Pin">📌</button>
+          <button id="btnPinToggle" class="btn-pin-toggle" title="Pin to Essentials">📌</button>
           <button id="btnSaveToVault" class="btn-primary" disabled>
-            Save to Vault
+            File to Cabinet 🗄️
           </button>
         </div>
       </div>
 
-      <!-- Right: Shared File Cabinet -->
-      <div class="card" style="min-height: 540px;">
+      <!-- Right: Cabinet List -->
+      <div class="card" style="min-height: 560px;">
         <div class="card-title">
           <span>File Cabinet</span>
           <span id="docCountBadge" class="tag">0 documents</span>
@@ -770,6 +807,7 @@
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
             <input type="text" id="cabinetSearch" class="search-input" placeholder="Filter by name or labels...">
+            <button id="btnFilterPinned" class="btn-action-icon" title="Filter Pinned Only" style="border: none; background: transparent;">📌</button>
           </div>
 
           <!-- Pinned Bar -->
@@ -782,38 +820,129 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
             </svg>
-            <div>No documents found. Connect your Google Apps Script in Settings ⚙️ to sync your cabinet.</div>
+            <div>No documents found. Connect Google Drive in Settings ⚙️ or file a document offline above!</div>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Settings Modal -->
+  <!-- Settings Modal (Google Drive Direct & Parity with Mobile App) -->
   <div id="settingsModal" class="modal-backdrop">
     <div class="modal-box">
       <div class="modal-header">
-        <h3 class="modal-title">Shared Google Drive Backend</h3>
+        <h3 class="modal-title">⚙️ Clean Filing Settings</h3>
         <button class="btn-close" onclick="closeModal('settingsModal')">✕</button>
       </div>
 
-      <div style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5;">
-        Paste your Google Apps Script Web App URL below. Clean Vault on your desktop will use the exact same Google Drive files & cabinet as your Android phone!
+      <!-- Section: Cloud Sync Mode -->
+      <div class="modal-section">
+        <div class="modal-section-title">☁️ Google Drive Direct Cabinet</div>
+        <div class="modal-section-desc">
+          Direct Google Drive synchronization without third-party servers. All documents sync to the <strong>Clean Filing</strong> folder.
+        </div>
+
+        <div id="googleAuthStatus" style="font-size: 0.8rem; font-weight: 700; color: var(--emerald); display: none;">
+          ✓ Signed in to Google Drive
+        </div>
+
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
+          <button id="btnGoogleSignIn" class="btn-primary" style="height: 38px; font-size: 0.82rem;">
+            <span>🔑</span> Sign in with Google
+          </button>
+          <button id="btnGoogleDisconnect" class="btn-secondary" style="height: 38px; color: var(--rose); display: none;">
+            Disconnect
+          </button>
+        </div>
+
+        <!-- Advanced Web OAuth / Token input -->
+        <div style="margin-top: 6px;">
+          <details style="font-size: 0.78rem; color: var(--text-faint);">
+            <summary style="cursor: pointer; margin-bottom: 8px; font-weight: 600;">Custom Client ID / Access Token (Advanced)</summary>
+            <div class="input-group" style="margin-bottom: 8px;">
+              <label class="input-label">Google Web Client ID</label>
+              <input type="text" id="inputGoogleClientId" class="text-input" style="font-size: 0.8rem;" placeholder="e.g. 123456...apps.googleusercontent.com">
+            </div>
+            <div class="input-group">
+              <label class="input-label">Direct OAuth Access Token</label>
+              <input type="password" id="inputManualToken" class="text-input" style="font-size: 0.8rem;" placeholder="Bearer ya29....">
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <!-- Section: Cabinet Source / Owner (For partner devices) -->
+      <div class="modal-section">
+        <div class="modal-section-title">📂 Cabinet Source / Owner (Optional)</div>
+        <div class="modal-section-desc">
+          Leave blank to use your own private cabinet. If a partner shared their cabinet with you, enter their Gmail address below to bind directly to theirs.
+        </div>
+        <div class="input-group">
+          <input type="email" id="inputCabinetOwner" class="text-input" placeholder="Owner's Gmail (e.g. owner@gmail.com)">
+        </div>
+        <div id="ownerBindNotice" style="display: none; font-size: 0.75rem; color: var(--emerald); font-weight: 600;">
+          Connecting to partner cabinet: <span id="ownerBindEmail"></span>
+          <button id="btnResetOwner" style="background: none; border: none; color: var(--rose); cursor: pointer; text-decoration: underline; margin-left: 6px;">Reset to Mine</button>
+        </div>
+      </div>
+
+      <!-- Section: Partner Direct Sharing (Silent Background Grant) -->
+      <div class="modal-section">
+        <div class="modal-section-title">🤝 Share Cabinet with Partner / Wife</div>
+        <div class="modal-section-desc">
+          Grant your partner access directly by entering their Google email. Access is granted silently in the background (no Google emails sent). They just enter your email under 'Cabinet Source / Owner' on their device to sync!
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <input type="email" id="inputPartnerEmail" class="text-input" style="flex: 1;" placeholder="Partner's Gmail (e.g. spouse@gmail.com)">
+          <button id="btnGrantPartnerAccess" class="btn-primary" style="flex: 0 0 auto; height: 38px; padding: 0 16px; background: var(--emerald);">
+            Grant Access 🤝
+          </button>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="modal-actions" style="flex-wrap: wrap; justify-content: space-between;">
+        <button id="btnClearCache" class="btn-secondary" style="color: var(--amber); border-color: rgba(245, 158, 11, 0.4);" title="Wipe local browser cache and reload fresh from Google Drive">
+          Clear Cache & Force Sync
+        </button>
+        <button id="btnSaveSettings" class="btn-primary" style="flex: 0 0 auto; padding: 0 24px;">
+          Save & Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Note Modal -->
+  <div id="noteModal" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 class="modal-title">📝 Quick Note</h3>
+        <button class="btn-close" onclick="closeModal('noteModal')">✕</button>
       </div>
 
       <div class="input-group">
-        <label class="input-label">Apps Script Web App URL</label>
-        <input type="url" id="inputScriptUrl" class="text-input" placeholder="https://script.google.com/macros/s/.../exec">
+        <label class="input-label">Note Title</label>
+        <input type="text" id="noteTitleInput" class="text-input" placeholder="e.g. Gate code, Policy #, Shopping list...">
       </div>
 
-      <div id="testStatusMessage" style="font-size: 0.8rem; display: none; padding: 8px 12px; border-radius: var(--radius-sm);"></div>
+      <div class="input-group">
+        <label class="input-label">Note Body</label>
+        <textarea id="noteBodyInput" class="text-area" rows="6" placeholder="Type your note here..."></textarea>
+      </div>
 
-      <div class="modal-actions" style="flex-wrap: wrap;">
-        <button id="btnClearCache" class="btn-secondary" style="color: var(--amber); border-color: rgba(245, 158, 11, 0.4);" title="Wipe local browser cache and reload fresh from Google Drive">Clear Cache & Force Sync</button>
-        <div style="display: flex; gap: 8px; flex: 1; justify-content: flex-end;">
-          <button id="btnTestUrl" class="btn-secondary">Test Link</button>
-          <button id="btnSaveUrl" class="btn-primary" style="flex: 0 0 auto; padding: 0 20px;">Save & Sync</button>
-        </div>
+      <div class="input-group">
+        <label class="input-label">Labels / Tags</label>
+        <input type="text" id="noteLabelsInput" class="text-input" placeholder="e.g. urgent, home, reminder...">
+      </div>
+
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0;">
+        <span style="font-size: 0.85rem; font-weight: 700;">Pin to Essentials</span>
+        <button id="btnNotePinToggle" class="btn-pin-toggle" style="width: 36px; height: 36px;">📌</button>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal('noteModal')">Cancel</button>
+        <button id="btnSaveNote" class="btn-primary" style="flex: 0 0 auto; padding: 0 20px;">Save Note 🗄️</button>
       </div>
     </div>
   </div>
@@ -835,7 +964,7 @@
       </div>
 
       <div class="input-group">
-        <label class="input-label">Labels</label>
+        <label class="input-label">Labels / Tags</label>
         <input type="text" id="editLabels" class="text-input">
       </div>
 
@@ -850,15 +979,20 @@
   <div id="toast" class="toast"></div>
 
   <script>
-    // App State
+    // State management
     const state = {
-      scriptUrl: localStorage.getItem('CLEAN_VAULT_SCRIPT_URL') || '',
-      documents: JSON.parse(localStorage.getItem('CLEAN_VAULT_DOCS') || '[]'),
+      token: localStorage.getItem('CLEAN_FILING_TOKEN') || '',
+      clientId: localStorage.getItem('CLEAN_FILING_CLIENT_ID') || '',
+      folderId: localStorage.getItem('CLEAN_FILING_FOLDER_ID') || '',
+      cabinetOwnerEmail: localStorage.getItem('CLEAN_FILING_OWNER_EMAIL') || '',
+      documents: JSON.parse(localStorage.getItem('CLEAN_FILING_DOCS') || '[]'),
       selectedFile: null,
-      selectedBase64: '',
       selectedMimeType: '',
+      selectedBase64: '',
       isIntakePinned: false,
-      isSyncing: false
+      isNotePinned: false,
+      isSyncing: false,
+      filterPinnedOnly: false
     };
 
     // DOM Elements
@@ -866,6 +1000,9 @@
     const statusText = document.getElementById('statusText');
     const btnSync = document.getElementById('btnSync');
     const btnSettings = document.getElementById('btnSettings');
+    const btnQuickNote = document.getElementById('btnQuickNote');
+
+    // Intake elements
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
     const filePreview = document.getElementById('filePreview');
@@ -875,17 +1012,31 @@
     const inputLabels = document.getElementById('inputLabels');
     const btnPinToggle = document.getElementById('btnPinToggle');
     const btnSaveToVault = document.getElementById('btnSaveToVault');
+
+    // Cabinet elements
     const cabinetSearch = document.getElementById('cabinetSearch');
+    const btnFilterPinned = document.getElementById('btnFilterPinned');
     const docCountBadge = document.getElementById('docCountBadge');
     const pinnedBar = document.getElementById('pinnedBar');
     const documentsContainer = document.getElementById('documentsContainer');
 
+    // Settings modal elements
     const settingsModal = document.getElementById('settingsModal');
-    const inputScriptUrl = document.getElementById('inputScriptUrl');
-    const btnTestUrl = document.getElementById('btnTestUrl');
-    const btnSaveUrl = document.getElementById('btnSaveUrl');
-    const testStatusMessage = document.getElementById('testStatusMessage');
+    const googleAuthStatus = document.getElementById('googleAuthStatus');
+    const btnGoogleSignIn = document.getElementById('btnGoogleSignIn');
+    const btnGoogleDisconnect = document.getElementById('btnGoogleDisconnect');
+    const inputGoogleClientId = document.getElementById('inputGoogleClientId');
+    const inputManualToken = document.getElementById('inputManualToken');
+    const inputCabinetOwner = document.getElementById('inputCabinetOwner');
+    const ownerBindNotice = document.getElementById('ownerBindNotice');
+    const ownerBindEmail = document.getElementById('ownerBindEmail');
+    const btnResetOwner = document.getElementById('btnResetOwner');
+    const inputPartnerEmail = document.getElementById('inputPartnerEmail');
+    const btnGrantPartnerAccess = document.getElementById('btnGrantPartnerAccess');
+    const btnClearCache = document.getElementById('btnClearCache');
+    const btnSaveSettings = document.getElementById('btnSaveSettings');
 
+    // Rename modal elements
     const renameModal = document.getElementById('renameModal');
     const editDocId = document.getElementById('editDocId');
     const editFileId = document.getElementById('editFileId');
@@ -893,38 +1044,335 @@
     const editLabels = document.getElementById('editLabels');
     const btnSaveRename = document.getElementById('btnSaveRename');
 
+    // Note modal elements
+    const noteModal = document.getElementById('noteModal');
+    const noteTitleInput = document.getElementById('noteTitleInput');
+    const noteBodyInput = document.getElementById('noteBodyInput');
+    const noteLabelsInput = document.getElementById('noteLabelsInput');
+    const btnNotePinToggle = document.getElementById('btnNotePinToggle');
+    const btnSaveNote = document.getElementById('btnSaveNote');
+
     const toast = document.getElementById('toast');
 
-    // Utility: Toast notification
     function showToast(msg) {
       toast.textContent = msg;
       toast.classList.add('active');
       setTimeout(() => toast.classList.remove('active'), 3200);
     }
 
-    // Modal helpers
     function openModal(id) { document.getElementById(id).classList.add('active'); }
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
     // Init UI
     function init() {
-      if (state.scriptUrl) {
-        inputScriptUrl.value = state.scriptUrl;
-        connectionStatus.className = "brand-subtitle";
-        statusText.textContent = "Google Drive Connected";
-        fetchCloudRecords(true);
-      } else {
-        renderDocuments();
+      updateConnectionStatusUI();
+      renderDocuments();
+      if (state.token) {
+        syncGoogleDrive(true);
       }
     }
 
-    // Toggle Intake Pin
-    btnPinToggle.addEventListener('click', () => {
-      state.isIntakePinned = !state.isIntakePinned;
-      btnPinToggle.classList.toggle('active', state.isIntakePinned);
+    function updateConnectionStatusUI() {
+      if (state.token) {
+        connectionStatus.className = 'brand-subtitle';
+        if (state.cabinetOwnerEmail) {
+          statusText.textContent = `Linked to: ${state.cabinetOwnerEmail}`;
+        } else {
+          statusText.textContent = 'Google Drive Connected';
+        }
+        googleAuthStatus.style.display = 'block';
+        btnGoogleDisconnect.style.display = 'inline-flex';
+      } else {
+        connectionStatus.className = 'brand-subtitle offline';
+        statusText.textContent = 'Local Only (Offline)';
+        googleAuthStatus.style.display = 'none';
+        btnGoogleDisconnect.style.display = 'none';
+      }
+
+      inputGoogleClientId.value = state.clientId;
+      inputCabinetOwner.value = state.cabinetOwnerEmail;
+      if (state.cabinetOwnerEmail) {
+        ownerBindNotice.style.display = 'block';
+        ownerBindEmail.textContent = state.cabinetOwnerEmail;
+      } else {
+        ownerBindNotice.style.display = 'none';
+      }
+    }
+
+    // Google Sign In (Token Client)
+    btnGoogleSignIn.addEventListener('click', () => {
+      const clientId = inputGoogleClientId.value.trim() || state.clientId;
+      const manualToken = inputManualToken.value.trim();
+
+      if (manualToken) {
+        state.token = manualToken;
+        localStorage.setItem('CLEAN_FILING_TOKEN', manualToken);
+        updateConnectionStatusUI();
+        showToast('Access token saved! Syncing cabinet...');
+        syncGoogleDrive(false);
+        return;
+      }
+
+      if (!clientId) {
+        const promptId = prompt('Please enter your Google Web OAuth Client ID (or paste an OAuth Access Token in the advanced box):', state.clientId);
+        if (!promptId) return;
+        state.clientId = promptId.trim();
+        localStorage.setItem('CLEAN_FILING_CLIENT_ID', state.clientId);
+        inputGoogleClientId.value = state.clientId;
+      }
+
+      if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+        showToast('Google Identity library loading... please try again in a second.');
+        return;
+      }
+
+      try {
+        const tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: state.clientId,
+          scope: 'https://www.googleapis.com/auth/drive.file',
+          callback: (resp) => {
+            if (resp && resp.access_token) {
+              state.token = resp.access_token;
+              localStorage.setItem('CLEAN_FILING_TOKEN', state.token);
+              updateConnectionStatusUI();
+              showToast('Signed in successfully! 🗄️');
+              syncGoogleDrive(false);
+            } else if (resp && resp.error) {
+              showToast('Google Sign-in failed: ' + resp.error);
+            }
+          }
+        });
+        tokenClient.requestAccessToken();
+      } catch (err) {
+        showToast('Sign-in error: ' + err.message);
+      }
     });
 
-    // File Drag & Drop
+    btnGoogleDisconnect.addEventListener('click', () => {
+      state.token = '';
+      state.folderId = '';
+      localStorage.removeItem('CLEAN_FILING_TOKEN');
+      localStorage.removeItem('CLEAN_FILING_FOLDER_ID');
+      updateConnectionStatusUI();
+      showToast('Disconnected from Google Drive. Switched to Local Only.');
+    });
+
+    // Cabinet Source / Owner bindings
+    btnResetOwner.addEventListener('click', () => {
+      state.cabinetOwnerEmail = '';
+      localStorage.removeItem('CLEAN_FILING_OWNER_EMAIL');
+      localStorage.removeItem('CLEAN_FILING_FOLDER_ID');
+      state.folderId = '';
+      inputCabinetOwner.value = '';
+      updateConnectionStatusUI();
+      showToast('Reset to your own private cabinet');
+      syncGoogleDrive(false);
+    });
+
+    // Save Settings
+    btnSaveSettings.addEventListener('click', () => {
+      const clientVal = inputGoogleClientId.value.trim();
+      const ownerVal = inputCabinetOwner.value.trim();
+      const manualToken = inputManualToken.value.trim();
+
+      if (clientVal !== state.clientId) {
+        state.clientId = clientVal;
+        localStorage.setItem('CLEAN_FILING_CLIENT_ID', clientVal);
+      }
+      if (ownerVal !== state.cabinetOwnerEmail) {
+        state.cabinetOwnerEmail = ownerVal;
+        localStorage.setItem('CLEAN_FILING_OWNER_EMAIL', ownerVal);
+        localStorage.removeItem('CLEAN_FILING_FOLDER_ID');
+        state.folderId = '';
+      }
+      if (manualToken) {
+        state.token = manualToken;
+        localStorage.setItem('CLEAN_FILING_TOKEN', manualToken);
+      }
+
+      closeModal('settingsModal');
+      updateConnectionStatusUI();
+      showToast('Settings saved!');
+      if (state.token) {
+        syncGoogleDrive(false);
+      }
+    });
+
+    // Silent Partner Sharing
+    btnGrantPartnerAccess.addEventListener('click', async () => {
+      const email = inputPartnerEmail.value.trim();
+      if (!email) {
+        showToast("Please enter partner's Gmail first");
+        return;
+      }
+      if (!state.token) {
+        showToast('Please sign in to Google Drive first');
+        return;
+      }
+
+      btnGrantPartnerAccess.disabled = true;
+      btnGrantPartnerAccess.textContent = 'Granting...';
+
+      try {
+        const folderId = await ensureCleanFilingFolder();
+        const url = `https://www.googleapis.com/drive/v3/files/${folderId}/permissions?sendNotificationEmail=false&supportsAllDrives=true`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${state.token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            role: 'writer',
+            type: 'user',
+            emailAddress: email
+          })
+        });
+
+        if (res.ok) {
+          showToast(`Access granted to ${email}! 🤝 (Silent grant, no emails sent)`);
+          inputPartnerEmail.value = '';
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          showToast('Share error: ' + (errData.error?.message || res.statusText));
+        }
+      } catch (err) {
+        showToast('Network error: ' + err.message);
+      } finally {
+        btnGrantPartnerAccess.disabled = false;
+        btnGrantPartnerAccess.textContent = 'Grant Access 🤝';
+      }
+    });
+
+    // Google Drive Folder Lookup & Creation
+    async function ensureCleanFilingFolder() {
+      if (state.folderId) return state.folderId;
+
+      const targetOwner = state.cabinetOwnerEmail.trim().toLowerCase();
+      const query = "name = 'Clean Filing' and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+      const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,owners)&supportsAllDrives=true&includeItemsFromAllDrives=true`;
+
+      const searchRes = await fetch(searchUrl, {
+        headers: { 'Authorization': `Bearer ${state.token}` }
+      });
+      if (!searchRes.ok) throw new Error('Failed to query Google Drive');
+
+      const data = await searchRes.json();
+      const files = data.files || [];
+
+      if (targetOwner) {
+        for (const f of files) {
+          const owners = f.owners || [];
+          if (owners.some(o => (o.emailAddress || '').toLowerCase() === targetOwner)) {
+            state.folderId = f.id;
+            localStorage.setItem('CLEAN_FILING_FOLDER_ID', f.id);
+            return f.id;
+          }
+        }
+        throw new Error(`Cabinet owned by '${targetOwner}' not found. Ensure they granted your account access.`);
+      }
+
+      if (files.length > 0) {
+        state.folderId = files[0].id;
+        localStorage.setItem('CLEAN_FILING_FOLDER_ID', files[0].id);
+        return files[0].id;
+      }
+
+      // Create "Clean Filing" folder
+      const createRes = await fetch('https://www.googleapis.com/drive/v3/files?supportsAllDrives=true', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${state.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: 'Clean Filing',
+          mimeType: 'application/vnd.google-apps.folder'
+        })
+      });
+      if (!createRes.ok) throw new Error('Failed to create Clean Filing folder on Drive');
+
+      const created = await createRes.json();
+      state.folderId = created.id;
+      localStorage.setItem('CLEAN_FILING_FOLDER_ID', created.id);
+      return created.id;
+    }
+
+    // Google Drive Full Sync
+    async function syncGoogleDrive(silent = false) {
+      if (!state.token) {
+        if (!silent) showToast('Working in Local Only mode. Sign in with Google to sync cloud.');
+        renderDocuments();
+        return;
+      }
+
+      state.isSyncing = true;
+      btnSync.classList.add('syncing');
+
+      try {
+        const folderId = await ensureCleanFilingFolder();
+        const listUrl = `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+trashed=false&fields=files(id,name,description,mimeType,createdTime,modifiedTime,webViewLink,properties,owners)&supportsAllDrives=true&includeItemsFromAllDrives=true&pageSize=1000`;
+
+        const res = await fetch(listUrl, {
+          headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+
+        if (res.status === 401) {
+          state.token = '';
+          localStorage.removeItem('CLEAN_FILING_TOKEN');
+          updateConnectionStatusUI();
+          throw new Error('Google session expired. Please sign in again.');
+        }
+
+        if (!res.ok) throw new Error('Failed to list files from Google Drive');
+
+        const data = await res.json();
+        const remoteFiles = data.files || [];
+
+        // Map remote files to Clean Filing document models
+        const cloudDocs = remoteFiles.map(rf => {
+          const props = rf.properties || {};
+          const fId = rf.id;
+          const rName = rf.name || 'Document';
+          const propDocId = props.docId || fId;
+          const propName = props.vaultName || (rName.lastIndexOf('.') > 0 ? rName.substring(0, rName.lastIndexOf('.')) : rName);
+          const propNotes = props.notes || rf.description || '';
+          const propPinned = props.isPinned === 'true';
+
+          return {
+            id: propDocId,
+            docId: propDocId,
+            driveFileId: fId,
+            fileId: fId,
+            name: propName,
+            notes: propNotes,
+            labels: propNotes,
+            isPinned: propPinned,
+            pinned: propPinned,
+            mimeType: rf.mimeType || 'application/octet-stream',
+            driveFileUrl: rf.webViewLink || `https://drive.google.com/file/d/${fId}/view`,
+            fileUrl: rf.webViewLink || `https://drive.google.com/file/d/${fId}/view`,
+            timestamp: rf.createdTime || rf.modifiedTime || new Date().toISOString()
+          };
+        });
+
+        state.documents = cloudDocs;
+        localStorage.setItem('CLEAN_FILING_DOCS', JSON.stringify(state.documents));
+        renderDocuments();
+
+        const pinnedCount = state.documents.filter(d => isDocPinned(d)).length;
+        if (!silent) showToast(`Synced ${state.documents.length} docs (${pinnedCount} pinned) 🗄️`);
+      } catch (err) {
+        if (!silent) showToast('Sync notice: ' + err.message);
+      } finally {
+        state.isSyncing = false;
+        btnSync.classList.remove('syncing');
+      }
+    }
+
+    btnSync.addEventListener('click', () => syncGoogleDrive(false));
+
+    // File Intake Handlers
     dropZone.addEventListener('click', () => fileInput.click());
     dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
@@ -955,274 +1403,243 @@
       btnSaveToVault.disabled = false;
 
       if (!inputDocName.value.trim()) {
-        inputDocName.value = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+        const dot = file.name.lastIndexOf('.');
+        inputDocName.value = dot > 0 ? file.name.substring(0, dot) : file.name;
       }
-
-      const reader = new FileReader();
-      reader.onload = () => {
-        state.selectedBase64 = reader.result;
-      };
-      reader.readAsDataURL(file);
     }
 
-    // Save Document from Desktop Intake
+    btnPinToggle.addEventListener('click', () => {
+      state.isIntakePinned = !state.isIntakePinned;
+      btnPinToggle.classList.toggle('active', state.isIntakePinned);
+    });
+
+    // Save Document (Direct Google Drive Upload or Local Storage)
     btnSaveToVault.addEventListener('click', async () => {
-      if (!state.selectedBase64) {
-        showToast('Please select a file first');
-        return;
-      }
-      if (!state.scriptUrl) {
-        showToast('Please set your Apps Script URL in Settings ⚙️ first');
-        openModal('settingsModal');
-        return;
-      }
+      if (!state.selectedFile) return;
+
+      const file = state.selectedFile;
+      const docName = inputDocName.value.trim() || file.name;
+      const labels = inputLabels.value.trim();
+      const isPinned = state.isIntakePinned;
+      const docId = 'desktop_' + Date.now();
 
       btnSaveToVault.disabled = true;
-      btnSaveToVault.textContent = 'Uploading to Drive...';
-
-      const payload = {
-        action: 'save_receipt',
-        fileBase64: state.selectedBase64,
-        mimeType: state.selectedMimeType,
-        fileName: state.selectedFile ? state.selectedFile.name : `Vault_${Date.now()}.jpg`,
-        metadata: {
-          docId: 'desktop_' + Date.now(),
-          vendor: inputDocName.value.trim() || 'Document',
-          labels: inputLabels.value.trim(),
-          pinned: state.isIntakePinned,
-          date: new Date().toISOString().slice(0, 10)
-        }
-      };
+      btnSaveToVault.textContent = 'Filing...';
 
       try {
-        const res = await fetch(state.scriptUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (data.status === 'success') {
-          showToast('Document saved to Google Drive! 🗄️');
-          btnClearFile.click();
-          inputDocName.value = '';
-          inputLabels.value = '';
-          state.isIntakePinned = false;
-          btnPinToggle.classList.remove('active');
-          fetchCloudRecords(false);
+        if (state.token) {
+          // Direct Google Drive Multipart Upload
+          const folderId = await ensureCleanFilingFolder();
+          const metadata = {
+            name: file.name,
+            parents: [folderId],
+            description: labels,
+            properties: {
+              docId: docId,
+              vaultName: docName,
+              notes: labels,
+              isPinned: isPinned.toString()
+            }
+          };
+
+          const boundary = '-------314159265358979323846';
+          const delimiter = `\r\n--${boundary}\r\n`;
+          const closeDelimiter = `\r\n--${boundary}--`;
+
+          const metaPart = `${delimiter}Content-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`;
+          const mediaHeader = `--${boundary}\r\nContent-Type: ${file.type || 'application/octet-stream'}\r\n\r\n`;
+
+          const arrayBuffer = await file.arrayBuffer();
+          const metaBlob = new Blob([metaPart]);
+          const mediaHeaderBlob = new Blob([mediaHeader]);
+          const mediaBlob = new Blob([arrayBuffer]);
+          const closeBlob = new Blob([closeDelimiter]);
+
+          const multipartBlob = new Blob([metaBlob, mediaHeaderBlob, mediaBlob, closeBlob]);
+
+          const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${state.token}`,
+              'Content-Type': `multipart/related; boundary=${boundary}`
+            },
+            body: multipartBlob
+          });
+
+          if (!uploadRes.ok) throw new Error('Upload to Google Drive failed');
+          const created = await uploadRes.json();
+
+          showToast('Filed to Google Drive Cabinet! 🗄️');
         } else {
-          showToast('Upload error: ' + (data.message || 'Failed'));
+          // Local storage fallback
+          const localDoc = {
+            id: docId,
+            docId: docId,
+            name: docName,
+            notes: labels,
+            labels: labels,
+            isPinned: isPinned,
+            pinned: isPinned,
+            mimeType: file.type,
+            fileUrl: '',
+            timestamp: new Date().toISOString()
+          };
+          state.documents.unshift(localDoc);
+          localStorage.setItem('CLEAN_FILING_DOCS', JSON.stringify(state.documents));
+          showToast('Filed to Local Cabinet! 🗄️');
+        }
+
+        // Reset intake
+        btnClearFile.click();
+        inputDocName.value = '';
+        inputLabels.value = '';
+        state.isIntakePinned = false;
+        btnPinToggle.classList.remove('active');
+
+        if (state.token) {
+          syncGoogleDrive(true);
+        } else {
+          renderDocuments();
         }
       } catch (err) {
-        showToast('Network error: ' + err.message);
+        showToast('Error filing document: ' + err.message);
       } finally {
         btnSaveToVault.disabled = false;
-        btnSaveToVault.textContent = 'Save to Vault';
+        btnSaveToVault.textContent = 'File to Cabinet 🗄️';
       }
     });
 
-    // Cloud Records Fetching
-    async function fetchCloudRecords(silent = false) {
-      if (!state.scriptUrl) return;
-      state.isSyncing = true;
-      btnSync.classList.add('syncing');
+    // Quick Note Handling
+    btnQuickNote.addEventListener('click', () => {
+      noteTitleInput.value = '';
+      noteBodyInput.value = '';
+      noteLabelsInput.value = '';
+      state.isNotePinned = false;
+      btnNotePinToggle.classList.remove('active');
+      openModal('noteModal');
+    });
+
+    btnNotePinToggle.addEventListener('click', () => {
+      state.isNotePinned = !state.isNotePinned;
+      btnNotePinToggle.classList.toggle('active', state.isNotePinned);
+    });
+
+    btnSaveNote.addEventListener('click', async () => {
+      const title = noteTitleInput.value.trim() || `Note_${Date.now()}`;
+      const body = noteBodyInput.value;
+      const labels = noteLabelsInput.value.trim();
+      const isPinned = state.isNotePinned;
+      const fileName = `${title.replace(/[^a-zA-Z0-9_-]/g, '_')}.txt`;
+      const docId = 'note_' + Date.now();
+
+      closeModal('noteModal');
+      showToast('Saving note to Cabinet...');
 
       try {
-        const res = await fetch(`${state.scriptUrl}?action=get_records&_t=${Date.now()}`);
-        const data = await res.json();
-
-        if (data.status === 'success') {
-          const records = data.records || [];
-          const localPins = getLocalPins();
-          records.forEach(r => {
-            const k = r.docId || r.id || r.fileId || r.name || r.vendor;
-            if (k && localPins[k] !== undefined) {
-              r.pinned = localPins[k];
-              r.isPinned = localPins[k];
+        if (state.token) {
+          const folderId = await ensureCleanFilingFolder();
+          const metadata = {
+            name: fileName,
+            parents: [folderId],
+            description: labels,
+            properties: {
+              docId: docId,
+              vaultName: title,
+              notes: labels,
+              isPinned: isPinned.toString()
             }
+          };
+
+          const boundary = '-------note31415926535';
+          const metaPart = `\r\n--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`;
+          const mediaHeader = `--${boundary}\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n`;
+          const closeDelimiter = `\r\n--${boundary}--`;
+
+          const bodyBlob = new Blob([metaPart, mediaHeader, body, closeDelimiter]);
+
+          const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${state.token}`,
+              'Content-Type': `multipart/related; boundary=${boundary}`
+            },
+            body: bodyBlob
           });
-          state.documents = records;
-          localStorage.setItem('CLEAN_VAULT_DOCS', JSON.stringify(state.documents));
+
+          if (!uploadRes.ok) throw new Error('Failed to upload note to Drive');
+          showToast('Note filed to Google Drive! 📝');
+          syncGoogleDrive(true);
+        } else {
+          const localNote = {
+            id: docId,
+            docId: docId,
+            name: title,
+            notes: labels,
+            labels: labels,
+            isPinned: isPinned,
+            pinned: isPinned,
+            mimeType: 'text/plain',
+            fileUrl: '',
+            noteText: body,
+            timestamp: new Date().toISOString()
+          };
+          state.documents.unshift(localNote);
+          localStorage.setItem('CLEAN_FILING_DOCS', JSON.stringify(state.documents));
           renderDocuments();
-          const pinnedCount = state.documents.filter(d => isDocPinned(d)).length;
-          console.log('[Clean Vault] Cloud records loaded:', state.documents);
-          if (!silent) showToast(`Cabinet synced: ${state.documents.length} docs (${pinnedCount} pinned)`);
+          showToast('Note filed locally! 📝');
         }
       } catch (err) {
-        if (!silent) showToast('Sync failed: ' + err.message);
-      } finally {
-        state.isSyncing = false;
-        btnSync.classList.remove('syncing');
+        showToast('Error saving note: ' + err.message);
       }
-    }
+    });
 
-    btnSync.addEventListener('click', () => fetchCloudRecords(false));
+    // Settings Modal
+    btnSettings.addEventListener('click', () => openModal('settingsModal'));
 
-    function getLocalPins() {
-      try {
-        return JSON.parse(localStorage.getItem('CLEAN_VAULT_LOCAL_PINS') || '{}');
-      } catch (e) {
-        return {};
-      }
-    }
+    btnClearCache.addEventListener('click', () => {
+      localStorage.removeItem('CLEAN_FILING_DOCS');
+      state.documents = [];
+      renderDocuments();
+      showToast('Cache cleared. Re-syncing...');
+      syncGoogleDrive(false);
+    });
 
+    // Document Card Actions
     function isDocPinned(d) {
       if (!d) return false;
-      const localPins = getLocalPins();
-      const docKey = d.docId || d.id || d.fileId || d.name || d.vendor;
-      if (docKey && localPins[docKey] !== undefined) {
-        return localPins[docKey] === true;
-      }
-      return d.pinned === true || 
-             d.isPinned === true || 
-             String(d.pinned).toLowerCase() === 'true' || 
-             String(d.isPinned).toLowerCase() === 'true' ||
-             d.pinned === 1 ||
-             d.isPinned === 1;
+      return d.isPinned === true || d.pinned === true || String(d.isPinned) === 'true';
     }
 
-    // Render Cabinet Documents
-    function renderDocuments() {
-      const query = cabinetSearch.value.trim().toLowerCase();
-      const filtered = state.documents.filter(doc => {
-        const name = (doc.name || doc.vendor || '').toLowerCase();
-        const labels = (doc.labels || doc.notes || '').toLowerCase();
-        return !query || name.includes(query) || labels.includes(query);
-      });
-
-      // Sort pinned documents to the very top, exactly like mobile app
-      filtered.sort((a, b) => {
-        const aPinned = isDocPinned(a) ? 1 : 0;
-        const bPinned = isDocPinned(b) ? 1 : 0;
-        if (bPinned !== aPinned) return bPinned - aPinned;
-        const dateA = a.timestamp || a.date || '';
-        const dateB = b.timestamp || b.date || '';
-        return dateB.localeCompare(dateA);
-      });
-
-      docCountBadge.textContent = `${state.documents.length} documents`;
-
-      // Render Pinned Bar
-      const pinned = state.documents.filter(d => isDocPinned(d));
-      if (pinned.length > 0) {
-        pinnedBar.style.display = 'flex';
-        pinnedBar.innerHTML = pinned.map(doc => `
-          <div class="pinned-pill" onclick="viewDocUrl('${doc.fileUrl || doc.driveFileUrl || ''}')">
-            <span>📌</span>
-            <span>${escapeHtml(doc.name || doc.vendor || 'Document')}</span>
-          </div>
-        `).join('');
-      } else {
-        pinnedBar.style.display = 'none';
-      }
-
-      // Render Grid Cards
-      if (filtered.length === 0) {
-        documentsContainer.innerHTML = `
-          <div class="empty-state">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-            </svg>
-            <div>${state.documents.length === 0 ? 'No documents in cloud. File one above or sync from phone!' : 'No matching documents found.'}</div>
-          </div>
-        `;
-        return;
-      }
-
-      documentsContainer.innerHTML = filtered.map(doc => {
-        const name = escapeHtml(doc.name || doc.vendor || 'Document');
-        const labels = doc.labels || doc.notes || '';
-        const fileUrl = doc.fileUrl || doc.driveFileUrl || '';
-        const fileId = doc.fileId || '';
-        const isPinned = isDocPinned(doc);
-
-        return `
-          <div class="doc-card ${isPinned ? 'pinned' : ''}">
-            <div class="doc-header">
-              <div class="doc-name-group">
-                <button class="btn-pin-sm" onclick="togglePin('${doc.docId || ''}', '${fileId}', ${isPinned}, '${escapeAttr(doc.name || doc.vendor || '')}')">
-                  ${isPinned ? '📌' : '📍'}
-                </button>
-                <div class="doc-name">${name}</div>
-              </div>
-              <div class="doc-meta">
-                <span>☁️</span>
-              </div>
-            </div>
-
-            ${labels ? `
-              <div class="doc-labels">
-                ${labels.split(',').map(l => `<span class="label-badge">🏷️ ${escapeHtml(l.trim())}</span>`).join('')}
-              </div>
-            ` : ''}
-
-            <div class="doc-actions">
-              <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="btn-action view">
-                👁️ View
-              </a>
-              ${fileId ? `
-                <a href="https://drive.google.com/uc?export=download&id=${fileId}" target="_blank" class="btn-action">
-                  📥 Download
-                </a>
-              ` : ''}
-              <button class="btn-action-icon edit" title="Rename" onclick="openRename('${doc.docId || ''}', '${fileId}', '${escapeAttr(doc.name || doc.vendor || '')}', '${escapeAttr(labels)}')">
-                ✏️
-              </button>
-              <button class="btn-action-icon delete" title="Delete" onclick="deleteDocument('${doc.docId || ''}', '${fileId}')">
-                🗑️
-              </button>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    cabinetSearch.addEventListener('input', renderDocuments);
-
-    // Document Actions
-    function viewDocUrl(url) {
-      if (url) window.open(url, '_blank');
-    }
-
-    async function togglePin(docId, fileId, currentPinned, docName = '') {
+    async function togglePin(fileId, docId, currentPinned) {
       const nextPinned = !currentPinned;
-      // Optimistic instant UI update
-      const target = state.documents.find(d => 
-        (docId && (d.docId === docId || d.id === docId)) || 
-        (fileId && (d.fileId === fileId || d.driveFileId === fileId)) ||
-        (docName && (d.name === docName || d.vendor === docName))
-      );
-      if (target) {
-        target.pinned = nextPinned;
-        target.isPinned = nextPinned;
-        localStorage.setItem('CLEAN_VAULT_DOCS', JSON.stringify(state.documents));
-      }
-      const localPins = getLocalPins();
-      const pinKey = docId || fileId || docName || (target ? (target.docId || target.id || target.name) : '');
-      if (pinKey) {
-        localPins[pinKey] = nextPinned;
-        localStorage.setItem('CLEAN_VAULT_LOCAL_PINS', JSON.stringify(localPins));
-      }
-      renderDocuments();
 
-      if (!state.scriptUrl) {
-        showToast('Local pin updated. Add Apps Script URL in Settings ⚙️ to sync.');
-        return;
+      // Optimistic instant UI update
+      const target = state.documents.find(d => (fileId && (d.fileId === fileId || d.driveFileId === fileId)) || (docId && (d.id === docId || d.docId === docId)));
+      if (target) {
+        target.isPinned = nextPinned;
+        target.pinned = nextPinned;
+        localStorage.setItem('CLEAN_FILING_DOCS', JSON.stringify(state.documents));
+        renderDocuments();
       }
-      try {
-        const res = await fetch(state.scriptUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'toggle_pin', docId: docId, fileId: fileId, name: docName, vendor: docName, pinned: nextPinned })
-        });
-        const data = await res.json();
-        if (data.status === 'success') {
-          showToast(nextPinned ? '📌 Document pinned!' : '📍 Document unpinned!');
-        } else {
-          showToast('Sync notice: ' + (data.message || 'Updated locally'));
+
+      if (state.token && fileId) {
+        try {
+          await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`, {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Bearer ${state.token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              properties: { isPinned: nextPinned.toString() }
+            })
+          });
+          showToast(nextPinned ? '📌 Pinned to Essentials' : '📍 Unpinned');
+        } catch (err) {
+          showToast('Failed to update pin on Drive: ' + err.message);
         }
-        fetchCloudRecords(true);
-      } catch (err) {
-        showToast('Pin error: ' + err.message);
+      } else {
+        showToast(nextPinned ? '📌 Pinned locally' : '📍 Unpinned');
       }
     }
 
@@ -1237,128 +1654,190 @@
     btnSaveRename.addEventListener('click', async () => {
       const docId = editDocId.value;
       const fileId = editFileId.value;
-      const name = editDocName.value.trim();
-      const labels = editLabels.value.trim();
+      const newName = editDocName.value.trim();
+      const newLabels = editLabels.value.trim();
 
-      if (!name) {
-        showToast('Document name cannot be blank');
-        return;
-      }
+      if (!newName) return;
+      closeModal('renameModal');
 
-      try {
-        closeModal('renameModal');
-        showToast('Updating document in cloud...');
-        const res = await fetch(state.scriptUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({
-            action: 'update_receipt',
-            docId: docId,
-            fileId: fileId,
-            name: name,
-            labels: labels,
-            notes: labels
-          })
-        });
-        const d = await res.json();
-        if (d.status === 'success') {
-          showToast('Updated successfully!');
-          fetchCloudRecords(true);
-        } else {
-          showToast('Update failed: ' + (d.message || 'Error'));
-        }
-      } catch (err) {
-        showToast('Error: ' + err.message);
-      }
-    });
-
-    async function deleteDocument(docId, fileId) {
-      if (!confirm('Are you sure you want to delete this document from Google Drive & Cabinet?')) return;
-      if (!state.scriptUrl) return;
-
-      try {
-        showToast('Deleting from Google Drive...');
-        const res = await fetch(state.scriptUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'delete_receipt', docId: docId, fileId: fileId })
-        });
-        const d = await res.json();
-        if (d.status === 'success') {
-          showToast('Deleted');
-          fetchCloudRecords(true);
-        } else {
-          showToast('Delete error: ' + (d.message || 'Failed'));
-        }
-      } catch (err) {
-        showToast('Error: ' + err.message);
-      }
-    }
-
-    // Settings Modal Handlers
-    btnSettings.addEventListener('click', () => openModal('settingsModal'));
-
-    btnTestUrl.addEventListener('click', async () => {
-      const url = inputScriptUrl.value.trim();
-      if (!url) {
-        showTestStatus('Please enter URL first', false);
-        return;
-      }
-
-      btnTestUrl.disabled = true;
-      btnTestUrl.textContent = 'Testing...';
-
-      try {
-        const res = await fetch(`${url}?action=ping&_t=${Date.now()}`);
-        const d = await res.json();
-        if (d.status === 'success') {
-          showTestStatus('✓ Connected successfully to Google Apps Script!', true);
-        } else {
-          showTestStatus('Error: ' + (d.message || 'Invalid response'), false);
-        }
-      } catch (err) {
-        showTestStatus('Connection failed: ' + err.message, false);
-      } finally {
-        btnTestUrl.disabled = false;
-        btnTestUrl.textContent = 'Test Link';
-      }
-    });
-
-    const btnClearCache = document.getElementById('btnClearCache');
-    if (btnClearCache) {
-      btnClearCache.addEventListener('click', () => {
-        localStorage.removeItem('CLEAN_VAULT_DOCS');
-        localStorage.removeItem('CLEAN_VAULT_LOCAL_PINS');
-        state.documents = [];
+      // Optimistic update
+      const target = state.documents.find(d => (fileId && (d.fileId === fileId || d.driveFileId === fileId)) || (docId && (d.id === docId || d.docId === docId)));
+      if (target) {
+        target.name = newName;
+        target.notes = newLabels;
+        target.labels = newLabels;
+        localStorage.setItem('CLEAN_FILING_DOCS', JSON.stringify(state.documents));
         renderDocuments();
-        showToast('Local cache wiped! Fetching fresh from Google Drive...');
-        fetchCloudRecords(false);
-      });
-    }
+      }
 
-    btnSaveUrl.addEventListener('click', () => {
-      const url = inputScriptUrl.value.trim();
-      state.scriptUrl = url;
-      localStorage.setItem('CLEAN_VAULT_SCRIPT_URL', url);
-      closeModal('settingsModal');
-
-      if (url) {
-        connectionStatus.className = "brand-subtitle";
-        statusText.textContent = "Google Drive Connected";
-        showToast('Settings saved! Syncing cabinet...');
-        fetchCloudRecords(false);
+      if (state.token && fileId) {
+        showToast('Updating on Google Drive...');
+        try {
+          await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`, {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Bearer ${state.token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              name: newName,
+              properties: {
+                vaultName: newName,
+                notes: newLabels
+              }
+            })
+          });
+          showToast('Updated successfully! 🗄️');
+        } catch (err) {
+          showToast('Update error: ' + err.message);
+        }
       } else {
-        connectionStatus.className = "brand-subtitle offline";
-        statusText.textContent = "Local / Not Connected";
+        showToast('Updated locally!');
       }
     });
 
-    function showTestStatus(msg, isSuccess) {
-      testStatusMessage.style.display = 'block';
-      testStatusMessage.style.background = isSuccess ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
-      testStatusMessage.style.color = isSuccess ? 'var(--emerald)' : 'var(--rose)';
-      testStatusMessage.style.border = `1px solid ${isSuccess ? 'var(--emerald)' : 'var(--rose)'}`;
-      testStatusMessage.textContent = msg;
+    async function deleteDocument(fileId, docId) {
+      if (!confirm('Are you sure you want to delete this document from Cabinet & Drive?')) return;
+
+      state.documents = state.documents.filter(d => !((fileId && (d.fileId === fileId || d.driveFileId === fileId)) || (docId && (d.id === docId || d.docId === docId))));
+      localStorage.setItem('CLEAN_FILING_DOCS', JSON.stringify(state.documents));
+      renderDocuments();
+
+      if (state.token && fileId) {
+        showToast('Deleting from Google Drive...');
+        try {
+          await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${state.token}` }
+          });
+          showToast('Deleted from Google Drive');
+        } catch (err) {
+          showToast('Delete error: ' + err.message);
+        }
+      } else {
+        showToast('Deleted');
+      }
+    }
+
+    // Search and Filter Handlers
+    cabinetSearch.addEventListener('input', renderDocuments);
+    btnFilterPinned.addEventListener('click', () => {
+      state.filterPinnedOnly = !state.filterPinnedOnly;
+      btnFilterPinned.style.color = state.filterPinnedOnly ? 'var(--red-pin)' : 'var(--text-faint)';
+      renderDocuments();
+    });
+
+    function getFileTypeIcon(doc) {
+      const mime = (doc.mimeType || '').toLowerCase();
+      const name = (doc.name || '').toLowerCase();
+      if (mime.includes('pdf') || name.endsWith('.pdf')) return '📄';
+      if (mime.includes('image') || name.endsWith('.jpg') || name.endsWith('.png')) return '🖼️';
+      if (mime.includes('text') || name.endsWith('.txt')) return '📝';
+      return '📁';
+    }
+
+    // Render Documents List
+    function renderDocuments() {
+      const query = cabinetSearch.value.trim().toLowerCase();
+      let filtered = state.documents.filter(doc => {
+        if (state.filterPinnedOnly && !isDocPinned(doc)) return false;
+        const name = (doc.name || '').toLowerCase();
+        const labels = (doc.labels || doc.notes || '').toLowerCase();
+        return !query || name.includes(query) || labels.includes(query);
+      });
+
+      // Sort pinned to top, then by timestamp descending
+      filtered.sort((a, b) => {
+        const aPinned = isDocPinned(a) ? 1 : 0;
+        const bPinned = isDocPinned(b) ? 1 : 0;
+        if (bPinned !== aPinned) return bPinned - aPinned;
+        const dateA = a.timestamp || '';
+        const dateB = b.timestamp || '';
+        return dateB.localeCompare(dateA);
+      });
+
+      docCountBadge.textContent = `${state.documents.length} documents`;
+
+      // Render Pinned Bar
+      const pinned = state.documents.filter(d => isDocPinned(d));
+      if (pinned.length > 0 && !state.filterPinnedOnly) {
+        pinnedBar.style.display = 'flex';
+        pinnedBar.innerHTML = pinned.map(doc => `
+          <div class="pinned-pill" onclick="viewDocUrl('${doc.fileUrl || doc.driveFileUrl || ''}')">
+            <span>📌</span>
+            <span>${escapeHtml(doc.name || 'Document')}</span>
+          </div>
+        `).join('');
+      } else {
+        pinnedBar.style.display = 'none';
+      }
+
+      if (filtered.length === 0) {
+        documentsContainer.innerHTML = `
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <div>${state.documents.length === 0 ? 'No documents in cabinet. File one on the left or sync Google Drive!' : 'No matching documents found.'}</div>
+          </div>
+        `;
+        return;
+      }
+
+      documentsContainer.innerHTML = filtered.map(doc => {
+        const name = escapeHtml(doc.name || 'Document');
+        const labels = doc.labels || doc.notes || '';
+        const fileUrl = doc.fileUrl || doc.driveFileUrl || '';
+        const fileId = doc.fileId || doc.driveFileId || '';
+        const docId = doc.docId || doc.id || '';
+        const isPinned = isDocPinned(doc);
+        const icon = getFileTypeIcon(doc);
+
+        return `
+          <div class="doc-card ${isPinned ? 'pinned' : ''}">
+            <div class="doc-header">
+              <div class="doc-name-group">
+                <span class="doc-type-icon">${icon}</span>
+                <div class="doc-name" title="${name}">${name}</div>
+              </div>
+              <button class="btn-action-icon ${isPinned ? 'pinned-btn' : ''}" title="Pin/Unpin" onclick="togglePin('${fileId}', '${docId}', ${isPinned})">
+                ${isPinned ? '📌' : '📍'}
+              </button>
+            </div>
+
+            ${labels ? `
+              <div class="doc-labels">
+                ${labels.split(',').map(l => `<span class="label-badge">🏷️ ${escapeHtml(l.trim())}</span>`).join('')}
+              </div>
+            ` : ''}
+
+            <div class="doc-actions">
+              ${fileUrl ? `
+                <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="btn-action view">
+                  👁️ View
+                </a>
+              ` : `
+                <span class="btn-action" style="opacity: 0.6; cursor: default;">Offline</span>
+              `}
+              ${fileId ? `
+                <a href="https://drive.google.com/uc?export=download&id=${fileId}" target="_blank" class="btn-action">
+                  📥 Download
+                </a>
+              ` : ''}
+              <button class="btn-action-icon" title="Rename & Labels" onclick="openRename('${docId}', '${fileId}', '${escapeAttr(doc.name || '')}', '${escapeAttr(labels)}')">
+                ✏️
+              </button>
+              <button class="btn-action-icon delete" title="Delete" onclick="deleteDocument('${fileId}', '${docId}')">
+                🗑️
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function viewDocUrl(url) {
+      if (url) window.open(url, '_blank');
     }
 
     function escapeHtml(str) {

@@ -1238,186 +1238,200 @@ fun MainScreen(
                                 }
                             }
                         } else {
-                            // File Intake Form (When a file is ready to be filed)
+                            // File Intake Form (Expands viewing window to fill screen completely)
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .weight(1f)
-                                    .verticalScroll(rememberScrollState()),
-                                verticalArrangement = Arrangement.spacedBy(14.dp)
+                                    .imePadding(),
+                                verticalArrangement = Arrangement.SpaceBetween
                             ) {
-                                // Preview Container
+                                // Viewing Window (Expanded to fill available space)
                                 Surface(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(160.dp),
+                                        .weight(1f)
+                                        .padding(bottom = 10.dp),
                                     shape = RoundedCornerShape(24.dp),
                                     color = CardWhite,
                                     shadowElevation = 3.dp
                                 ) {
-                                    Box(contentAlignment = Alignment.Center) {
+                                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                                         if (selectedMimeType.startsWith("image/")) {
                                             AsyncImage(
                                                 model = selectedTempFile,
                                                 contentDescription = "Preview",
-                                                modifier = Modifier.fillMaxSize(),
-                                                contentScale = ContentScale.Crop
+                                                modifier = Modifier.fillMaxSize().padding(8.dp),
+                                                contentScale = ContentScale.Fit
                                             )
                                         } else {
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.Center,
+                                                modifier = Modifier.fillMaxSize().padding(16.dp)
+                                            ) {
                                                 Text(
                                                     if (selectedMimeType.contains("pdf")) "📄" else "📝",
-                                                    fontSize = 48.sp
+                                                    fontSize = 56.sp
                                                 )
+                                                Spacer(Modifier.height(8.dp))
                                                 Text(
                                                     selectedTempFile?.name ?: "",
-                                                    fontSize = 12.sp,
+                                                    fontSize = 13.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = TextDark
+                                                    color = TextDark,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
                                                 )
                                             }
                                         }
                                     }
                                 }
 
-                                // Document Name Input
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(20.dp),
-                                    color = CardWhite,
-                                    shadowElevation = 2.dp
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text("Document Name", fontSize = 11.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
-                                            BasicTextField(
-                                                value = docNameText,
-                                                onValueChange = { docNameText = it },
-                                                textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextDark),
-                                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                                singleLine = true
-                                            )
-                                        }
-                                        IconButton(onClick = { startSpeech(isForName = true) }) {
-                                            Text("🎤", fontSize = 18.sp)
-                                        }
-                                    }
-                                }
-
-                                // Labels Input
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(20.dp),
-                                    color = CardWhite,
-                                    shadowElevation = 2.dp
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text("Labels / Tags", fontSize = 11.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
-                                            BasicTextField(
-                                                value = labelsText,
-                                                onValueChange = { labelsText = it },
-                                                textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextDark),
-                                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                                                singleLine = true
-                                            )
-                                        }
-                                        IconButton(onClick = { startSpeech(isForName = false) }) {
-                                            Text("🎤", fontSize = 18.sp)
-                                        }
-                                    }
-                                }
-
-                                // Pin to Essentials Toggle
-                                Surface(
+                                // Input & Actions Container
+                                Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clip(RoundedCornerShape(20.dp))
-                                        .clickable { isPinned = !isPinned },
-                                    shape = RoundedCornerShape(20.dp),
-                                    color = if (isPinned) Color(0xFFFFEBEE) else CardWhite,
-                                    shadowElevation = 2.dp
+                                        .verticalScroll(rememberScrollState()),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    // Document Name Input
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(20.dp),
+                                        color = CardWhite,
+                                        shadowElevation = 2.dp
                                     ) {
                                         Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.PushPin,
-                                                contentDescription = "Pin",
-                                                tint = if (isPinned) RedPin else TextSubtle.copy(alpha = 0.4f)
-                                            )
-                                            Text(
-                                                "Pin to Essentials",
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (isPinned) RedPin else TextSubtle
-                                            )
-                                        }
-                                        Switch(
-                                            checked = isPinned,
-                                            onCheckedChange = { isPinned = it },
-                                            colors = SwitchDefaults.colors(checkedThumbColor = RedPin)
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                // Save to Vault Button
-                                Button(
-                                    onClick = {
-                                        val temp = selectedTempFile
-                                        if (temp != null && temp.exists()) {
-                                            val finalName = if (docNameText.isNotBlank()) docNameText.trim() else "Document ${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}"
-                                            scope.launch {
-                                                repository.saveFileToVault(
-                                                    name = finalName,
-                                                    notes = labelsText.trim(),
-                                                    isPinned = isPinned,
-                                                    sourceFile = temp,
-                                                    mimeType = selectedMimeType
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text("Document Name", fontSize = 11.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
+                                                BasicTextField(
+                                                    value = docNameText,
+                                                    onValueChange = { docNameText = it },
+                                                    textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextDark),
+                                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                                    singleLine = true
                                                 )
-                                                documents = repository.getDocuments()
-                                                selectedTempFile = null
-                                                docNameText = ""
-                                                labelsText = ""
-                                                isPinned = false
-                                                Toast.makeText(context, "Filed to Cabinet! 🗄️", Toast.LENGTH_SHORT).show()
-                                                currentScreen = AppScreen.FILE_CABINET
-                                                triggerSync(silent = true)
+                                            }
+                                            IconButton(onClick = { startSpeech(isForName = true) }) {
+                                                Text("🎤", fontSize = 18.sp)
                                             }
                                         }
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(52.dp),
-                                    shape = RoundedCornerShape(22.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = PurpleDark)
-                                ) {
-                                    Text("File to Cabinet 🗄️", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                }
+                                    }
 
-                                // Cancel Button
-                                OutlinedButton(
-                                    onClick = { selectedTempFile = null },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(48.dp),
-                                    shape = RoundedCornerShape(20.dp)
-                                ) {
-                                    Text("Cancel / Retake", fontSize = 14.sp, color = TextSubtle)
+                                    // Labels Input
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(20.dp),
+                                        color = CardWhite,
+                                        shadowElevation = 2.dp
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text("Labels / Tags", fontSize = 11.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
+                                                BasicTextField(
+                                                    value = labelsText,
+                                                    onValueChange = { labelsText = it },
+                                                    textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextDark),
+                                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                                    singleLine = true
+                                                )
+                                            }
+                                            IconButton(onClick = { startSpeech(isForName = false) }) {
+                                                Text("🎤", fontSize = 18.sp)
+                                            }
+                                        }
+                                    }
+
+                                    // Pin to Essentials Toggle
+                                    Surface(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(20.dp))
+                                            .clickable { isPinned = !isPinned },
+                                        shape = RoundedCornerShape(20.dp),
+                                        color = if (isPinned) Color(0xFFFFEBEE) else CardWhite,
+                                        shadowElevation = 2.dp
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.PushPin,
+                                                    contentDescription = "Pin",
+                                                    tint = if (isPinned) RedPin else TextSubtle.copy(alpha = 0.4f)
+                                                )
+                                                Text(
+                                                    "Pin to Essentials",
+                                                    fontSize = 13.5.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isPinned) RedPin else TextSubtle
+                                                )
+                                            }
+                                            Switch(
+                                                checked = isPinned,
+                                                onCheckedChange = { isPinned = it },
+                                                colors = SwitchDefaults.colors(checkedThumbColor = RedPin)
+                                            )
+                                        }
+                                    }
+
+                                    // Save to Vault Button
+                                    Button(
+                                        onClick = {
+                                            val temp = selectedTempFile
+                                            if (temp != null && temp.exists()) {
+                                                val finalName = if (docNameText.isNotBlank()) docNameText.trim() else "Document ${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}"
+                                                scope.launch {
+                                                    repository.saveFileToVault(
+                                                        name = finalName,
+                                                        notes = labelsText.trim(),
+                                                        isPinned = isPinned,
+                                                        sourceFile = temp,
+                                                        mimeType = selectedMimeType
+                                                    )
+                                                    documents = repository.getDocuments()
+                                                    selectedTempFile = null
+                                                    docNameText = ""
+                                                    labelsText = ""
+                                                    isPinned = false
+                                                    Toast.makeText(context, "Filed to Cabinet! 🗄️", Toast.LENGTH_SHORT).show()
+                                                    currentScreen = AppScreen.FILE_CABINET
+                                                    triggerSync(silent = true)
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(50.dp),
+                                        shape = RoundedCornerShape(22.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = PurpleDark)
+                                    ) {
+                                        Text("File to Cabinet 🗄️", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                    }
+
+                                    // Cancel Button
+                                    OutlinedButton(
+                                        onClick = { selectedTempFile = null },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(46.dp),
+                                        shape = RoundedCornerShape(20.dp)
+                                    ) {
+                                        Text("Cancel / Retake", fontSize = 14.sp, color = TextSubtle)
+                                    }
                                 }
                             }
                         }

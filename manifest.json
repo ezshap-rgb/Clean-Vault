@@ -1,8 +1,8 @@
 {
-  "id": "/Clean-Vault/app-v2",
-  "name": "Clean Vault",
-  "short_name": "Vault",
-  "description": "AI Document & Receipt Vault",
+  "id": "/Clean-Vault/app-v3",
+  "name": "Clean Filing",
+  "short_name": "Filing",
+  "description": "Document & Receipt File Cabinet",
   "start_url": "./?v=2",
   "scope": "./",
   "display": "standalone",
