@@ -9,6 +9,13 @@
 
   <!-- Google Identity Services for Direct Web Google Drive OAuth -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (let registration of registrations) { registration.unregister(); }
+      });
+    }
+  </script>
 
   <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -852,13 +859,13 @@
           ✓ Signed in to Google Drive
         </div>
 
-        <div class="input-group">
-          <label class="input-label">Google Web OAuth Client ID</label>
-          <input type="text" id="inputGoogleClientId" class="text-input" style="font-size: 0.8rem;" placeholder="e.g. 123456789-xxx.apps.googleusercontent.com">
-          <div style="font-size: 0.72rem; color: var(--text-faint); line-height: 1.4;">
-            Must be a <strong>Web application</strong> Client ID from <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color: var(--accent);">Google Cloud Console</a> (NOT an Android client ID).
+        <div class="input-group" style="background: rgba(92, 79, 238, 0.08); padding: 12px; border-radius: var(--radius-sm); border: 1px solid rgba(92, 79, 238, 0.3);">
+          <label class="input-label" style="color: #A5B4FC; font-size: 0.82rem;">🔑 Google Web OAuth Client ID</label>
+          <input type="text" id="inputGoogleClientId" class="text-input" style="font-size: 0.85rem; font-weight: 600; background: var(--surface-card);" placeholder="e.g. 162565165888-xxx.apps.googleusercontent.com">
+          <div style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; margin-top: 4px;">
+            Copy the full Client ID from Google Cloud Console (type <strong>Web application</strong>). Must end with <code>.apps.googleusercontent.com</code>.
           </div>
-          <div style="margin-top: 2px;">
+          <div style="margin-top: 4px;">
             <a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" style="font-size: 0.74rem; color: #818CF8; text-decoration: underline;">
               ⚙️ Enable Google Drive API in Google Cloud Console
             </a>
