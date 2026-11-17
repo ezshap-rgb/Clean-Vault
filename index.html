@@ -865,9 +865,13 @@
           <div style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; margin-top: 4px;">
             Copy the full Client ID from Google Cloud Console (type <strong>Web application</strong>). Must end with <code>.apps.googleusercontent.com</code>.
           </div>
-          <div style="margin-top: 4px;">
-            <a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" style="font-size: 0.74rem; color: #818CF8; text-decoration: underline;">
-              ⚙️ Enable Google Drive API in Google Cloud Console
+          <div style="margin-top: 6px; padding: 6px 10px; background: rgba(0,0,0,0.3); border-radius: 6px; font-size: 0.72rem; color: var(--text-muted); line-height: 1.45;">
+            🌐 <strong>Current Browser Origin:</strong> <code id="currentOriginLabel" style="color: #38BDF8; font-weight: 700; user-select: all;"></code>
+            <div style="margin-top: 2px;">In Google Cloud Console -> <strong>Clean Filing Shared Cabinet</strong>, make sure this exact origin is added under <strong>Authorized JavaScript origins</strong> (no trailing slash!).</div>
+          </div>
+          <div style="margin-top: 6px;">
+            <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="font-size: 0.74rem; color: #818CF8; text-decoration: underline;">
+              ⚙️ Open Google Cloud Console Credentials
             </a>
           </div>
         </div>
@@ -1090,6 +1094,10 @@
         const warn = document.getElementById('fileProtocolWarning');
         if (warn) warn.style.display = 'block';
       }
+      const originLbl = document.getElementById('currentOriginLabel');
+      if (originLbl) {
+        originLbl.textContent = window.location.origin;
+      }
       updateConnectionStatusUI();
       renderDocuments();
       if (state.token) {
@@ -1169,21 +1177,36 @@
         return;
       }
 
+      btnGoogleSignIn.disabled = true;
+      btnGoogleSignIn.innerHTML = '<span>⏳</span> Authorizing...';
+
+      const banner = document.getElementById('syncErrorBanner');
+      if (banner) {
+        banner.style.display = 'block';
+        banner.style.background = 'rgba(92, 79, 238, 0.15)';
+        banner.style.borderColor = 'var(--accent)';
+        banner.style.color = '#A5B4FC';
+        banner.innerHTML = 'Google Sign-in popup opened. Please select your Google account and grant permissions.';
+      }
+
       try {
         const tokenClient = google.accounts.oauth2.initTokenClient({
           client_id: state.clientId,
           scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive',
-          prompt: 'consent',
           callback: (resp) => {
+            btnGoogleSignIn.disabled = false;
+            btnGoogleSignIn.innerHTML = '<span>🔑</span> Sign in / Re-Authorize';
             console.log('Google Identity Services callback:', resp);
             if (resp && resp.access_token) {
               state.token = resp.access_token;
               localStorage.setItem('CLEAN_FILING_TOKEN', state.token);
               updateConnectionStatusUI();
-              const banner = document.getElementById('syncErrorBanner');
               if (banner) {
-                banner.style.display = 'none';
-                banner.innerHTML = '';
+                banner.style.display = 'block';
+                banner.style.background = 'rgba(16, 185, 129, 0.15)';
+                banner.style.borderColor = 'var(--emerald)';
+                banner.style.color = 'var(--emerald)';
+                banner.innerHTML = '<strong>✓ Signed in successfully!</strong> Google Drive access token acquired. Now click <strong>Test Connection</strong> or <strong>Save & Close</strong>.';
               }
               showToast('Signed in successfully! 🗄️');
               syncGoogleDrive(false);
@@ -1191,7 +1214,6 @@
               const errMsg = resp.error_description || resp.error;
               console.error('Google Sign-in failed:', resp);
               showToast('Google Sign-in failed: ' + errMsg);
-              const banner = document.getElementById('syncErrorBanner');
               if (banner) {
                 banner.style.display = 'block';
                 banner.style.background = 'rgba(239, 68, 68, 0.15)';
@@ -1200,10 +1222,31 @@
                 banner.innerHTML = `<strong>Google Sign-in Error:</strong> ${escapeHtml(errMsg)}`;
               }
             }
+          },
+          error_callback: (err) => {
+            btnGoogleSignIn.disabled = false;
+            btnGoogleSignIn.innerHTML = '<span>🔑</span> Sign in / Re-Authorize';
+            console.error('Google Identity Services error_callback:', err);
+            let errMsg = err.message || err.type || JSON.stringify(err);
+            if (err.type === 'popup_closed') {
+              errMsg = 'The sign-in popup closed before the authorization handshake finished.';
+            } else if (err.type === 'popup_failed_to_open') {
+              errMsg = 'Browser blocked the popup window. Please allow popups for this site.';
+            }
+            if (banner) {
+              banner.style.display = 'block';
+              banner.style.background = 'rgba(239, 68, 68, 0.15)';
+              banner.style.borderColor = 'var(--rose)';
+              banner.style.color = 'var(--rose)';
+              banner.innerHTML = `<strong>Authorization Handshake Notice:</strong> ${escapeHtml(errMsg)}<br><small style="color: #cbd5e1; margin-top: 4px; display: inline-block;">⚠️ Make sure <code>${escapeHtml(window.location.origin)}</code> is added under <strong>Authorized JavaScript origins</strong> in Google Cloud Console.</small>`;
+            }
+            showToast('Sign-in: ' + (err.type || 'Incomplete'));
           }
         });
         tokenClient.requestAccessToken({ prompt: 'consent' });
       } catch (err) {
+        btnGoogleSignIn.disabled = false;
+        btnGoogleSignIn.innerHTML = '<span>🔑</span> Sign in / Re-Authorize';
         showToast('Sign-in error: ' + err.message);
       }
     });
