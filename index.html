@@ -846,6 +846,8 @@
           ⚠️ <strong>File Protocol Detected:</strong> Google Sign-In cannot authenticate on <code>file:///</code> paths. Please launch via <strong>start-desktop.bat</strong> (runs on <code>http://localhost:8080</code>) or GitHub Pages.
         </div>
 
+        <div id="syncErrorBanner" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--rose); color: var(--rose); padding: 10px 12px; border-radius: var(--radius-sm); font-size: 0.78rem; line-height: 1.45;"></div>
+
         <div id="googleAuthStatus" style="font-size: 0.8rem; font-weight: 700; color: var(--emerald); display: none;">
           ✓ Signed in to Google Drive
         </div>
@@ -856,11 +858,21 @@
           <div style="font-size: 0.72rem; color: var(--text-faint); line-height: 1.4;">
             Must be a <strong>Web application</strong> Client ID from <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color: var(--accent);">Google Cloud Console</a> (NOT an Android client ID).
           </div>
+          <div style="margin-top: 2px;">
+            <a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" style="font-size: 0.74rem; color: #818CF8; text-decoration: underline;">
+              ⚙️ Enable Google Drive API in Google Cloud Console
+            </a>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">Drive Folder ID (Auto-detected or Paste from Drive URL)</label>
+          <input type="text" id="inputFolderId" class="text-input" style="font-size: 0.8rem;" placeholder="Leave empty for auto-detect or paste folder ID">
         </div>
 
         <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
           <button id="btnGoogleSignIn" class="btn-primary" style="height: 38px; font-size: 0.82rem;">
-            <span>🔑</span> Sign in with Google
+            <span>🔑</span> Sign in / Re-Authorize
           </button>
           <button id="btnGoogleDisconnect" class="btn-secondary" style="height: 38px; color: var(--rose); display: none;">
             Disconnect
@@ -1030,10 +1042,12 @@
 
     // Settings modal elements
     const settingsModal = document.getElementById('settingsModal');
+    const syncErrorBanner = document.getElementById('syncErrorBanner');
     const googleAuthStatus = document.getElementById('googleAuthStatus');
     const btnGoogleSignIn = document.getElementById('btnGoogleSignIn');
     const btnGoogleDisconnect = document.getElementById('btnGoogleDisconnect');
     const inputGoogleClientId = document.getElementById('inputGoogleClientId');
+    const inputFolderId = document.getElementById('inputFolderId');
     const inputManualToken = document.getElementById('inputManualToken');
     const inputCabinetOwner = document.getElementById('inputCabinetOwner');
     const ownerBindNotice = document.getElementById('ownerBindNotice');
@@ -1102,6 +1116,7 @@
       }
 
       inputGoogleClientId.value = state.clientId;
+      inputFolderId.value = state.folderId;
       inputCabinetOwner.value = state.cabinetOwnerEmail;
       if (state.cabinetOwnerEmail) {
         ownerBindNotice.style.display = 'block';
@@ -1147,11 +1162,14 @@
         const tokenClient = google.accounts.oauth2.initTokenClient({
           client_id: state.clientId,
           scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file',
+          prompt: 'consent',
           callback: (resp) => {
             if (resp && resp.access_token) {
               state.token = resp.access_token;
               localStorage.setItem('CLEAN_FILING_TOKEN', state.token);
               updateConnectionStatusUI();
+              const banner = document.getElementById('syncErrorBanner');
+              if (banner) banner.style.display = 'none';
               showToast('Signed in successfully! 🗄️');
               syncGoogleDrive(false);
             } else if (resp && resp.error) {
@@ -1159,7 +1177,7 @@
             }
           }
         });
-        tokenClient.requestAccessToken();
+        tokenClient.requestAccessToken({ prompt: 'consent' });
       } catch (err) {
         showToast('Sign-in error: ' + err.message);
       }
@@ -1189,12 +1207,18 @@
     // Save Settings
     btnSaveSettings.addEventListener('click', () => {
       const clientVal = inputGoogleClientId.value.trim();
+      const folderVal = inputFolderId.value.trim();
       const ownerVal = inputCabinetOwner.value.trim();
       const manualToken = inputManualToken.value.trim();
 
       if (clientVal !== state.clientId) {
         state.clientId = clientVal;
         localStorage.setItem('CLEAN_FILING_CLIENT_ID', clientVal);
+      }
+      if (folderVal !== state.folderId) {
+        state.folderId = folderVal;
+        if (folderVal) localStorage.setItem('CLEAN_FILING_FOLDER_ID', folderVal);
+        else localStorage.removeItem('CLEAN_FILING_FOLDER_ID');
       }
       if (ownerVal !== state.cabinetOwnerEmail) {
         state.cabinetOwnerEmail = ownerVal;
@@ -1267,7 +1291,8 @@
 
       const targetOwner = state.cabinetOwnerEmail.trim().toLowerCase();
       const query = "name = 'Clean Filing' and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
-      const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,owners)&supportsAllDrives=true&includeItemsFromAllDrives=true`;
+      const encodedQuery = encodeURIComponent(query).replace(/'/g, "%27");
+      const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodedQuery}&fields=files(id,name,owners)&supportsAllDrives=true&includeItemsFromAllDrives=true`;
 
       const searchRes = await fetch(searchUrl, {
         headers: { 'Authorization': `Bearer ${state.token}` }
@@ -1397,7 +1422,13 @@
         const pinnedCount = state.documents.filter(d => isDocPinned(d)).length;
         if (!silent) showToast(`Synced ${state.documents.length} docs (${pinnedCount} pinned) 🗄️`);
       } catch (err) {
-        if (!silent) showToast('Sync notice: ' + err.message);
+        console.error('syncGoogleDrive error:', err);
+        const banner = document.getElementById('syncErrorBanner');
+        if (banner) {
+          banner.style.display = 'block';
+          banner.innerHTML = `<strong>Sync Error:</strong> ${escapeHtml(err.message)}`;
+        }
+        if (!silent) showToast(err.message);
       } finally {
         state.isSyncing = false;
         btnSync.classList.remove('syncing');
