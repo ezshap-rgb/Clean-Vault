@@ -1301,7 +1301,9 @@
 
       const redirectUri = window.location.href.split('#')[0].split('?')[0];
       const scope = encodeURIComponent('https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive');
-      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}&prompt=consent`;
+      // If re-authenticating, omit prompt=consent so Google refreshes token instantly without re-prompting checkboxes
+      const promptParam = state.token ? '' : '&prompt=consent';
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}${promptParam}`;
 
       const banner = document.getElementById('syncErrorBanner');
       if (banner) {
