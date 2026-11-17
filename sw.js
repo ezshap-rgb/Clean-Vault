@@ -1,4 +1,4 @@
-const CACHE_NAME = 'clean-filing-v8';
+const CACHE_NAME = 'clean-filing-v9';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

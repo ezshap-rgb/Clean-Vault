@@ -881,6 +881,9 @@
           <button id="btnGoogleSignIn" class="btn-primary" style="height: 38px; font-size: 0.82rem;">
             <span>🔑</span> Sign in / Re-Authorize
           </button>
+          <button id="btnTestDrive" class="btn-secondary" style="height: 38px; font-size: 0.82rem;">
+            🔍 Test Connection
+          </button>
           <button id="btnGoogleDisconnect" class="btn-secondary" style="height: 38px; color: var(--rose); display: none;">
             Disconnect
           </button>
@@ -1041,6 +1044,7 @@
     const syncErrorBanner = document.getElementById('syncErrorBanner');
     const googleAuthStatus = document.getElementById('googleAuthStatus');
     const btnGoogleSignIn = document.getElementById('btnGoogleSignIn');
+    const btnTestDrive = document.getElementById('btnTestDrive');
     const btnGoogleDisconnect = document.getElementById('btnGoogleDisconnect');
     const inputGoogleClientId = document.getElementById('inputGoogleClientId');
     const inputFolderId = document.getElementById('inputFolderId');
@@ -1122,10 +1126,14 @@
     }
 
     function handleAuthError(errMsg, status) {
-      if (status === 401 || (errMsg && errMsg.toLowerCase().includes('invalid authentication credentials'))) {
-        state.token = '';
-        localStorage.removeItem('CLEAN_FILING_TOKEN');
-        updateConnectionStatusUI();
+      console.warn('Auth issue encountered:', status, errMsg);
+      const banner = document.getElementById('syncErrorBanner');
+      if (banner) {
+        banner.style.display = 'block';
+        banner.style.background = 'rgba(239, 68, 68, 0.15)';
+        banner.style.borderColor = 'var(--rose)';
+        banner.style.color = 'var(--rose)';
+        banner.innerHTML = `<strong>Google Drive Auth Notice:</strong> ${escapeHtml(errMsg || 'Session requires authorization')}`;
       }
     }
 
@@ -1144,8 +1152,11 @@
         clientId = promptId.trim();
       }
 
-      if (clientId.includes('...') || !clientId.endsWith('.apps.googleusercontent.com')) {
-        alert("The Client ID appears incomplete or truncated: '" + clientId + "'.\n\nPlease go to Google Cloud Console -> Credentials, click the COPY icon 📋 next to 'Clean Filing Shared Cabinet' (or open it and copy the Client ID field). It must end with '.apps.googleusercontent.com'.");
+      // Strict validation for Web OAuth Client ID:
+      // Must start with digits and a hyphen (e.g. 162565165888-) and end with .apps.googleusercontent.com
+      const clientRegex = /^[0-9]+-[a-zA-Z0-9_\-]+\.apps\.googleusercontent\.com$/;
+      if (!clientRegex.test(clientId)) {
+        alert("The Client ID is invalid or incomplete:\n\n'" + clientId + "'\n\nA valid Web OAuth Client ID MUST:\n1. Start with your Google Cloud Project number (e.g. 162565165888-)\n2. End with '.apps.googleusercontent.com'\n\nHow to get it:\n1. Open Google Cloud Console -> Credentials\n2. Look under 'OAuth 2.0 Client IDs' for 'Clean Filing Shared Cabinet' (Type: Web application)\n3. Click on the blue name or pencil icon ✏️\n4. Copy the full Client ID from the top right box.");
         return;
       }
 
@@ -1161,25 +1172,86 @@
       try {
         const tokenClient = google.accounts.oauth2.initTokenClient({
           client_id: state.clientId,
-          scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file',
+          scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive',
           prompt: 'consent',
           callback: (resp) => {
+            console.log('Google Identity Services callback:', resp);
             if (resp && resp.access_token) {
               state.token = resp.access_token;
               localStorage.setItem('CLEAN_FILING_TOKEN', state.token);
               updateConnectionStatusUI();
               const banner = document.getElementById('syncErrorBanner');
-              if (banner) banner.style.display = 'none';
+              if (banner) {
+                banner.style.display = 'none';
+                banner.innerHTML = '';
+              }
               showToast('Signed in successfully! 🗄️');
               syncGoogleDrive(false);
             } else if (resp && resp.error) {
-              showToast('Google Sign-in failed: ' + resp.error);
+              const errMsg = resp.error_description || resp.error;
+              console.error('Google Sign-in failed:', resp);
+              showToast('Google Sign-in failed: ' + errMsg);
+              const banner = document.getElementById('syncErrorBanner');
+              if (banner) {
+                banner.style.display = 'block';
+                banner.style.background = 'rgba(239, 68, 68, 0.15)';
+                banner.style.borderColor = 'var(--rose)';
+                banner.style.color = 'var(--rose)';
+                banner.innerHTML = `<strong>Google Sign-in Error:</strong> ${escapeHtml(errMsg)}`;
+              }
             }
           }
         });
         tokenClient.requestAccessToken({ prompt: 'consent' });
       } catch (err) {
         showToast('Sign-in error: ' + err.message);
+      }
+    });
+
+    // Test Connection Button
+    btnTestDrive.addEventListener('click', async () => {
+      const banner = document.getElementById('syncErrorBanner');
+      banner.style.display = 'block';
+      banner.style.background = 'rgba(92, 79, 238, 0.15)';
+      banner.style.borderColor = 'var(--accent)';
+      banner.style.color = '#A5B4FC';
+      banner.innerHTML = 'Testing Google Drive connection...';
+
+      if (!state.token) {
+        banner.style.background = 'rgba(239, 68, 68, 0.15)';
+        banner.style.borderColor = 'var(--rose)';
+        banner.style.color = 'var(--rose)';
+        banner.innerHTML = '<strong>Not Signed In:</strong> Please click <strong>Sign in / Re-Authorize</strong> above first.';
+        showToast('Please sign in first');
+        return;
+      }
+
+      try {
+        // Step 1: Verify token with Google tokeninfo
+        const tokenRes = await fetch(`https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${encodeURIComponent(state.token)}`);
+        if (!tokenRes.ok) {
+          const errData = await tokenRes.json().catch(() => ({}));
+          throw new Error(`Token verification failed (${tokenRes.status}): ${errData.error_description || errData.error || 'Token expired or invalid'}`);
+        }
+        const tokenInfo = await tokenRes.json();
+
+        // Step 2: Test Folder Lookup
+        const folderId = await ensureCleanFilingFolder();
+
+        banner.style.background = 'rgba(16, 185, 129, 0.15)';
+        banner.style.borderColor = 'var(--emerald)';
+        banner.style.color = 'var(--emerald)';
+        banner.innerHTML = `<strong>✓ Connection Verified!</strong><br>
+          • User: <code>${escapeHtml(tokenInfo.email || 'Authenticated')}</code><br>
+          • Token Valid for: ${Math.round((tokenInfo.expires_in || 3600) / 60)} minutes<br>
+          • Clean Filing Folder ID: <code>${escapeHtml(folderId)}</code>`;
+        showToast('Google Drive connection verified! ✓');
+      } catch (err) {
+        banner.style.background = 'rgba(239, 68, 68, 0.15)';
+        banner.style.borderColor = 'var(--rose)';
+        banner.style.color = 'var(--rose)';
+        banner.innerHTML = `<strong>Diagnostic Result:</strong> ${escapeHtml(err.message)}`;
+        showToast('Connection test failed: ' + err.message);
       }
     });
 
@@ -1286,22 +1358,29 @@
 
       const targetOwner = state.cabinetOwnerEmail.trim().toLowerCase();
       const query = "name = 'Clean Filing' and mimeType = 'application/vnd.google-apps.folder' and trashed = false";
-      const encodedQuery = encodeURIComponent(query).replace(/'/g, "%27");
-      const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodedQuery}&fields=files(id,name,owners)&supportsAllDrives=true&includeItemsFromAllDrives=true`;
+      const encodedQuery = encodeURIComponent(query);
+      const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodedQuery}&fields=files(id,name,owners,shared)`;
 
-      const searchRes = await fetch(searchUrl, {
+      let searchRes = await fetch(searchUrl, {
         headers: { 'Authorization': `Bearer ${state.token}` }
       });
+
+      if (!searchRes.ok && searchRes.status === 400) {
+        searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodedQuery}&fields=files(id,name,owners,shared)&supportsAllDrives=true&includeItemsFromAllDrives=true`, {
+          headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+      }
+
       if (!searchRes.ok) {
         const errJson = await searchRes.json().catch(() => ({}));
         const errMsg = errJson.error?.message || `HTTP ${searchRes.status}`;
         console.error('Google Drive query error:', errJson);
         handleAuthError(errMsg, searchRes.status);
         if (errMsg.includes('not been used') || errMsg.includes('disabled') || searchRes.status === 403) {
-          throw new Error('Google Drive API is not enabled in your Google Cloud Project. Please enable it in Google Cloud Console -> APIs & Services -> Library -> Google Drive API.');
+          throw new Error('Google Drive API is disabled in your Google Cloud Project. Please enable it in Google Cloud Console: https://console.cloud.google.com/apis/library/drive.googleapis.com');
         }
         if (searchRes.status === 401 || errMsg.toLowerCase().includes('invalid authentication credentials')) {
-          throw new Error('Invalid or expired Google session. Please click "Sign in / Re-Authorize" in Settings ⚙️ to connect.');
+          throw new Error('Google authorization token expired or invalid (401). Please click "Sign in / Re-Authorize" in Settings ⚙️ to connect.');
         }
         throw new Error('Failed to query Google Drive: ' + errMsg);
       }
@@ -1318,7 +1397,12 @@
             return f.id;
           }
         }
-        throw new Error(`Cabinet owned by '${targetOwner}' not found. Ensure they granted your account access.`);
+        if (files.length > 0) {
+          console.warn(`Cabinet with owner '${targetOwner}' not explicitly matched in owner metadata. Using first found Clean Filing folder.`);
+          state.folderId = files[0].id;
+          localStorage.setItem('CLEAN_FILING_FOLDER_ID', files[0].id);
+          return files[0].id;
+        }
       }
 
       if (files.length > 0) {
@@ -1328,7 +1412,7 @@
       }
 
       // Create "Clean Filing" folder
-      const createRes = await fetch('https://www.googleapis.com/drive/v3/files?supportsAllDrives=true', {
+      const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${state.token}`,
@@ -1336,7 +1420,8 @@
         },
         body: JSON.stringify({
           name: 'Clean Filing',
-          mimeType: 'application/vnd.google-apps.folder'
+          mimeType: 'application/vnd.google-apps.folder',
+          description: 'Clean Filing Document Storage'
         })
       });
       if (!createRes.ok) {
@@ -1365,17 +1450,21 @@
 
       try {
         const folderId = await ensureCleanFilingFolder();
-        const listUrl = `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+trashed=false&fields=files(id,name,description,mimeType,createdTime,modifiedTime,webViewLink,properties,owners)&supportsAllDrives=true&includeItemsFromAllDrives=true&pageSize=1000`;
+        const listUrl = `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+trashed=false&fields=files(id,name,description,mimeType,createdTime,modifiedTime,webViewLink,properties,owners)&pageSize=1000`;
 
-        const res = await fetch(listUrl, {
+        let res = await fetch(listUrl, {
           headers: { 'Authorization': `Bearer ${state.token}` }
         });
 
+        if (!res.ok && res.status === 400) {
+          res = await fetch(`${listUrl}&supportsAllDrives=true&includeItemsFromAllDrives=true`, {
+            headers: { 'Authorization': `Bearer ${state.token}` }
+          });
+        }
+
         if (res.status === 401) {
-          state.token = '';
-          localStorage.removeItem('CLEAN_FILING_TOKEN');
-          updateConnectionStatusUI();
-          throw new Error('Google session expired. Please sign in again.');
+          handleAuthError('Session expired. Please click Sign in / Re-Authorize in Settings.', 401);
+          throw new Error('Google session expired. Please click "Sign in / Re-Authorize" in Settings ⚙️.');
         }
 
         if (!res.ok) {
