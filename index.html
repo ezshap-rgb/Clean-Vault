@@ -842,8 +842,20 @@
           Direct Google Drive synchronization without third-party servers. All documents sync to the <strong>Clean Filing</strong> folder.
         </div>
 
+        <div id="fileProtocolWarning" style="display: none; background: rgba(245, 158, 11, 0.15); border: 1px solid var(--amber); color: var(--amber); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 0.78rem; line-height: 1.4;">
+          ⚠️ <strong>File Protocol Detected:</strong> Google Sign-In cannot authenticate on <code>file:///</code> paths. Please launch via <strong>start-desktop.bat</strong> (runs on <code>http://localhost:8080</code>) or GitHub Pages.
+        </div>
+
         <div id="googleAuthStatus" style="font-size: 0.8rem; font-weight: 700; color: var(--emerald); display: none;">
           ✓ Signed in to Google Drive
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">Google Web OAuth Client ID</label>
+          <input type="text" id="inputGoogleClientId" class="text-input" style="font-size: 0.8rem;" placeholder="e.g. 123456789-xxx.apps.googleusercontent.com">
+          <div style="font-size: 0.72rem; color: var(--text-faint); line-height: 1.4;">
+            Must be a <strong>Web application</strong> Client ID from <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color: var(--accent);">Google Cloud Console</a> (NOT an Android client ID).
+          </div>
         </div>
 
         <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
@@ -856,15 +868,11 @@
         </div>
 
         <!-- Advanced Web OAuth / Token input -->
-        <div style="margin-top: 6px;">
+        <div style="margin-top: 4px;">
           <details style="font-size: 0.78rem; color: var(--text-faint);">
-            <summary style="cursor: pointer; margin-bottom: 8px; font-weight: 600;">Custom Client ID / Access Token (Advanced)</summary>
-            <div class="input-group" style="margin-bottom: 8px;">
-              <label class="input-label">Google Web Client ID</label>
-              <input type="text" id="inputGoogleClientId" class="text-input" style="font-size: 0.8rem;" placeholder="e.g. 123456...apps.googleusercontent.com">
-            </div>
+            <summary style="cursor: pointer; margin-bottom: 8px; font-weight: 600;">Direct Access Token (Alternative)</summary>
             <div class="input-group">
-              <label class="input-label">Direct OAuth Access Token</label>
+              <label class="input-label">OAuth Access Token</label>
               <input type="password" id="inputManualToken" class="text-input" style="font-size: 0.8rem;" placeholder="Bearer ya29....">
             </div>
           </details>
@@ -1065,6 +1073,10 @@
 
     // Init UI
     function init() {
+      if (window.location.protocol === 'file:') {
+        const warn = document.getElementById('fileProtocolWarning');
+        if (warn) warn.style.display = 'block';
+      }
       updateConnectionStatusUI();
       renderDocuments();
       if (state.token) {
@@ -1101,6 +1113,11 @@
 
     // Google Sign In (Token Client)
     btnGoogleSignIn.addEventListener('click', () => {
+      if (window.location.protocol === 'file:') {
+        alert("Google Sign-In cannot run directly from a file:// URL on your hard drive.\n\nPlease double-click 'start-desktop.bat' in the folder to run Clean Filing at http://localhost:8080.");
+        return;
+      }
+
       const clientId = inputGoogleClientId.value.trim() || state.clientId;
       const manualToken = inputManualToken.value.trim();
 
