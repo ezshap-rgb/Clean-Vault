@@ -1146,7 +1146,7 @@
       try {
         const tokenClient = google.accounts.oauth2.initTokenClient({
           client_id: state.clientId,
-          scope: 'https://www.googleapis.com/auth/drive.file',
+          scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file',
           callback: (resp) => {
             if (resp && resp.access_token) {
               state.token = resp.access_token;
@@ -1272,7 +1272,15 @@
       const searchRes = await fetch(searchUrl, {
         headers: { 'Authorization': `Bearer ${state.token}` }
       });
-      if (!searchRes.ok) throw new Error('Failed to query Google Drive');
+      if (!searchRes.ok) {
+        const errJson = await searchRes.json().catch(() => ({}));
+        const errMsg = errJson.error?.message || `HTTP ${searchRes.status}`;
+        console.error('Google Drive query error:', errJson);
+        if (errMsg.includes('not been used') || errMsg.includes('disabled') || searchRes.status === 403) {
+          throw new Error('Google Drive API is not enabled in your Google Cloud Project. Please enable it in Google Cloud Console -> APIs & Services -> Library -> Google Drive API.');
+        }
+        throw new Error('Failed to query Google Drive: ' + errMsg);
+      }
 
       const data = await searchRes.json();
       const files = data.files || [];
@@ -1307,7 +1315,12 @@
           mimeType: 'application/vnd.google-apps.folder'
         })
       });
-      if (!createRes.ok) throw new Error('Failed to create Clean Filing folder on Drive');
+      if (!createRes.ok) {
+        const errJson = await createRes.json().catch(() => ({}));
+        const errMsg = errJson.error?.message || `HTTP ${createRes.status}`;
+        console.error('Google Drive create folder error:', errJson);
+        throw new Error('Failed to create Clean Filing folder on Drive: ' + errMsg);
+      }
 
       const created = await createRes.json();
       state.folderId = created.id;
@@ -1341,7 +1354,11 @@
           throw new Error('Google session expired. Please sign in again.');
         }
 
-        if (!res.ok) throw new Error('Failed to list files from Google Drive');
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => ({}));
+          const errMsg = errJson.error?.message || `HTTP ${res.status}`;
+          throw new Error('Failed to list files from Google Drive: ' + errMsg);
+        }
 
         const data = await res.json();
         const remoteFiles = data.files || [];
