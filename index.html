@@ -878,17 +878,6 @@
             Disconnect
           </button>
         </div>
-
-        <!-- Advanced Web OAuth / Token input -->
-        <div style="margin-top: 4px;">
-          <details style="font-size: 0.78rem; color: var(--text-faint);">
-            <summary style="cursor: pointer; margin-bottom: 8px; font-weight: 600;">Direct Access Token (Alternative)</summary>
-            <div class="input-group">
-              <label class="input-label">OAuth Access Token</label>
-              <input type="password" id="inputManualToken" class="text-input" style="font-size: 0.8rem;" placeholder="Bearer ya29....">
-            </div>
-          </details>
-        </div>
       </div>
 
       <!-- Section: Cabinet Source / Owner (For partner devices) -->
@@ -1048,7 +1037,6 @@
     const btnGoogleDisconnect = document.getElementById('btnGoogleDisconnect');
     const inputGoogleClientId = document.getElementById('inputGoogleClientId');
     const inputFolderId = document.getElementById('inputFolderId');
-    const inputManualToken = document.getElementById('inputManualToken');
     const inputCabinetOwner = document.getElementById('inputCabinetOwner');
     const ownerBindNotice = document.getElementById('ownerBindNotice');
     const ownerBindEmail = document.getElementById('ownerBindEmail');
@@ -1126,6 +1114,14 @@
       }
     }
 
+    function handleAuthError(errMsg, status) {
+      if (status === 401 || (errMsg && errMsg.toLowerCase().includes('invalid authentication credentials'))) {
+        state.token = '';
+        localStorage.removeItem('CLEAN_FILING_TOKEN');
+        updateConnectionStatusUI();
+      }
+    }
+
     // Google Sign In (Token Client)
     btnGoogleSignIn.addEventListener('click', () => {
       if (window.location.protocol === 'file:') {
@@ -1134,19 +1130,9 @@
       }
 
       const clientId = inputGoogleClientId.value.trim() || state.clientId;
-      const manualToken = inputManualToken.value.trim();
-
-      if (manualToken) {
-        state.token = manualToken;
-        localStorage.setItem('CLEAN_FILING_TOKEN', manualToken);
-        updateConnectionStatusUI();
-        showToast('Access token saved! Syncing cabinet...');
-        syncGoogleDrive(false);
-        return;
-      }
 
       if (!clientId) {
-        const promptId = prompt('Please enter your Google Web OAuth Client ID (or paste an OAuth Access Token in the advanced box):', state.clientId);
+        const promptId = prompt('Please enter your Google Web OAuth Client ID:', state.clientId);
         if (!promptId) return;
         state.clientId = promptId.trim();
         localStorage.setItem('CLEAN_FILING_CLIENT_ID', state.clientId);
@@ -1209,7 +1195,6 @@
       const clientVal = inputGoogleClientId.value.trim();
       const folderVal = inputFolderId.value.trim();
       const ownerVal = inputCabinetOwner.value.trim();
-      const manualToken = inputManualToken.value.trim();
 
       if (clientVal !== state.clientId) {
         state.clientId = clientVal;
@@ -1225,10 +1210,6 @@
         localStorage.setItem('CLEAN_FILING_OWNER_EMAIL', ownerVal);
         localStorage.removeItem('CLEAN_FILING_FOLDER_ID');
         state.folderId = '';
-      }
-      if (manualToken) {
-        state.token = manualToken;
-        localStorage.setItem('CLEAN_FILING_TOKEN', manualToken);
       }
 
       closeModal('settingsModal');
@@ -1301,8 +1282,12 @@
         const errJson = await searchRes.json().catch(() => ({}));
         const errMsg = errJson.error?.message || `HTTP ${searchRes.status}`;
         console.error('Google Drive query error:', errJson);
+        handleAuthError(errMsg, searchRes.status);
         if (errMsg.includes('not been used') || errMsg.includes('disabled') || searchRes.status === 403) {
           throw new Error('Google Drive API is not enabled in your Google Cloud Project. Please enable it in Google Cloud Console -> APIs & Services -> Library -> Google Drive API.');
+        }
+        if (searchRes.status === 401 || errMsg.toLowerCase().includes('invalid authentication credentials')) {
+          throw new Error('Invalid or expired Google session. Please click "Sign in / Re-Authorize" in Settings ⚙️ to connect.');
         }
         throw new Error('Failed to query Google Drive: ' + errMsg);
       }
