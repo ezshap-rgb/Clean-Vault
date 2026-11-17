@@ -1129,15 +1129,22 @@
         return;
       }
 
-      const clientId = inputGoogleClientId.value.trim() || state.clientId;
+      let clientId = (inputGoogleClientId.value.trim() || state.clientId || '').trim();
 
       if (!clientId) {
         const promptId = prompt('Please enter your Google Web OAuth Client ID:', state.clientId);
         if (!promptId) return;
-        state.clientId = promptId.trim();
-        localStorage.setItem('CLEAN_FILING_CLIENT_ID', state.clientId);
-        inputGoogleClientId.value = state.clientId;
+        clientId = promptId.trim();
       }
+
+      if (clientId.includes('...') || !clientId.endsWith('.apps.googleusercontent.com')) {
+        alert("The Client ID appears incomplete or truncated: '" + clientId + "'.\n\nPlease go to Google Cloud Console -> Credentials, click the COPY icon 📋 next to 'Clean Filing Shared Cabinet' (or open it and copy the Client ID field). It must end with '.apps.googleusercontent.com'.");
+        return;
+      }
+
+      state.clientId = clientId;
+      localStorage.setItem('CLEAN_FILING_CLIENT_ID', clientId);
+      inputGoogleClientId.value = clientId;
 
       if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
         showToast('Google Identity library loading... please try again in a second.');
