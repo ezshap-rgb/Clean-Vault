@@ -865,9 +865,12 @@
           <div style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; margin-top: 4px;">
             Copy the full Client ID from Google Cloud Console (type <strong>Web application</strong>). Must end with <code>.apps.googleusercontent.com</code>.
           </div>
-          <div style="margin-top: 6px; padding: 6px 10px; background: rgba(0,0,0,0.3); border-radius: 6px; font-size: 0.72rem; color: var(--text-muted); line-height: 1.45;">
-            🌐 <strong>Current Browser Origin:</strong> <code id="currentOriginLabel" style="color: #38BDF8; font-weight: 700; user-select: all;"></code>
-            <div style="margin-top: 2px;">In Google Cloud Console -> <strong>Clean Filing Shared Cabinet</strong>, make sure this exact origin is added under <strong>Authorized JavaScript origins</strong> (no trailing slash!).</div>
+          <div style="margin-top: 6px; padding: 8px 10px; background: rgba(0,0,0,0.3); border-radius: 6px; font-size: 0.72rem; color: var(--text-muted); line-height: 1.5;">
+            <div>🌐 <strong>Authorized JavaScript Origin:</strong></div>
+            <code id="currentOriginLabel" style="color: #38BDF8; font-weight: 700; user-select: all; display: block; margin: 2px 0 6px;"></code>
+            <div>🔗 <strong>Authorized Redirect URI:</strong></div>
+            <code id="currentRedirectUriLabel" style="color: #38BDF8; font-weight: 700; user-select: all; display: block; margin: 2px 0 6px;"></code>
+            <div style="color: #94A3B8; font-size: 0.7rem;">In Google Cloud Console -> <strong>Clean Filing Shared Cabinet</strong>, add both of the above values to their respective sections.</div>
           </div>
           <div style="margin-top: 6px;">
             <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="font-size: 0.74rem; color: #818CF8; text-decoration: underline;">
@@ -883,7 +886,10 @@
 
         <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
           <button id="btnGoogleSignIn" class="btn-primary" style="height: 38px; font-size: 0.82rem;">
-            <span>🔑</span> Sign in / Re-Authorize
+            <span>🔑</span> Sign in (Popup)
+          </button>
+          <button id="btnGoogleRedirectSignIn" class="btn-secondary" style="height: 38px; font-size: 0.82rem; border-color: var(--accent); color: #A5B4FC;" title="Direct full-page redirect (bypass popup blocker and extensions)">
+            <span>🌐</span> Sign in (Redirect Mode)
           </button>
           <button id="btnTestDrive" class="btn-secondary" style="height: 38px; font-size: 0.82rem;">
             🔍 Test Connection
@@ -1048,6 +1054,7 @@
     const syncErrorBanner = document.getElementById('syncErrorBanner');
     const googleAuthStatus = document.getElementById('googleAuthStatus');
     const btnGoogleSignIn = document.getElementById('btnGoogleSignIn');
+    const btnGoogleRedirectSignIn = document.getElementById('btnGoogleRedirectSignIn');
     const btnTestDrive = document.getElementById('btnTestDrive');
     const btnGoogleDisconnect = document.getElementById('btnGoogleDisconnect');
     const inputGoogleClientId = document.getElementById('inputGoogleClientId');
@@ -1088,6 +1095,26 @@
     function openModal(id) { document.getElementById(id).classList.add('active'); }
     function closeModal(id) { document.getElementById(id).classList.remove('active'); }
 
+    // Check URL Hash for OAuth Redirect Return
+    function checkUrlHashToken() {
+      if (window.location.hash && window.location.hash.includes('access_token')) {
+        const hashStr = window.location.hash.startsWith('#') ? window.location.hash.substring(1) : window.location.hash;
+        const params = new URLSearchParams(hashStr);
+        const token = params.get('access_token');
+        if (token) {
+          state.token = token;
+          localStorage.setItem('CLEAN_FILING_TOKEN', state.token);
+          // Clean hash from address bar without reloading
+          history.replaceState(null, '', window.location.pathname + window.location.search);
+          updateConnectionStatusUI();
+          showToast('Signed in successfully via Google! 🗄️');
+          syncGoogleDrive(false);
+          return true;
+        }
+      }
+      return false;
+    }
+
     // Init UI
     function init() {
       if (window.location.protocol === 'file:') {
@@ -1098,6 +1125,12 @@
       if (originLbl) {
         originLbl.textContent = window.location.origin;
       }
+      const redirectLbl = document.getElementById('currentRedirectUriLabel');
+      if (redirectLbl) {
+        redirectLbl.textContent = window.location.href.split('#')[0].split('?')[0];
+      }
+
+      checkUrlHashToken();
       updateConnectionStatusUI();
       renderDocuments();
       if (state.token) {
@@ -1246,9 +1279,39 @@
         tokenClient.requestAccessToken({ prompt: 'consent' });
       } catch (err) {
         btnGoogleSignIn.disabled = false;
-        btnGoogleSignIn.innerHTML = '<span>🔑</span> Sign in / Re-Authorize';
+        btnGoogleSignIn.innerHTML = '<span>🔑</span> Sign in (Popup)';
         showToast('Sign-in error: ' + err.message);
       }
+    });
+
+    // Full-Page Redirect OAuth Mode (Reliable fallback when popups or extensions interfere)
+    btnGoogleRedirectSignIn.addEventListener('click', () => {
+      let clientId = (inputGoogleClientId.value.trim() || state.clientId || '').trim();
+      if (!clientId) {
+        alert('Please enter your Google Web OAuth Client ID first.');
+        return;
+      }
+      const clientRegex = /^[0-9]+-[a-zA-Z0-9_\-]+\.apps\.googleusercontent\.com$/;
+      if (!clientRegex.test(clientId)) {
+        alert("The Client ID appears invalid: '" + clientId + "'.");
+        return;
+      }
+      state.clientId = clientId;
+      localStorage.setItem('CLEAN_FILING_CLIENT_ID', clientId);
+
+      const redirectUri = window.location.href.split('#')[0].split('?')[0];
+      const scope = encodeURIComponent('https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive');
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}&prompt=consent`;
+
+      const banner = document.getElementById('syncErrorBanner');
+      if (banner) {
+        banner.style.display = 'block';
+        banner.style.background = 'rgba(92, 79, 238, 0.15)';
+        banner.style.borderColor = 'var(--accent)';
+        banner.style.color = '#A5B4FC';
+        banner.innerHTML = 'Redirecting to Google for authorization...';
+      }
+      window.location.href = authUrl;
     });
 
     // Test Connection Button
