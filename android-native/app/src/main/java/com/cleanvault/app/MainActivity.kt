@@ -62,6 +62,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -125,17 +127,27 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         incomingIntentState.value = intent
         setContent {
+            val context = this
+            val prefs = remember { context.getSharedPreferences("clean_vault_prefs", Context.MODE_PRIVATE) }
+            var isHebrew by remember { mutableStateOf(prefs.getBoolean("KEY_HEBREW", false)) }
             val currentDensity = LocalDensity.current
             CompositionLocalProvider(
                 LocalDensity provides Density(
                     density = currentDensity.density,
                     fontScale = 1.0f
-                )
+                ),
+                LocalLayoutDirection provides (if (isHebrew) LayoutDirection.Rtl else LayoutDirection.Ltr)
             ) {
                 CleanVaultTheme {
                     MainScreen(
                         incomingIntent = incomingIntentState.value,
-                        onIntentHandled = { incomingIntentState.value = null }
+                        onIntentHandled = { incomingIntentState.value = null },
+                        isHebrew = isHebrew,
+                        onToggleHebrew = {
+                            val next = !isHebrew
+                            isHebrew = next
+                            prefs.edit().putBoolean("KEY_HEBREW", next).apply()
+                        }
                     )
                 }
             }
@@ -399,7 +411,9 @@ fun StreamlinedDocCard(
 @Composable
 fun MainScreen(
     incomingIntent: Intent? = null,
-    onIntentHandled: () -> Unit = {}
+    onIntentHandled: () -> Unit = {},
+    isHebrew: Boolean = false,
+    onToggleHebrew: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val repository = remember { VaultRepository(context) }
@@ -882,7 +896,7 @@ fun MainScreen(
                                             }
                                         }
                                         Text(
-                                            text = "Document filing system",
+                                            text = if (isHebrew) "מערכת תיוק מסמכים" else "Document filing system",
                                             fontSize = 11.5.sp,
                                             color = TextSubtle,
                                             fontWeight = FontWeight.Medium
@@ -890,11 +904,19 @@ fun MainScreen(
                                     }
                                 }
 
-                                // Right: Sync & Settings buttons
+                                // Right: Language, Sync & Settings buttons
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
+                                    // Language Toggle Button (IL / US)
+                                    IconButton(
+                                        onClick = onToggleHebrew,
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Text(if (isHebrew) "🇺🇸" else "🇮🇱", fontSize = 16.sp)
+                                    }
+
                                     val hasCloud = repository.hasCloudConnection()
                                     // Sync Button with animated rotation
                                     IconButton(
@@ -966,14 +988,14 @@ fun MainScreen(
                                             NeonHandle(width = 110.dp, height = 14.dp)
                                             Spacer(modifier = Modifier.height(6.dp))
                                             Text(
-                                                text = "IN",
+                                                text = if (isHebrew) "קליטה" else "IN",
                                                 color = Color.White,
                                                 fontSize = 16.sp,
                                                 fontWeight = FontWeight.Black,
                                                 letterSpacing = 2.5.sp
                                             )
                                             Text(
-                                                text = "Scan & File",
+                                                text = if (isHebrew) "סריקה ותיוק" else "Scan & File",
                                                 color = PillLavender,
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold
@@ -990,7 +1012,7 @@ fun MainScreen(
                                         .clip(RoundedCornerShape(32.dp))
                                         .background(ClaySlotBg)
                                         .padding(4.dp)
-                                ) {
+                                 ) {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
@@ -1006,14 +1028,14 @@ fun MainScreen(
                                             NeonHandle(width = 80.dp, height = 12.dp)
                                             Spacer(modifier = Modifier.height(5.dp))
                                             Text(
-                                                text = "📌 ESSENTIALS",
+                                                text = if (isHebrew) "📌 חשובים" else "📌 ESSENTIALS",
                                                 color = Color.White,
                                                 fontSize = 13.sp,
                                                 fontWeight = FontWeight.Black,
                                                 letterSpacing = 1.5.sp
                                             )
                                             Text(
-                                                text = "${documents.count { it.isPinned }} pinned files",
+                                                text = if (isHebrew) "${documents.count { it.isPinned }} קבצים נעוצים" else "${documents.count { it.isPinned }} pinned files",
                                                 color = PillLavender,
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold
@@ -1030,7 +1052,7 @@ fun MainScreen(
                                         .clip(RoundedCornerShape(32.dp))
                                         .background(ClaySlotBg)
                                         .padding(4.dp)
-                                ) {
+                                 ) {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
@@ -1046,14 +1068,14 @@ fun MainScreen(
                                             NeonHandle(width = 110.dp, height = 14.dp)
                                             Spacer(modifier = Modifier.height(6.dp))
                                             Text(
-                                                text = "FILES",
+                                                text = if (isHebrew) "ארכיון" else "FILES",
                                                 color = Color.White,
                                                 fontSize = 16.sp,
                                                 fontWeight = FontWeight.Black,
                                                 letterSpacing = 2.5.sp
                                             )
                                             Text(
-                                                text = "${documents.size} documents",
+                                                text = if (isHebrew) "${documents.size} מסמכים" else "${documents.size} documents",
                                                 color = PillLavender,
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold
@@ -1098,7 +1120,7 @@ fun MainScreen(
                                 }
                             }
                             Text(
-                                text = "File",
+                                text = if (isHebrew) "תיוק מסמך" else "File",
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Black,
                                 color = TextDark
@@ -1180,7 +1202,7 @@ fun MainScreen(
                                     }
                                     Spacer(modifier = Modifier.height(16.dp))
                                     Text(
-                                        text = "Scan Document",
+                                        text = if (isHebrew) "סריקת מסמך" else "Scan Document",
                                         fontSize = 22.sp,
                                         fontWeight = FontWeight.Black,
                                         color = Color.White
@@ -1307,7 +1329,7 @@ fun MainScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Column(modifier = Modifier.weight(1f)) {
-                                                Text("Document Name", fontSize = 11.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
+                                                Text(if (isHebrew) "שם המסמך" else "Document Name", fontSize = 11.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
                                                 BasicTextField(
                                                     value = docNameText,
                                                     onValueChange = { docNameText = it },
@@ -1334,7 +1356,7 @@ fun MainScreen(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Column(modifier = Modifier.weight(1f)) {
-                                                Text("Labels / Tags", fontSize = 11.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
+                                                Text(if (isHebrew) "תגיות / תוויות" else "Labels / Tags", fontSize = 11.sp, color = TextSubtle, fontWeight = FontWeight.Bold)
                                                 BasicTextField(
                                                     value = labelsText,
                                                     onValueChange = { labelsText = it },
@@ -1374,7 +1396,7 @@ fun MainScreen(
                                                     tint = if (isPinned) RedPin else TextSubtle.copy(alpha = 0.4f)
                                                 )
                                                 Text(
-                                                    "Pin to Essentials",
+                                                    if (isHebrew) "נעץ לחשובים" else "Pin to Essentials",
                                                     fontSize = 13.5.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     color = if (isPinned) RedPin else TextSubtle
@@ -1419,7 +1441,7 @@ fun MainScreen(
                                         shape = RoundedCornerShape(22.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = PurpleDark)
                                     ) {
-                                        Text("File to Cabinet 🗄️", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                        Text(if (isHebrew) "תייק לארכיון 🗄️" else "File to Cabinet 🗄️", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                     }
 
                                     // Cancel Button
@@ -1430,7 +1452,7 @@ fun MainScreen(
                                             .height(46.dp),
                                         shape = RoundedCornerShape(20.dp)
                                     ) {
-                                        Text("Cancel / Retake", fontSize = 14.sp, color = TextSubtle)
+                                        Text(if (isHebrew) "ביטול / צילום מחדש" else "Cancel / Retake", fontSize = 14.sp, color = TextSubtle)
                                     }
                                 }
                             }
@@ -1470,14 +1492,14 @@ fun MainScreen(
                                     }
                                 }
                                 Text(
-                                    text = "📌 Essentials",
+                                    text = if (isHebrew) "📌 חשובים" else "📌 Essentials",
                                     fontSize = 22.sp,
                                     fontWeight = FontWeight.Black,
                                     color = TextDark
                                 )
                             }
                             Text(
-                                text = "${pinnedDocs.size} pinned",
+                                text = if (isHebrew) "${pinnedDocs.size} נעוצים" else "${pinnedDocs.size} pinned",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TextSubtle
@@ -1497,13 +1519,13 @@ fun MainScreen(
                                 ) {
                                     Text("📌", fontSize = 48.sp)
                                     Text(
-                                        "No pinned essentials yet",
+                                        if (isHebrew) "אין מסמכים חשובים עדיין" else "No pinned essentials yet",
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = TextDark
                                     )
                                     Text(
-                                        "Tap the pin icon on any file in your cabinet\nto keep it handy right here.",
+                                        if (isHebrew) "הקש על סיכת הנעץ בכל מסמך בארכיון\nכדי לשמור אותו זמין כאן." else "Tap the pin icon on any file in your cabinet\nto keep it handy right here.",
                                         fontSize = 12.sp,
                                         color = TextSubtle,
                                         textAlign = TextAlign.Center
@@ -1593,7 +1615,7 @@ fun MainScreen(
                                     }
                                 }
                                 Text(
-                                    text = "File Cabinet",
+                                    text = if (isHebrew) "ארכיון מסמכים" else "File Cabinet",
                                     fontSize = 22.sp,
                                     fontWeight = FontWeight.Black,
                                     color = TextDark
@@ -1601,7 +1623,7 @@ fun MainScreen(
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = "${documents.size} files",
+                                    text = if (isHebrew) "${documents.size} מסמכים" else "${documents.size} files",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = TextSubtle
@@ -1659,7 +1681,7 @@ fun MainScreen(
                                     Box(modifier = Modifier.weight(1f)) {
                                         if (cabinetSearchQuery.isEmpty()) {
                                             Text(
-                                                "Search documents, tags...",
+                                                if (isHebrew) "חיפוש מסמכים, תגיות..." else "Search documents, tags...",
                                                 fontSize = 14.sp,
                                                 color = TextSubtle.copy(alpha = 0.6f)
                                             )
@@ -1708,7 +1730,7 @@ fun MainScreen(
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Text(
-                                        "Pinned",
+                                        if (isHebrew) "חשובים" else "Pinned",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = if (cabinetFilterPinnedOnly) RedPin else TextSubtle
@@ -1726,7 +1748,7 @@ fun MainScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    "No documents found",
+                                    if (isHebrew) "לא נמצאו מסמכים" else "No documents found",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = TextSubtle
@@ -1790,7 +1812,8 @@ fun MainScreen(
                 LocalDensity provides Density(
                     density = dialogDensity.density,
                     fontScale = 1.0f
-                )
+                ),
+                LocalLayoutDirection provides (if (isHebrew) LayoutDirection.Rtl else LayoutDirection.Ltr)
             ) {
                 Surface(
                     shape = RoundedCornerShape(26.dp),
@@ -1813,10 +1836,59 @@ fun MainScreen(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text("⚙️", fontSize = 20.sp)
-                                Text("Settings & Cloud Backup", fontSize = 17.sp, fontWeight = FontWeight.Black, color = TextDark)
+                                Text(if (isHebrew) "הגדרות וגיבוי ענן" else "Settings & Cloud Backup", fontSize = 17.sp, fontWeight = FontWeight.Black, color = TextDark)
                             }
                             IconButton(onClick = { showSettingsModal = false }, modifier = Modifier.size(28.dp)) {
                                 Icon(Icons.Filled.Close, contentDescription = null, tint = TextSubtle)
+                            }
+                        }
+
+                        // Language Section
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            color = SurfaceRaised,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text("🌐", fontSize = 18.sp)
+                                    Column {
+                                        Text(
+                                            text = if (isHebrew) "שפת ממשק" else "App Language",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp,
+                                            color = TextDark
+                                        )
+                                        Text(
+                                            text = if (isHebrew) "עברית (RTL)" else "English (LTR)",
+                                            fontSize = 11.5.sp,
+                                            color = TextSubtle
+                                        )
+                                    }
+                                }
+                                Button(
+                                    onClick = onToggleHebrew,
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = PurpleAccent),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = if (isHebrew) "Switch to English 🇺🇸" else "עבור לעברית 🇮🇱",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
                             }
                         }
 
@@ -2171,7 +2243,8 @@ fun MainScreen(
                 LocalDensity provides Density(
                     density = dialogDensity.density,
                     fontScale = 1.0f
-                )
+                ),
+                LocalLayoutDirection provides (if (isHebrew) LayoutDirection.Rtl else LayoutDirection.Ltr)
             ) {
                 Surface(
                     shape = RoundedCornerShape(20.dp),
@@ -2391,7 +2464,8 @@ fun MainScreen(
                 LocalDensity provides Density(
                     density = dialogDensity.density,
                     fontScale = 1.0f
-                )
+                ),
+                LocalLayoutDirection provides (if (isHebrew) LayoutDirection.Rtl else LayoutDirection.Ltr)
             ) {
                 Surface(
                     shape = RoundedCornerShape(22.dp),
@@ -2513,7 +2587,7 @@ fun MainScreen(
                                     }
                                     try {
                                         val timeStamp = java.text.SimpleDateFormat("yyyy-MM-dd_HHmm", java.util.Locale.US).format(java.util.Date())
-                                        val cleanTitle = noteTitleInput.trim().replace(Regex("[^a-zA-Z0-9._ -]"), "_")
+                                        val cleanTitle = noteTitleInput.trim().replace(Regex("[^a-zA-Z0-9\\u0590-\\u05FF._ -]"), "_")
                                         val fileName = if (cleanTitle.isNotBlank()) "${cleanTitle}.txt" else "Note_${timeStamp}.txt"
                                         val noteFile = File(context.cacheDir, fileName)
                                         val fullText = if (noteTitleInput.isNotBlank()) "${noteTitleInput.trim()}\n\n${noteBodyInput.trim()}" else noteBodyInput.trim()
@@ -2565,7 +2639,8 @@ fun MainScreen(
                 LocalDensity provides Density(
                     density = dialogDensity.density,
                     fontScale = 1.0f
-                )
+                ),
+                LocalLayoutDirection provides (if (isHebrew) LayoutDirection.Rtl else LayoutDirection.Ltr)
             ) {
                 Surface(
                     shape = RoundedCornerShape(24.dp),
@@ -2903,7 +2978,7 @@ fun downloadDocumentToStorage(context: Context, doc: VaultDocument) {
         }
 
         val ext = srcFile.extension.ifEmpty { if (doc.mimeType.contains("pdf")) "pdf" else "jpg" }
-        val safeName = (doc.name.ifBlank { "VaultDocument" }).replace(Regex("[^a-zA-Z0-9_-]"), "_")
+        val safeName = (doc.name.ifBlank { "VaultDocument" }).replace(Regex("[^a-zA-Z0-9\\u0590-\\u05FF_-]"), "_")
         val displayName = "${safeName}_${System.currentTimeMillis()}.$ext"
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

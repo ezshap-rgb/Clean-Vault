@@ -17,10 +17,10 @@
     }
   </script>
 
-  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <!-- Google Fonts: Plus Jakarta Sans, Heebo (Hebrew) & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 
   <style>
     :root {
@@ -54,7 +54,7 @@
     }
 
     body {
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Plus Jakarta Sans', 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background-color: var(--bg-base);
       color: var(--text-main);
       min-height: 100vh;
@@ -65,6 +65,60 @@
         radial-gradient(circle at 50% -20%, rgba(92, 79, 238, 0.15) 0%, transparent 60%),
         radial-gradient(circle at 100% 40%, rgba(168, 22, 223, 0.08) 0%, transparent 50%);
       background-attachment: fixed;
+    }
+
+    body[dir="rtl"] {
+      font-family: 'Heebo', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      direction: rtl;
+      text-align: right;
+    }
+
+    body[dir="rtl"] .brand {
+      flex-direction: row;
+    }
+
+    body[dir="rtl"] .brand-subtitle {
+      flex-direction: row;
+    }
+
+    body[dir="rtl"] .header-actions {
+      flex-direction: row;
+    }
+
+    body[dir="rtl"] .card-title {
+      flex-direction: row;
+    }
+
+    body[dir="rtl"] .modal-header {
+      flex-direction: row;
+    }
+
+    body[dir="rtl"] .intake-actions {
+      flex-direction: row;
+    }
+
+    body[dir="rtl"] .modal-actions {
+      flex-direction: row;
+    }
+
+    body[dir="rtl"] .doc-card-header {
+      flex-direction: row;
+    }
+
+    body[dir="rtl"] .doc-meta {
+      flex-direction: row;
+    }
+
+    body[dir="rtl"] .doc-card-actions {
+      flex-direction: row;
+    }
+
+    body[dir="rtl"] .pinned-scroll-bar {
+      direction: rtl;
+    }
+
+    input, textarea {
+      unicode-bidi: plaintext;
     }
 
     .container {
@@ -734,6 +788,11 @@
       </div>
 
       <div class="header-actions">
+        <!-- Language toggle button -->
+        <button id="btnLangToggle" class="btn-icon" title="Switch Language / החלף שפה" style="width: auto; padding: 0 12px; font-size: 0.82rem; font-weight: 700; gap: 4px;">
+          <span id="langToggleLabel">🇮🇱 עברית</span>
+        </button>
+
         <!-- Quick Note Button -->
         <button id="btnQuickNote" class="btn-icon" title="New Quick Note 📝">
           <span style="font-size: 1.1rem;">📝</span>
@@ -761,8 +820,8 @@
       <!-- Left: File Document on Desktop (Intake) -->
       <div class="card">
         <div class="card-title">
-          <span>File Document</span>
-          <span class="tag">Desktop Intake</span>
+          <span id="lblIntakeTitle">File Document</span>
+          <span id="lblIntakeTag" class="tag">Desktop Intake</span>
         </div>
 
         <input type="file" id="fileInput" style="display: none;" accept="image/*,application/pdf,.doc,.docx,.txt">
@@ -773,8 +832,8 @@
             <polyline points="17 8 12 3 7 8"/>
             <line x1="12" y1="3" x2="12" y2="15"/>
           </svg>
-          <div class="drop-zone-text"><strong>Drag & drop file</strong> or click to browse</div>
-          <div style="font-size: 0.72rem; color: var(--text-faint);">Photos, PDFs, Word docs, Notes</div>
+          <div class="drop-zone-text"><strong id="lblDropStrong">Drag & drop file</strong> <span id="lblDropSub">or click to browse</span></div>
+          <div id="lblDropHint" style="font-size: 0.72rem; color: var(--text-faint);">Photos, PDFs, Word docs, Notes</div>
         </div>
 
         <div id="filePreview" class="file-preview">
@@ -783,13 +842,13 @@
         </div>
 
         <div class="input-group">
-          <label class="input-label">Document Name</label>
-          <input type="text" id="inputDocName" class="text-input" placeholder="e.g. Health Insurance, Car Repair...">
+          <label id="lblDocName" class="input-label">Document Name</label>
+          <input type="text" id="inputDocName" class="text-input" placeholder="e.g. Health Insurance, Car Repair..." dir="auto">
         </div>
 
         <div class="input-group">
-          <label class="input-label">Labels / Tags</label>
-          <input type="text" id="inputLabels" class="text-input" placeholder="e.g. taxes, medical, receipts...">
+          <label id="lblLabels" class="input-label">Labels / Tags</label>
+          <input type="text" id="inputLabels" class="text-input" placeholder="e.g. taxes, medical, receipts..." dir="auto">
         </div>
 
         <div class="intake-actions">
@@ -803,7 +862,7 @@
       <!-- Right: Cabinet List -->
       <div class="card" style="min-height: 560px;">
         <div class="card-title">
-          <span>File Cabinet</span>
+          <span id="lblCabinetTitle">File Cabinet</span>
           <span id="docCountBadge" class="tag">0 documents</span>
         </div>
 
@@ -813,7 +872,7 @@
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
-            <input type="text" id="cabinetSearch" class="search-input" placeholder="Filter by name or labels...">
+            <input type="text" id="cabinetSearch" class="search-input" placeholder="Filter by name or labels..." dir="auto">
             <button id="btnFilterPinned" class="btn-action-icon" title="Filter Pinned Only" style="border: none; background: transparent;">📌</button>
           </div>
 
@@ -827,7 +886,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
             </svg>
-            <div>No documents found. Connect Google Drive in Settings ⚙️ or file a document offline above!</div>
+            <div id="lblEmptyCabinet">No documents found. Connect Google Drive in Settings ⚙️ or file a document offline above!</div>
           </div>
         </div>
       </div>
@@ -838,14 +897,14 @@
   <div id="settingsModal" class="modal-backdrop">
     <div class="modal-box">
       <div class="modal-header">
-        <h3 class="modal-title">⚙️ Clean Filing Settings</h3>
+        <h3 id="lblSettingsTitle" class="modal-title">⚙️ Clean Filing Settings</h3>
         <button class="btn-close" onclick="closeModal('settingsModal')">✕</button>
       </div>
 
       <!-- Section: Cloud Sync Mode -->
       <div class="modal-section">
-        <div class="modal-section-title">☁️ Google Drive Direct Cabinet</div>
-        <div class="modal-section-desc">
+        <div id="lblDriveSecTitle" class="modal-section-title">☁️ Google Drive Direct Cabinet</div>
+        <div id="lblDriveSecDesc" class="modal-section-desc">
           Direct Google Drive synchronization without third-party servers. All documents sync to the <strong>Clean Filing</strong> folder.
         </div>
 
@@ -860,27 +919,27 @@
         </div>
 
         <div class="input-group" style="background: rgba(92, 79, 238, 0.08); padding: 12px; border-radius: var(--radius-sm); border: 1px solid rgba(92, 79, 238, 0.3);">
-          <label class="input-label" style="color: #A5B4FC; font-size: 0.82rem;">🔑 Google Web OAuth Client ID</label>
+          <label id="lblClientId" class="input-label" style="color: #A5B4FC; font-size: 0.82rem;">🔑 Google Web OAuth Client ID</label>
           <input type="text" id="inputGoogleClientId" class="text-input" style="font-size: 0.85rem; font-weight: 600; background: var(--surface-card);" placeholder="e.g. 162565165888-xxx.apps.googleusercontent.com">
-          <div style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; margin-top: 4px;">
+          <div id="lblClientIdHelp" style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; margin-top: 4px;">
             Copy the full Client ID from Google Cloud Console (type <strong>Web application</strong>). Must end with <code>.apps.googleusercontent.com</code>.
           </div>
           <div style="margin-top: 6px; padding: 8px 10px; background: rgba(0,0,0,0.3); border-radius: 6px; font-size: 0.72rem; color: var(--text-muted); line-height: 1.5;">
-            <div>🌐 <strong>Authorized JavaScript Origin:</strong></div>
+            <div>🌐 <strong id="lblOriginHeader">Authorized JavaScript Origin:</strong></div>
             <code id="currentOriginLabel" style="color: #38BDF8; font-weight: 700; user-select: all; display: block; margin: 2px 0 6px;"></code>
-            <div>🔗 <strong>Authorized Redirect URI:</strong></div>
+            <div>🔗 <strong id="lblRedirectHeader">Authorized Redirect URI:</strong></div>
             <code id="currentRedirectUriLabel" style="color: #38BDF8; font-weight: 700; user-select: all; display: block; margin: 2px 0 6px;"></code>
-            <div style="color: #94A3B8; font-size: 0.7rem;">In Google Cloud Console -> <strong>Clean Filing Shared Cabinet</strong>, add both of the above values to their respective sections.</div>
+            <div id="lblOriginHelp" style="color: #94A3B8; font-size: 0.7rem;">In Google Cloud Console -> <strong>Clean Filing Shared Cabinet</strong>, add both of the above values to their respective sections.</div>
           </div>
           <div style="margin-top: 6px;">
-            <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="font-size: 0.74rem; color: #818CF8; text-decoration: underline;">
+            <a id="lblOpenConsoleLink" href="https://console.cloud.google.com/apis/credentials" target="_blank" style="font-size: 0.74rem; color: #818CF8; text-decoration: underline;">
               ⚙️ Open Google Cloud Console Credentials
             </a>
           </div>
         </div>
 
         <div class="input-group">
-          <label class="input-label">Drive Folder ID (Auto-detected or Paste from Drive URL)</label>
+          <label id="lblFolderId" class="input-label">Drive Folder ID (Auto-detected or Paste from Drive URL)</label>
           <input type="text" id="inputFolderId" class="text-input" style="font-size: 0.8rem;" placeholder="Leave empty for auto-detect or paste folder ID">
         </div>
 
@@ -902,27 +961,27 @@
 
       <!-- Section: Cabinet Source / Owner (For partner devices) -->
       <div class="modal-section">
-        <div class="modal-section-title">📂 Cabinet Source / Owner (Optional)</div>
-        <div class="modal-section-desc">
+        <div id="lblOwnerSecTitle" class="modal-section-title">📂 Cabinet Source / Owner (Optional)</div>
+        <div id="lblOwnerSecDesc" class="modal-section-desc">
           Leave blank to use your own private cabinet. If a partner shared their cabinet with you, enter their Gmail address below to bind directly to theirs.
         </div>
         <div class="input-group">
-          <input type="email" id="inputCabinetOwner" class="text-input" placeholder="Owner's Gmail (e.g. owner@gmail.com)">
+          <input type="email" id="inputCabinetOwner" class="text-input" placeholder="Owner's Gmail (e.g. owner@gmail.com)" dir="auto">
         </div>
         <div id="ownerBindNotice" style="display: none; font-size: 0.75rem; color: var(--emerald); font-weight: 600;">
-          Connecting to partner cabinet: <span id="ownerBindEmail"></span>
+          <span id="lblOwnerBindPrefix">Connecting to partner cabinet: </span><span id="ownerBindEmail"></span>
           <button id="btnResetOwner" style="background: none; border: none; color: var(--rose); cursor: pointer; text-decoration: underline; margin-left: 6px;">Reset to Mine</button>
         </div>
       </div>
 
       <!-- Section: Partner Direct Sharing (Silent Background Grant) -->
       <div class="modal-section">
-        <div class="modal-section-title">🤝 Share Cabinet with Partner / Wife</div>
-        <div class="modal-section-desc">
+        <div id="lblPartnerSecTitle" class="modal-section-title">🤝 Share Cabinet with Partner / Wife</div>
+        <div id="lblPartnerSecDesc" class="modal-section-desc">
           Grant your partner access directly by entering their Google email. Access is granted silently in the background (no Google emails sent). They just enter your email under 'Cabinet Source / Owner' on their device to sync!
         </div>
         <div style="display: flex; gap: 8px;">
-          <input type="email" id="inputPartnerEmail" class="text-input" style="flex: 1;" placeholder="Partner's Gmail (e.g. spouse@gmail.com)">
+          <input type="email" id="inputPartnerEmail" class="text-input" style="flex: 1;" placeholder="Partner's Gmail (e.g. spouse@gmail.com)" dir="auto">
           <button id="btnGrantPartnerAccess" class="btn-primary" style="flex: 0 0 auto; height: 38px; padding: 0 16px; background: var(--emerald);">
             Grant Access 🤝
           </button>
@@ -945,32 +1004,32 @@
   <div id="noteModal" class="modal-backdrop">
     <div class="modal-box">
       <div class="modal-header">
-        <h3 class="modal-title">📝 Quick Note</h3>
+        <h3 id="lblNoteModalTitle" class="modal-title">📝 Quick Note</h3>
         <button class="btn-close" onclick="closeModal('noteModal')">✕</button>
       </div>
 
       <div class="input-group">
-        <label class="input-label">Note Title</label>
-        <input type="text" id="noteTitleInput" class="text-input" placeholder="e.g. Gate code, Policy #, Shopping list...">
+        <label id="lblNoteTitle" class="input-label">Note Title</label>
+        <input type="text" id="noteTitleInput" class="text-input" placeholder="e.g. Gate code, Policy #, Shopping list..." dir="auto">
       </div>
 
       <div class="input-group">
-        <label class="input-label">Note Body</label>
-        <textarea id="noteBodyInput" class="text-area" rows="6" placeholder="Type your note here..."></textarea>
+        <label id="lblNoteBody" class="input-label">Note Body</label>
+        <textarea id="noteBodyInput" class="text-area" rows="6" placeholder="Type your note here..." dir="auto"></textarea>
       </div>
 
       <div class="input-group">
-        <label class="input-label">Labels / Tags</label>
-        <input type="text" id="noteLabelsInput" class="text-input" placeholder="e.g. urgent, home, reminder...">
+        <label id="lblNoteLabels" class="input-label">Labels / Tags</label>
+        <input type="text" id="noteLabelsInput" class="text-input" placeholder="e.g. urgent, home, reminder..." dir="auto">
       </div>
 
       <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0;">
-        <span style="font-size: 0.85rem; font-weight: 700;">Pin to Essentials</span>
+        <span id="lblNotePin" style="font-size: 0.85rem; font-weight: 700;">Pin to Essentials</span>
         <button id="btnNotePinToggle" class="btn-pin-toggle" style="width: 36px; height: 36px;">📌</button>
       </div>
 
       <div class="modal-actions">
-        <button class="btn-secondary" onclick="closeModal('noteModal')">Cancel</button>
+        <button id="btnCancelNote" class="btn-secondary" onclick="closeModal('noteModal')">Cancel</button>
         <button id="btnSaveNote" class="btn-primary" style="flex: 0 0 auto; padding: 0 20px;">Save Note 🗄️</button>
       </div>
     </div>
@@ -980,7 +1039,7 @@
   <div id="renameModal" class="modal-backdrop">
     <div class="modal-box">
       <div class="modal-header">
-        <h3 class="modal-title">Rename & Edit Labels</h3>
+        <h3 id="lblRenameModalTitle" class="modal-title">Rename & Edit Labels</h3>
         <button class="btn-close" onclick="closeModal('renameModal')">✕</button>
       </div>
 
@@ -988,17 +1047,17 @@
       <input type="hidden" id="editFileId">
 
       <div class="input-group">
-        <label class="input-label">Document Name</label>
-        <input type="text" id="editDocName" class="text-input">
+        <label id="lblRenameDocName" class="input-label">Document Name</label>
+        <input type="text" id="editDocName" class="text-input" dir="auto">
       </div>
 
       <div class="input-group">
-        <label class="input-label">Labels / Tags</label>
-        <input type="text" id="editLabels" class="text-input">
+        <label id="lblRenameLabels" class="input-label">Labels / Tags</label>
+        <input type="text" id="editLabels" class="text-input" dir="auto">
       </div>
 
       <div class="modal-actions">
-        <button class="btn-secondary" onclick="closeModal('renameModal')">Cancel</button>
+        <button id="btnCancelRename" class="btn-secondary" onclick="closeModal('renameModal')">Cancel</button>
         <button id="btnSaveRename" class="btn-primary" style="flex: 0 0 auto; padding: 0 20px;">Save</button>
       </div>
     </div>
@@ -1008,8 +1067,171 @@
   <div id="toast" class="toast"></div>
 
   <script>
+    // Internationalization (Hebrew / English)
+    const I18N = {
+      en: {
+        brandSubtitleOffline: 'Local Only (Offline)',
+        brandSubtitleConnected: 'Google Drive Connected',
+        brandSubtitleLinked: 'Linked to: ',
+        intakeTitle: 'File Document',
+        intakeTag: 'Desktop Intake',
+        dropZoneStrong: 'Drag & drop file',
+        dropZoneSub: 'or click to browse',
+        dropZoneHint: 'Photos, PDFs, Word docs, Notes',
+        docNameLabel: 'Document Name',
+        docNamePlaceholder: 'e.g. Health Insurance, Car Repair...',
+        labelsLabel: 'Labels / Tags',
+        labelsPlaceholder: 'e.g. taxes, medical, receipts...',
+        pinEssentials: 'Pin to Essentials',
+        fileToCabinet: 'File to Cabinet 🗄️',
+        filingBtn: 'Filing...',
+        cabinetTitle: 'File Cabinet',
+        docCount: (n) => `${n} documents`,
+        searchPlaceholder: 'Filter by name or labels...',
+        filterPinnedOnly: '📌 Pinned Only',
+        filterAll: '📁 All Documents',
+        emptyCabinet: 'No documents in cabinet. File one on the left or sync Google Drive!',
+        noMatching: 'No matching documents found.',
+        btnOpen: 'Open',
+        btnRename: 'Rename',
+        btnDownload: 'Download',
+        btnDelete: 'Delete',
+        settingsTitle: '⚙️ Clean Filing Settings',
+        driveSectionTitle: '☁️ Google Drive Direct Cabinet',
+        driveSectionDesc: 'Direct Google Drive synchronization without third-party servers. All documents sync to the <strong>Clean Filing</strong> folder.',
+        authStatusConnected: '✓ Signed in to Google Drive',
+        clientIdLabel: '🔑 Google Web OAuth Client ID',
+        clientIdHelp: 'Copy the full Client ID from Google Cloud Console (type <strong>Web application</strong>). Must end with <code>.apps.googleusercontent.com</code>.',
+        originLabel: 'Authorized JavaScript Origin:',
+        redirectLabel: 'Authorized Redirect URI:',
+        originHelp: 'In Google Cloud Console -> Clean Filing Shared Cabinet, add both of the above values to their respective sections.',
+        openConsoleLink: '⚙️ Open Google Cloud Console Credentials',
+        folderIdLabel: 'Drive Folder ID (Auto-detected or Paste from Drive URL)',
+        folderIdPlaceholder: 'Leave empty for auto-detect or paste folder ID',
+        btnPopupSignIn: '🔑 Sign in (Popup)',
+        btnRedirectSignIn: '🌐 Sign in (Redirect Mode)',
+        btnTestConnection: '🔍 Test Connection',
+        btnDisconnect: 'Disconnect',
+        cabinetOwnerTitle: '📂 Cabinet Source / Owner (Optional)',
+        cabinetOwnerDesc: 'Leave blank to use your own private cabinet. If a partner shared their cabinet with you, enter their Gmail address below to bind directly to theirs.',
+        cabinetOwnerPlaceholder: "Owner's Gmail (e.g. owner@gmail.com)",
+        ownerBindingNotice: 'Connecting to partner cabinet: ',
+        resetToMine: 'Reset to Mine',
+        sharePartnerTitle: '🤝 Share Cabinet with Partner / Wife',
+        sharePartnerDesc: 'Grant your partner access directly by entering their Google email. Access is granted silently in the background (no Google emails sent). They just enter your email under \'Cabinet Source / Owner\' on their device to sync!',
+        partnerPlaceholder: "Partner's Gmail (e.g. spouse@gmail.com)",
+        btnGrantAccess: 'Grant Access 🤝',
+        btnClearCache: 'Clear Cache & Force Sync',
+        btnSaveSettings: 'Save & Close',
+        quickNoteModalTitle: '📝 Quick Note',
+        noteTitleLabel: 'Note Title',
+        noteTitlePlaceholder: 'e.g. Gate code, Policy #, Shopping list...',
+        noteBodyLabel: 'Note Body',
+        noteBodyPlaceholder: 'Type your note here...',
+        noteLabelsLabel: 'Labels / Tags',
+        noteLabelsPlaceholder: 'e.g. urgent, home, reminder...',
+        pinToEssentialsLabel: 'Pin to Essentials',
+        btnCancel: 'Cancel',
+        btnSaveNote: 'Save Note 🗄️',
+        renameModalTitle: 'Rename & Edit Labels',
+        renameDocNameLabel: 'Document Name',
+        renameLabelsLabel: 'Labels / Tags',
+        btnSaveRename: 'Save',
+        toastSignedIn: 'Signed in successfully! 🗄️',
+        toastDisconnected: 'Disconnected from Google Drive. Switched to Local Only.',
+        toastFiledDrive: 'Filed to Google Drive Cabinet! 🗄️',
+        toastFiledLocal: 'Filed to Local Cabinet! 🗄️',
+        toastNoteDrive: 'Note filed to Google Drive! 📝',
+        toastNoteLocal: 'Note saved locally! 📝',
+        toastDocDeleted: 'Document deleted from Cabinet 🗑️',
+        toastDocUpdated: 'Document updated! ✏️',
+        toastSettingsSaved: 'Settings saved!',
+        toastCacheCleared: 'Cache cleared. Re-syncing...'
+      },
+      he: {
+        brandSubtitleOffline: 'מקומי בלבד (לא מקוון)',
+        brandSubtitleConnected: 'מחובר ל-Google Drive',
+        brandSubtitleLinked: 'מקושר אל: ',
+        intakeTitle: 'תיוק מסמך',
+        intakeTag: 'קליטת מסמכים',
+        dropZoneStrong: 'גרור ושחרר קובץ לכאן',
+        dropZoneSub: 'או לחץ לבחירת קובץ מהמחשב',
+        dropZoneHint: 'תמונות, מסמכי PDF, קובצי Word, פתקים',
+        docNameLabel: 'שם המסמך',
+        docNamePlaceholder: 'לדוגמה: ביטוח בריאות, תיקון רכב...',
+        labelsLabel: 'תגיות / תוויות',
+        labelsPlaceholder: 'לדוגמה: מיסים, רפואי, קבלות...',
+        pinEssentials: 'נעץ לחשובים',
+        fileToCabinet: 'תייק לארכיון 🗄️',
+        filingBtn: 'מתייק...',
+        cabinetTitle: 'ארכיון מסמכים',
+        docCount: (n) => `${n} מסמכים`,
+        searchPlaceholder: 'חיפוש לפי שם או תגיות...',
+        filterPinnedOnly: '📌 חשובים בלבד',
+        filterAll: '📁 כל המסמכים',
+        emptyCabinet: 'אין מסמכים בארכיון. תייק מסמך משמאל או סנכרן עם Google Drive!',
+        noMatching: 'לא נמצאו מסמכים תואמים.',
+        btnOpen: 'פתח',
+        btnRename: 'שנה שם',
+        btnDownload: 'הורד',
+        btnDelete: 'מחק',
+        settingsTitle: '⚙️ הגדרות Clean Filing',
+        driveSectionTitle: '☁️ ארכיון ישיר ב-Google Drive',
+        driveSectionDesc: 'סנכרון ישיר מול Google Drive ללא שרתים חיצוניים. כל המסמכים נשמרים בתיקיית Clean Filing.',
+        authStatusConnected: '✓ מחובר ל-Google Drive',
+        clientIdLabel: '🔑 מזהה לקוח Google Web OAuth (Client ID)',
+        clientIdHelp: 'העתק את ה-Client ID המלא מ-Google Cloud Console (מסוג Web application). חייב להסתיים ב-.apps.googleusercontent.com.',
+        originLabel: 'Authorized JavaScript Origin (מקור מורשה):',
+        redirectLabel: 'Authorized Redirect URI (כתובת הפניה מורשית):',
+        originHelp: 'ב-Google Cloud Console תחת Clean Filing Shared Cabinet, הוסף את שני הערכים הללו לחלקים המתאימים.',
+        openConsoleLink: '⚙️ פתח את פרטי האימות ב-Google Cloud Console',
+        folderIdLabel: 'מזהה תיקייה ב-Drive (מזוהה אוטומטית או הדבק מ-Drive)',
+        folderIdPlaceholder: 'השאר ריק לזיהוי אוטומטי או הדבק מזהה תיקייה',
+        btnPopupSignIn: '🔑 התחבר (חלון קופץ)',
+        btnRedirectSignIn: '🌐 התחבר (הפניה ישירה)',
+        btnTestConnection: '🔍 בדוק חיבור',
+        btnDisconnect: 'התנתק',
+        cabinetOwnerTitle: '📂 מקור הארכיון / בעלים (אופציונלי)',
+        cabinetOwnerDesc: 'השאר ריק כדי להשתמש בארכיון הפרטי שלך. אם שותף/בן זוג שיתף איתך ארכיון, הזן את כתובת ה-Gmail שלו כאן כדי להתחבר ישירות לשלו.',
+        cabinetOwnerPlaceholder: "Gmail של הבעלים (למשל owner@gmail.com)",
+        ownerBindingNotice: 'מחובר לארכיון של: ',
+        resetToMine: 'אפס לשלי',
+        sharePartnerTitle: '🤝 שיתוף ארכיון עם שותף / בת זוג',
+        sharePartnerDesc: 'הענק גישה לשותף שלך ישירות על ידי הזנת כתובת ה-Google שלו. הגישה ניתנת ברקע ללא שליחת אימיילים מגוגל. על השותף רק להזין את כתובת ה-Gmail שלך תחת \'מקור הארכיון\' במכשיר שלו!',
+        partnerPlaceholder: "Gmail של השותף/ה (למשל spouse@gmail.com)",
+        btnGrantAccess: 'הענק גישה 🤝',
+        btnClearCache: 'נקה זיכרון מטמון וסנכרן מחדש',
+        btnSaveSettings: 'שמור וסגור',
+        quickNoteModalTitle: '📝 פתק מהיר',
+        noteTitleLabel: 'כותרת הפתק',
+        noteTitlePlaceholder: 'לדוגמה: קוד לשער, פוליסה, רשימת קניות...',
+        noteBodyLabel: 'תוכן הפתק',
+        noteBodyPlaceholder: 'הקלד את הפתק שלך כאן...',
+        noteLabelsLabel: 'תגיות / תוויות',
+        noteLabelsPlaceholder: 'לדוגמה: דחוף, בית, תזכורת...',
+        pinToEssentialsLabel: 'נעץ לחשובים',
+        btnCancel: 'ביטול',
+        btnSaveNote: 'שמור פתק 🗄️',
+        renameModalTitle: 'שינוי שם ועריכת תגיות',
+        renameDocNameLabel: 'שם המסמך',
+        renameLabelsLabel: 'תגיות / תוויות',
+        btnSaveRename: 'שמור',
+        toastSignedIn: 'התחברת בהצלחה! 🗄️',
+        toastDisconnected: 'התנתקת מ-Google Drive. עברת למצב מקומי.',
+        toastFiledDrive: 'המסמך תויק ב-Google Drive! 🗄️',
+        toastFiledLocal: 'המסמך נשמר בארכיון המקומי! 🗄️',
+        toastNoteDrive: 'הפתק נשמר ב-Google Drive! 📝',
+        toastNoteLocal: 'הפתק נשמר מקומית! 📝',
+        toastDocDeleted: 'המסמך נמחק מהארכיון 🗑️',
+        toastDocUpdated: 'המסמך עודכן! ✏️',
+        toastSettingsSaved: 'ההגדרות נשמרו!',
+        toastCacheCleared: 'זיכרון המטמון נוקה. מסנכרן מחדש...'
+      }
+    };
+
     // State management
     const state = {
+      lang: localStorage.getItem('CLEAN_FILING_LANG') || 'en',
       token: localStorage.getItem('CLEAN_FILING_TOKEN') || '',
       clientId: localStorage.getItem('CLEAN_FILING_CLIENT_ID') || '',
       folderId: localStorage.getItem('CLEAN_FILING_FOLDER_ID') || '',
@@ -1025,6 +1247,8 @@
     };
 
     // DOM Elements
+    const btnLangToggle = document.getElementById('btnLangToggle');
+    const langToggleLabel = document.getElementById('langToggleLabel');
     const connectionStatus = document.getElementById('connectionStatus');
     const statusText = document.getElementById('statusText');
     const btnSync = document.getElementById('btnSync');
@@ -1130,6 +1354,7 @@
         redirectLbl.textContent = window.location.href.split('#')[0].split('?')[0];
       }
 
+      applyLanguage(state.lang);
       checkUrlHashToken();
       updateConnectionStatusUI();
       renderDocuments();
@@ -1138,19 +1363,121 @@
       }
     }
 
+    function applyLanguage(lang) {
+      state.lang = lang;
+      localStorage.setItem('CLEAN_FILING_LANG', lang);
+      const t = I18N[lang] || I18N.en;
+
+      document.body.setAttribute('dir', lang === 'he' ? 'rtl' : 'ltr');
+      if (langToggleLabel) {
+        langToggleLabel.textContent = lang === 'he' ? '🇺🇸 English' : '🇮🇱 עברית';
+      }
+
+      const setTxt = (id, txt) => {
+        const el = document.getElementById(id);
+        if (el && txt !== undefined) el.textContent = txt;
+      };
+      const setHTML = (id, html) => {
+        const el = document.getElementById(id);
+        if (el && html !== undefined) el.innerHTML = html;
+      };
+      const setPlaceholder = (id, txt) => {
+        const el = document.getElementById(id);
+        if (el && txt !== undefined) el.placeholder = txt;
+      };
+
+      setTxt('lblBrandSubtitle', state.token ? t.brandSubtitleConnected : t.brandSubtitleOffline);
+      setTxt('lblIntakeTitle', t.intakeTitle);
+      setTxt('lblIntakeTag', t.intakeTag);
+      setTxt('lblDropStrong', t.dropZoneStrong);
+      setTxt('lblDropSub', t.dropZoneSub);
+      setTxt('lblDropHint', t.dropZoneHint);
+      setTxt('lblDocName', t.docNameLabel);
+      setPlaceholder('inputDocName', t.docNamePlaceholder);
+      setTxt('lblLabels', t.labelsLabel);
+      setPlaceholder('inputLabels', t.labelsPlaceholder);
+      if (btnPinToggle) btnPinToggle.title = t.pinEssentials;
+      setTxt('btnSaveToVault', t.fileToCabinet);
+
+      setTxt('lblCabinetTitle', t.cabinetTitle);
+      setPlaceholder('cabinetSearch', t.searchPlaceholder);
+      if (btnFilterPinned) btnFilterPinned.title = state.filterPinnedOnly ? t.filterAll : t.filterPinnedOnly;
+
+      setTxt('lblSettingsTitle', t.settingsTitle);
+      setTxt('lblDriveSecTitle', t.driveSectionTitle);
+      setHTML('lblDriveSecDesc', t.driveSectionDesc);
+      setTxt('googleAuthStatus', t.authStatusConnected);
+      setTxt('lblClientId', t.clientIdLabel);
+      setHTML('lblClientIdHelp', t.clientIdHelp);
+      setTxt('lblOriginHeader', t.originLabel);
+      setTxt('lblRedirectHeader', t.redirectLabel);
+      setHTML('lblOriginHelp', t.originHelp);
+      setTxt('lblOpenConsoleLink', t.openConsoleLink);
+      setTxt('lblFolderId', t.folderIdLabel);
+      setPlaceholder('inputFolderId', t.folderIdPlaceholder);
+
+      const btnSignInSpan = btnGoogleSignIn ? btnGoogleSignIn.querySelector('span') : null;
+      if (btnGoogleSignIn) btnGoogleSignIn.innerHTML = `<span>🔑</span> ${t.btnPopupSignIn}`;
+      if (btnGoogleRedirectSignIn) btnGoogleRedirectSignIn.innerHTML = `<span>🌐</span> ${t.btnRedirectSignIn}`;
+      if (btnTestDrive) btnTestDrive.innerHTML = `<span>🔍</span> ${t.btnTestConnection}`;
+      if (btnGoogleDisconnect) btnGoogleDisconnect.textContent = t.btnDisconnect;
+
+      setTxt('lblOwnerSecTitle', t.cabinetOwnerTitle);
+      setTxt('lblOwnerSecDesc', t.cabinetOwnerDesc);
+      setPlaceholder('inputCabinetOwner', t.cabinetOwnerPlaceholder);
+      setTxt('lblOwnerBindPrefix', t.ownerBindingNotice);
+      setTxt('btnResetOwner', t.resetToMine);
+
+      setTxt('lblPartnerSecTitle', t.sharePartnerTitle);
+      setTxt('lblPartnerSecDesc', t.sharePartnerDesc);
+      setPlaceholder('inputPartnerEmail', t.partnerPlaceholder);
+      setTxt('btnGrantPartnerAccess', t.btnGrantAccess);
+      setTxt('btnClearCache', t.btnClearCache);
+      setTxt('btnSaveSettings', t.btnSaveSettings);
+
+      setTxt('lblNoteModalTitle', t.quickNoteModalTitle);
+      setTxt('lblNoteTitle', t.noteTitleLabel);
+      setPlaceholder('noteTitleInput', t.noteTitlePlaceholder);
+      setTxt('lblNoteBody', t.noteBodyLabel);
+      setPlaceholder('noteBodyInput', t.noteBodyPlaceholder);
+      setTxt('lblNoteLabels', t.noteLabelsLabel);
+      setPlaceholder('noteLabelsInput', t.noteLabelsPlaceholder);
+      setTxt('lblNotePin', t.pinToEssentialsLabel);
+      setTxt('btnCancelNote', t.btnCancel);
+      setTxt('btnSaveNote', t.btnSaveNote);
+
+      setTxt('lblRenameModalTitle', t.renameModalTitle);
+      setTxt('lblRenameDocName', t.renameDocNameLabel);
+      setTxt('lblRenameLabels', t.renameLabelsLabel);
+      setTxt('btnCancelRename', t.btnCancel);
+      setTxt('btnSaveRename', t.btnSaveRename);
+
+      updateConnectionStatusUI();
+      renderDocuments();
+    }
+
+    if (btnLangToggle) {
+      btnLangToggle.addEventListener('click', () => {
+        const nextLang = state.lang === 'he' ? 'en' : 'he';
+        applyLanguage(nextLang);
+        showToast(nextLang === 'he' ? 'שפה שונתה לעברית 🇮🇱' : 'Language switched to English 🇺🇸');
+      });
+    }
+
     function updateConnectionStatusUI() {
+      const t = I18N[state.lang] || I18N.en;
       if (state.token) {
         connectionStatus.className = 'brand-subtitle';
         if (state.cabinetOwnerEmail) {
-          statusText.textContent = `Linked to: ${state.cabinetOwnerEmail}`;
+          statusText.textContent = `${t.ownerBindingNotice}${state.cabinetOwnerEmail}`;
         } else {
-          statusText.textContent = 'Google Drive Connected';
+          statusText.textContent = t.brandSubtitleConnected;
         }
         googleAuthStatus.style.display = 'block';
         btnGoogleDisconnect.style.display = 'inline-flex';
       } else {
         connectionStatus.className = 'brand-subtitle offline';
-        statusText.textContent = 'Local Only (Offline)';
+        statusText.textContent = t.brandSubtitleOffline;
         googleAuthStatus.style.display = 'none';
         btnGoogleDisconnect.style.display = 'none';
       }
@@ -1790,11 +2117,12 @@
       const body = noteBodyInput.value;
       const labels = noteLabelsInput.value.trim();
       const isPinned = state.isNotePinned;
-      const fileName = `${title.replace(/[^a-zA-Z0-9_-]/g, '_')}.txt`;
+      const safeTitle = title.trim().replace(/[^\p{L}\p{N}._ -]/gu, '_') || 'note';
+      const fileName = `${safeTitle}.txt`;
       const docId = 'note_' + Date.now();
 
       closeModal('noteModal');
-      showToast('Saving note to Cabinet...');
+      showToast(state.lang === 'he' ? 'שומר פתק בארכיון...' : 'Saving note to Cabinet...');
 
       try {
         if (state.token) {
@@ -1999,6 +2327,7 @@
 
     // Render Documents List
     function renderDocuments() {
+      const t = I18N[state.lang] || I18N.en;
       const query = cabinetSearch.value.trim().toLowerCase();
       let filtered = state.documents.filter(doc => {
         if (state.filterPinnedOnly && !isDocPinned(doc)) return false;
@@ -2017,7 +2346,7 @@
         return dateB.localeCompare(dateA);
       });
 
-      docCountBadge.textContent = `${state.documents.length} documents`;
+      docCountBadge.textContent = typeof t.docCount === 'function' ? t.docCount(state.documents.length) : `${state.documents.length} documents`;
 
       // Render Pinned Bar
       const pinned = state.documents.filter(d => isDocPinned(d));
@@ -2034,12 +2363,13 @@
       }
 
       if (filtered.length === 0) {
+        const emptyMsg = state.documents.length === 0 ? t.emptyCabinet : t.noMatching;
         documentsContainer.innerHTML = `
           <div class="empty-state">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
             </svg>
-            <div>${state.documents.length === 0 ? 'No documents in cabinet. File one on the left or sync Google Drive!' : 'No matching documents found.'}</div>
+            <div>${escapeHtml(emptyMsg)}</div>
           </div>
         `;
         return;
@@ -2061,7 +2391,7 @@
                 <span class="doc-type-icon">${icon}</span>
                 <div class="doc-name" title="${name}">${name}</div>
               </div>
-              <button class="btn-action-icon ${isPinned ? 'pinned-btn' : ''}" title="Pin/Unpin" onclick="togglePin('${fileId}', '${docId}', ${isPinned})">
+              <button class="btn-action-icon ${isPinned ? 'pinned-btn' : ''}" title="${isPinned ? 'Unpin' : 'Pin'}" onclick="togglePin('${fileId}', '${docId}', ${isPinned})">
                 ${isPinned ? '📌' : '📍'}
               </button>
             </div>
@@ -2075,20 +2405,20 @@
             <div class="doc-actions">
               ${fileUrl ? `
                 <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" class="btn-action view">
-                  👁️ View
+                  👁️ ${t.btnOpen}
                 </a>
               ` : `
                 <span class="btn-action" style="opacity: 0.6; cursor: default;">Offline</span>
               `}
               ${fileId ? `
                 <a href="https://drive.google.com/uc?export=download&id=${fileId}" target="_blank" class="btn-action">
-                  📥 Download
+                  📥 ${t.btnDownload}
                 </a>
               ` : ''}
-              <button class="btn-action-icon" title="Rename & Labels" onclick="openRename('${docId}', '${fileId}', '${escapeAttr(doc.name || '')}', '${escapeAttr(labels)}')">
+              <button class="btn-action-icon" title="${t.btnRename}" onclick="openRename('${docId}', '${fileId}', '${escapeAttr(doc.name || '')}', '${escapeAttr(labels)}')">
                 ✏️
               </button>
-              <button class="btn-action-icon delete" title="Delete" onclick="deleteDocument('${fileId}', '${docId}')">
+              <button class="btn-action-icon delete" title="${t.btnDelete}" onclick="deleteDocument('${fileId}', '${docId}')">
                 🗑️
               </button>
             </div>
