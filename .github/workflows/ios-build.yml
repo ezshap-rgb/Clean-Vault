@@ -1,0 +1,64 @@
+name: Build CleanFiling iOS (Unsigned IPA)
+
+on:
+  push:
+    paths:
+      - 'CleanFiling-iOS/**'
+      - '.github/workflows/ios-build.yml'
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    env:
+      IOS_GOOGLE_CLIENT_ID: ${{ secrets.IOS_GOOGLE_CLIENT_ID }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure Google iOS OAuth Client ID
+        run: |
+          if [ -n "${IOS_GOOGLE_CLIENT_ID}" ]; then
+            REVERSED_ID=$(echo "${IOS_GOOGLE_CLIENT_ID}" | awk -F. '{for(i=NF;i>0;i--) printf "%s%s", $i, (i>1?".":"")}')
+            printf "GOOGLE_IOS_CLIENT_ID = %s\nGOOGLE_REVERSED_CLIENT_ID = %s\n" "${IOS_GOOGLE_CLIENT_ID}" "${REVERSED_ID}" > CleanFiling-iOS/Config/GoogleAuth.xcconfig
+            echo "Injected IOS_GOOGLE_CLIENT_ID into Config/GoogleAuth.xcconfig"
+          else
+            echo "Warning: IOS_GOOGLE_CLIENT_ID secret not set; building with placeholder xcconfig."
+          fi
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: CleanFiling-iOS
+        run: xcodegen generate
+
+      - name: Build unsigned iOS app
+        working-directory: CleanFiling-iOS
+        run: |
+          xcodebuild \
+            -project CleanFiling.xcodeproj \
+            -scheme CleanFiling \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package unsigned IPA
+        working-directory: CleanFiling-iOS
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/CleanFiling.app Payload/CleanFiling.app
+          zip -qry CleanFiling-unsigned.ipa Payload
+          ls -lh CleanFiling-unsigned.ipa
+
+      - name: Upload CleanFiling-unsigned.ipa artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CleanFiling-unsigned-ipa
+          path: CleanFiling-iOS/CleanFiling-unsigned.ipa
+          retention-days: 30
