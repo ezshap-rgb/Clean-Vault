@@ -372,6 +372,11 @@
       border-color: var(--red-pin);
     }
 
+    .btn-temp-toggle.active {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: var(--amber);
+    }
+
     .btn-primary {
       flex: 1;
       height: 44px;
@@ -516,6 +521,11 @@
       background: linear-gradient(180deg, rgba(225, 29, 72, 0.05) 0%, var(--surface) 100%);
     }
 
+    .doc-card.temporary {
+      border-color: rgba(245, 158, 11, 0.45);
+      background: linear-gradient(180deg, rgba(245, 158, 11, 0.06) 0%, var(--surface) 100%);
+    }
+
     .doc-header {
       display: flex;
       align-items: flex-start;
@@ -628,6 +638,12 @@
 
     .btn-action-icon.pinned-btn {
       color: var(--red-pin);
+    }
+
+    .btn-action-icon.temp-btn {
+      color: var(--amber);
+      border-color: rgba(245, 158, 11, 0.45);
+      background: rgba(245, 158, 11, 0.14);
     }
 
     .btn-action-icon.delete:hover {
@@ -853,6 +869,7 @@
 
         <div class="intake-actions">
           <button id="btnPinToggle" class="btn-pin-toggle" title="Pin to Essentials">📌</button>
+          <button id="btnTempToggle" class="btn-pin-toggle btn-temp-toggle" title="Mark as Temporary">⏳</button>
           <button id="btnSaveToVault" class="btn-primary" disabled>
             File to Cabinet 🗄️
           </button>
@@ -873,7 +890,8 @@
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
             <input type="text" id="cabinetSearch" class="search-input" placeholder="Filter by name or labels..." dir="auto">
-            <button id="btnFilterPinned" class="btn-action-icon" title="Filter Pinned Only" style="border: none; background: transparent;">📌</button>
+            <button id="btnFilterPinned" class="btn-action-icon" title="Filter Pinned Only" style="border: none; background: transparent; opacity: 0.5;">📌</button>
+            <button id="btnFilterTemp" class="btn-action-icon" title="Filter Temporary Only" style="border: none; background: transparent; opacity: 0.5;">⏳</button>
           </div>
 
           <!-- Pinned Bar -->
@@ -1027,6 +1045,10 @@
         <span id="lblNotePin" style="font-size: 0.85rem; font-weight: 700;">Pin to Essentials</span>
         <button id="btnNotePinToggle" class="btn-pin-toggle" style="width: 36px; height: 36px;">📌</button>
       </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 0;">
+        <span id="lblNoteTemp" style="font-size: 0.85rem; font-weight: 700;">Mark as Temporary</span>
+        <button id="btnNoteTempToggle" class="btn-pin-toggle btn-temp-toggle" style="width: 36px; height: 36px;">⏳</button>
+      </div>
 
       <div class="modal-actions">
         <button id="btnCancelNote" class="btn-secondary" onclick="closeModal('noteModal')">Cancel</button>
@@ -1083,12 +1105,14 @@
         labelsLabel: 'Labels / Tags',
         labelsPlaceholder: 'e.g. taxes, medical, receipts...',
         pinEssentials: 'Pin to Essentials',
+        markTemporary: 'Mark as Temporary',
         fileToCabinet: 'File to Cabinet 🗄️',
         filingBtn: 'Filing...',
         cabinetTitle: 'File Cabinet',
         docCount: (n) => `${n} documents`,
         searchPlaceholder: 'Filter by name or labels...',
         filterPinnedOnly: '📌 Pinned Only',
+        filterTempOnly: '⏳ Temporary Only',
         filterAll: '📁 All Documents',
         emptyCabinet: 'No documents in cabinet. File one on the left or sync Google Drive!',
         noMatching: 'No matching documents found.',
@@ -1131,6 +1155,7 @@
         noteLabelsLabel: 'Labels / Tags',
         noteLabelsPlaceholder: 'e.g. urgent, home, reminder...',
         pinToEssentialsLabel: 'Pin to Essentials',
+        markTemporaryLabel: 'Mark as Temporary',
         btnCancel: 'Cancel',
         btnSaveNote: 'Save Note 🗄️',
         renameModalTitle: 'Rename & Edit Labels',
@@ -1162,12 +1187,14 @@
         labelsLabel: 'תגיות / תוויות',
         labelsPlaceholder: 'לדוגמה: מיסים, רפואי, קבלות...',
         pinEssentials: 'נעץ לחשובים',
+        markTemporary: 'סמן כזמני',
         fileToCabinet: 'תייק לארכיון 🗄️',
         filingBtn: 'מתייק...',
         cabinetTitle: 'ארכיון מסמכים',
         docCount: (n) => `${n} מסמכים`,
         searchPlaceholder: 'חיפוש לפי שם או תגיות...',
         filterPinnedOnly: '📌 חשובים בלבד',
+        filterTempOnly: '⏳ זמניים בלבד',
         filterAll: '📁 כל המסמכים',
         emptyCabinet: 'אין מסמכים בארכיון. תייק מסמך משמאל או סנכרן עם Google Drive!',
         noMatching: 'לא נמצאו מסמכים תואמים.',
@@ -1210,6 +1237,7 @@
         noteLabelsLabel: 'תגיות / תוויות',
         noteLabelsPlaceholder: 'לדוגמה: דחוף, בית, תזכורת...',
         pinToEssentialsLabel: 'נעץ לחשובים',
+        markTemporaryLabel: 'סמן כזמני',
         btnCancel: 'ביטול',
         btnSaveNote: 'שמור פתק 🗄️',
         renameModalTitle: 'שינוי שם ועריכת תגיות',
@@ -1241,9 +1269,12 @@
       selectedMimeType: '',
       selectedBase64: '',
       isIntakePinned: false,
+      isIntakeTemp: false,
       isNotePinned: false,
+      isNoteTemp: false,
       isSyncing: false,
-      filterPinnedOnly: false
+      filterPinnedOnly: false,
+      filterTempOnly: false
     };
 
     // DOM Elements
@@ -1264,11 +1295,13 @@
     const inputDocName = document.getElementById('inputDocName');
     const inputLabels = document.getElementById('inputLabels');
     const btnPinToggle = document.getElementById('btnPinToggle');
+    const btnTempToggle = document.getElementById('btnTempToggle');
     const btnSaveToVault = document.getElementById('btnSaveToVault');
 
     // Cabinet elements
     const cabinetSearch = document.getElementById('cabinetSearch');
     const btnFilterPinned = document.getElementById('btnFilterPinned');
+    const btnFilterTemp = document.getElementById('btnFilterTemp');
     const docCountBadge = document.getElementById('docCountBadge');
     const pinnedBar = document.getElementById('pinnedBar');
     const documentsContainer = document.getElementById('documentsContainer');
@@ -1306,6 +1339,7 @@
     const noteBodyInput = document.getElementById('noteBodyInput');
     const noteLabelsInput = document.getElementById('noteLabelsInput');
     const btnNotePinToggle = document.getElementById('btnNotePinToggle');
+    const btnNoteTempToggle = document.getElementById('btnNoteTempToggle');
     const btnSaveNote = document.getElementById('btnSaveNote');
 
     const toast = document.getElementById('toast');
@@ -1397,11 +1431,13 @@
       setTxt('lblLabels', t.labelsLabel);
       setPlaceholder('inputLabels', t.labelsPlaceholder);
       if (btnPinToggle) btnPinToggle.title = t.pinEssentials;
+      if (btnTempToggle) btnTempToggle.title = t.markTemporary;
       setTxt('btnSaveToVault', t.fileToCabinet);
 
       setTxt('lblCabinetTitle', t.cabinetTitle);
       setPlaceholder('cabinetSearch', t.searchPlaceholder);
       if (btnFilterPinned) btnFilterPinned.title = state.filterPinnedOnly ? t.filterAll : t.filterPinnedOnly;
+      if (btnFilterTemp) btnFilterTemp.title = state.filterTempOnly ? t.filterAll : t.filterTempOnly;
 
       setTxt('lblSettingsTitle', t.settingsTitle);
       setTxt('lblDriveSecTitle', t.driveSectionTitle);
@@ -1443,6 +1479,7 @@
       setTxt('lblNoteLabels', t.noteLabelsLabel);
       setPlaceholder('noteLabelsInput', t.noteLabelsPlaceholder);
       setTxt('lblNotePin', t.pinToEssentialsLabel);
+      setTxt('lblNoteTemp', t.markTemporaryLabel);
       setTxt('btnCancelNote', t.btnCancel);
       setTxt('btnSaveNote', t.btnSaveNote);
 
@@ -1920,6 +1957,7 @@
           const propName = props.vaultName || (rName.lastIndexOf('.') > 0 ? rName.substring(0, rName.lastIndexOf('.')) : rName);
           const propNotes = props.notes || rf.description || '';
           const propPinned = props.isPinned === 'true';
+          const propTemp = props.isTemporary === 'true';
 
           return {
             id: propDocId,
@@ -1931,6 +1969,8 @@
             labels: propNotes,
             isPinned: propPinned,
             pinned: propPinned,
+            isTemporary: propTemp,
+            temporary: propTemp,
             mimeType: rf.mimeType || 'application/octet-stream',
             driveFileUrl: rf.webViewLink || `https://drive.google.com/file/d/${fId}/view`,
             fileUrl: rf.webViewLink || `https://drive.google.com/file/d/${fId}/view`,
@@ -2001,6 +2041,11 @@
       btnPinToggle.classList.toggle('active', state.isIntakePinned);
     });
 
+    btnTempToggle.addEventListener('click', () => {
+      state.isIntakeTemp = !state.isIntakeTemp;
+      btnTempToggle.classList.toggle('active', state.isIntakeTemp);
+    });
+
     // Save Document (Direct Google Drive Upload or Local Storage)
     btnSaveToVault.addEventListener('click', async () => {
       if (!state.selectedFile) return;
@@ -2009,6 +2054,7 @@
       const docName = inputDocName.value.trim() || file.name;
       const labels = inputLabels.value.trim();
       const isPinned = state.isIntakePinned;
+      const isTemp = state.isIntakeTemp;
       const docId = 'desktop_' + Date.now();
 
       btnSaveToVault.disabled = true;
@@ -2026,7 +2072,8 @@
               docId: docId,
               vaultName: docName,
               notes: labels,
-              isPinned: isPinned.toString()
+              isPinned: isPinned.toString(),
+              isTemporary: isTemp.toString()
             }
           };
 
@@ -2068,6 +2115,8 @@
             labels: labels,
             isPinned: isPinned,
             pinned: isPinned,
+            isTemporary: isTemp,
+            temporary: isTemp,
             mimeType: file.type,
             fileUrl: '',
             timestamp: new Date().toISOString()
@@ -2082,7 +2131,9 @@
         inputDocName.value = '';
         inputLabels.value = '';
         state.isIntakePinned = false;
+        state.isIntakeTemp = false;
         btnPinToggle.classList.remove('active');
+        btnTempToggle.classList.remove('active');
 
         if (state.token) {
           syncGoogleDrive(true);
@@ -2103,7 +2154,9 @@
       noteBodyInput.value = '';
       noteLabelsInput.value = '';
       state.isNotePinned = false;
+      state.isNoteTemp = false;
       btnNotePinToggle.classList.remove('active');
+      btnNoteTempToggle.classList.remove('active');
       openModal('noteModal');
     });
 
@@ -2112,11 +2165,17 @@
       btnNotePinToggle.classList.toggle('active', state.isNotePinned);
     });
 
+    btnNoteTempToggle.addEventListener('click', () => {
+      state.isNoteTemp = !state.isNoteTemp;
+      btnNoteTempToggle.classList.toggle('active', state.isNoteTemp);
+    });
+
     btnSaveNote.addEventListener('click', async () => {
       const title = noteTitleInput.value.trim() || `Note_${Date.now()}`;
       const body = noteBodyInput.value;
       const labels = noteLabelsInput.value.trim();
       const isPinned = state.isNotePinned;
+      const isTemp = state.isNoteTemp;
       const safeTitle = title.trim().replace(/[^\p{L}\p{N}._ -]/gu, '_') || 'note';
       const fileName = `${safeTitle}.txt`;
       const docId = 'note_' + Date.now();
@@ -2135,7 +2194,8 @@
               docId: docId,
               vaultName: title,
               notes: labels,
-              isPinned: isPinned.toString()
+              isPinned: isPinned.toString(),
+              isTemporary: isTemp.toString()
             }
           };
 
@@ -2167,6 +2227,8 @@
             labels: labels,
             isPinned: isPinned,
             pinned: isPinned,
+            isTemporary: isTemp,
+            temporary: isTemp,
             mimeType: 'text/plain',
             fileUrl: '',
             noteText: body,
@@ -2197,6 +2259,43 @@
     function isDocPinned(d) {
       if (!d) return false;
       return d.isPinned === true || d.pinned === true || String(d.isPinned) === 'true';
+    }
+
+    function isDocTemp(d) {
+      if (!d) return false;
+      return d.isTemporary === true || d.temporary === true || String(d.isTemporary) === 'true';
+    }
+
+    async function toggleTemporary(fileId, docId, currentTemp) {
+      const nextTemp = !currentTemp;
+
+      const target = state.documents.find(d => (fileId && (d.fileId === fileId || d.driveFileId === fileId)) || (docId && (d.id === docId || d.docId === docId)));
+      if (target) {
+        target.isTemporary = nextTemp;
+        target.temporary = nextTemp;
+        localStorage.setItem('CLEAN_FILING_DOCS', JSON.stringify(state.documents));
+        renderDocuments();
+      }
+
+      if (state.token && fileId) {
+        try {
+          await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`, {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Bearer ${state.token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              properties: { isTemporary: nextTemp.toString() }
+            })
+          });
+          showToast(nextTemp ? (state.lang === 'he' ? '⏳ סומן כזמני' : '⏳ Marked as Temporary') : (state.lang === 'he' ? 'הוסר סימון זמני' : 'Removed Temporary tag'));
+        } catch (err) {
+          showToast('Failed to update temporary flag on Drive: ' + err.message);
+        }
+      } else {
+        showToast(nextTemp ? (state.lang === 'he' ? '⏳ סומן כזמני (מקומי)' : '⏳ Marked Temporary locally') : (state.lang === 'he' ? 'הוסר סימון זמני' : 'Removed Temporary tag'));
+      }
     }
 
     async function togglePin(fileId, docId, currentPinned) {
@@ -2310,9 +2409,22 @@
 
     // Search and Filter Handlers
     cabinetSearch.addEventListener('input', renderDocuments);
+    function updateFilterButtonStyles() {
+      btnFilterPinned.style.opacity = state.filterPinnedOnly ? '1' : '0.45';
+      btnFilterPinned.style.color = state.filterPinnedOnly ? 'var(--red-pin)' : 'var(--text-faint)';
+      btnFilterTemp.style.opacity = state.filterTempOnly ? '1' : '0.45';
+      btnFilterTemp.style.color = state.filterTempOnly ? 'var(--amber)' : 'var(--text-faint)';
+    }
     btnFilterPinned.addEventListener('click', () => {
       state.filterPinnedOnly = !state.filterPinnedOnly;
-      btnFilterPinned.style.color = state.filterPinnedOnly ? 'var(--red-pin)' : 'var(--text-faint)';
+      if (state.filterPinnedOnly) state.filterTempOnly = false;
+      updateFilterButtonStyles();
+      renderDocuments();
+    });
+    btnFilterTemp.addEventListener('click', () => {
+      state.filterTempOnly = !state.filterTempOnly;
+      if (state.filterTempOnly) state.filterPinnedOnly = false;
+      updateFilterButtonStyles();
       renderDocuments();
     });
 
@@ -2331,6 +2443,7 @@
       const query = cabinetSearch.value.trim().toLowerCase();
       let filtered = state.documents.filter(doc => {
         if (state.filterPinnedOnly && !isDocPinned(doc)) return false;
+        if (state.filterTempOnly && !isDocTemp(doc)) return false;
         const name = (doc.name || '').toLowerCase();
         const labels = (doc.labels || doc.notes || '').toLowerCase();
         return !query || name.includes(query) || labels.includes(query);
@@ -2350,7 +2463,7 @@
 
       // Render Pinned Bar
       const pinned = state.documents.filter(d => isDocPinned(d));
-      if (pinned.length > 0 && !state.filterPinnedOnly) {
+      if (pinned.length > 0 && !state.filterPinnedOnly && !state.filterTempOnly) {
         pinnedBar.style.display = 'flex';
         pinnedBar.innerHTML = pinned.map(doc => `
           <div class="pinned-pill" onclick="viewDocUrl('${doc.fileUrl || doc.driveFileUrl || ''}')">
@@ -2382,18 +2495,24 @@
         const fileId = doc.fileId || doc.driveFileId || '';
         const docId = doc.docId || doc.id || '';
         const isPinned = isDocPinned(doc);
+        const isTemp = isDocTemp(doc);
         const icon = getFileTypeIcon(doc);
 
         return `
-          <div class="doc-card ${isPinned ? 'pinned' : ''}">
+          <div class="doc-card ${isPinned ? 'pinned' : (isTemp ? 'temporary' : '')}">
             <div class="doc-header">
               <div class="doc-name-group">
                 <span class="doc-type-icon">${icon}</span>
                 <div class="doc-name" title="${name}">${name}</div>
               </div>
-              <button class="btn-action-icon ${isPinned ? 'pinned-btn' : ''}" title="${isPinned ? 'Unpin' : 'Pin'}" onclick="togglePin('${fileId}', '${docId}', ${isPinned})">
-                ${isPinned ? '📌' : '📍'}
-              </button>
+              <div style="display: flex; align-items: center; gap: 4px;">
+                <button class="btn-action-icon ${isTemp ? 'temp-btn' : ''}" title="${isTemp ? (state.lang === 'he' ? 'הסר סימון זמני' : 'Remove Temporary') : t.markTemporary}" style="${isTemp ? '' : 'opacity: 0.45;'}" onclick="toggleTemporary('${fileId}', '${docId}', ${isTemp})">
+                  ⏳
+                </button>
+                <button class="btn-action-icon ${isPinned ? 'pinned-btn' : ''}" title="${isPinned ? 'Unpin' : 'Pin'}" onclick="togglePin('${fileId}', '${docId}', ${isPinned})">
+                  ${isPinned ? '📌' : '📍'}
+                </button>
+              </div>
             </div>
 
             ${labels ? `

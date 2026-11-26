@@ -13,6 +13,7 @@ struct CabinetView: View {
 
     @State private var searchQuery = ""
     @State private var filterPinnedOnly = false
+    @State private var filterTempOnly = false
 
     private var s: AppStrings { lang.strings }
 
@@ -23,7 +24,8 @@ struct CabinetView: View {
                 doc.name.localizedCaseInsensitiveContains(q) ||
                 doc.notes.localizedCaseInsensitiveContains(q)
             let matchesPinned = !filterPinnedOnly || doc.isPinned
-            return matchesSearch && matchesPinned
+            let matchesTemp = !filterTempOnly || doc.isTemporary
+            return matchesSearch && matchesPinned && matchesTemp
         }
     }
 
@@ -87,8 +89,8 @@ struct CabinetView: View {
                 }
             }
 
-            // Search Bar & Pinned Filter Pill
-            HStack(spacing: 8) {
+            // Search Bar & Filter Pills
+            VStack(spacing: 8) {
                 HStack(spacing: 8) {
                     Text("🔍")
                         .font(.system(size: 14))
@@ -112,22 +114,49 @@ struct CabinetView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
 
-                Button(action: { filterPinnedOnly.toggle() }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "pin.fill")
-                            .font(.system(size: 13))
-                            .foregroundColor(filterPinnedOnly ? CleanFilingTheme.redPin : CleanFilingTheme.textSubtle.opacity(0.5))
-                        Text(s.pinnedFilterPill)
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(filterPinnedOnly ? CleanFilingTheme.redPin : CleanFilingTheme.textSubtle)
+                HStack(spacing: 8) {
+                    Button(action: {
+                        filterPinnedOnly.toggle()
+                        if filterPinnedOnly { filterTempOnly = false }
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "pin.fill")
+                                .font(.system(size: 13))
+                                .foregroundColor(filterPinnedOnly ? CleanFilingTheme.redPin : CleanFilingTheme.textSubtle.opacity(0.5))
+                            Text(s.pinnedFilterPill)
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(filterPinnedOnly ? CleanFilingTheme.redPin : CleanFilingTheme.textSubtle)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(filterPinnedOnly ? CleanFilingTheme.softRedBg : CleanFilingTheme.cardWhite)
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(filterPinnedOnly ? CleanFilingTheme.softRedBg : CleanFilingTheme.cardWhite)
-                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                    .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+                    .buttonStyle(.plain)
+
+                    Button(action: {
+                        filterTempOnly.toggle()
+                        if filterTempOnly { filterPinnedOnly = false }
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "hourglass.bottomhalf.filled")
+                                .font(.system(size: 13))
+                                .foregroundColor(filterTempOnly ? CleanFilingTheme.amberGold : CleanFilingTheme.textSubtle.opacity(0.5))
+                            Text(s.temporaryFilterPill)
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(filterTempOnly ? CleanFilingTheme.amberGold : CleanFilingTheme.textSubtle)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(filterTempOnly ? CleanFilingTheme.softAmberBg : CleanFilingTheme.cardWhite)
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
                 }
-                .buttonStyle(.plain)
             }
 
             // Document List
@@ -148,6 +177,12 @@ struct CabinetView: View {
                                 onEdit: { onEditDoc(doc) },
                                 onTogglePin: {
                                     repo.togglePin(docId: doc.id)
+                                    if repo.hasCloudConnection {
+                                        Task { await repo.syncWithCloud(silent: true) }
+                                    }
+                                },
+                                onToggleTemporary: {
+                                    repo.toggleTemporary(docId: doc.id)
                                     if repo.hasCloudConnection {
                                         Task { await repo.syncWithCloud(silent: true) }
                                     }

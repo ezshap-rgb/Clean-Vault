@@ -72,6 +72,12 @@ struct EssentialsView: View {
                                         Task { await repo.syncWithCloud(silent: true) }
                                     }
                                 },
+                                onToggleTemporary: {
+                                    repo.toggleTemporary(docId: doc.id)
+                                    if repo.hasCloudConnection {
+                                        Task { await repo.syncWithCloud(silent: true) }
+                                    }
+                                },
                                 onDelete: { onDeleteDoc(doc) }
                             )
                         }

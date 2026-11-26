@@ -6,6 +6,7 @@ struct HomeView: View {
 
     let onOpenFileIn: () -> Void
     let onOpenEssentials: () -> Void
+    let onOpenTemporary: () -> Void
     let onOpenCabinet: () -> Void
     let onOpenSettings: () -> Void
 
@@ -147,7 +148,7 @@ struct HomeView: View {
                     )
                     .frame(height: unit * 0.95)
 
-                    // Drawer 3: FILES (Cabinet)
+                    // Drawer 3: FILES (Cabinet) + Bottom-left Temporary Subdrawer
                     cabinetDrawer(
                         title: s.drawerCabinetTitle,
                         subtitle: s.drawerCabinetSub(repo.documents.count),
@@ -157,6 +158,34 @@ struct HomeView: View {
                         letterSpacing: 2.0,
                         action: onOpenCabinet
                     )
+                    .overlay(alignment: .bottomLeading) {
+                        Button(action: onOpenTemporary) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(CleanFilingTheme.claySlotBg)
+
+                                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                                    .fill(CleanFilingTheme.clayDrawerGradient)
+                                    .padding(3)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 13, style: .continuous)
+                                            .stroke(Color.white.opacity(0.25), lineWidth: 0.8)
+                                            .padding(3)
+                                    )
+
+                                VStack(spacing: 3) {
+                                    NeonHandleView(width: 48, height: 4)
+                                    Image(systemName: "hourglass.bottomhalf.filled")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(CleanFilingTheme.neonAmberTop)
+                                }
+                                .padding(.vertical, 7)
+                            }
+                            .frame(width: 110, height: 50)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(12)
+                    }
                     .frame(height: unit * 1.25)
                 }
                 .padding(innerPadding)

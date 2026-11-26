@@ -204,6 +204,7 @@ final class FilingRepository: ObservableObject {
         name: String,
         notes: String,
         isPinned: Bool,
+        isTemporary: Bool = false,
         sourceURL: URL,
         mimeType: String
     ) throws -> FilingDocument {
@@ -233,6 +234,7 @@ final class FilingRepository: ObservableObject {
             fileName: targetFileName,
             mimeType: mimeType,
             isPinned: isPinned,
+            isTemporary: isTemporary,
             timestamp: now,
             isSynced: false,
             lastModified: now
@@ -269,6 +271,19 @@ final class FilingRepository: ObservableObject {
             guard doc.id == docId else { return doc }
             var copy = doc
             copy.isPinned.toggle()
+            copy.isSynced = false
+            copy.lastModified = now
+            return copy
+        }
+        saveDocuments(updated)
+    }
+
+    func toggleTemporary(docId: String) {
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        let updated = documents.map { doc -> FilingDocument in
+            guard doc.id == docId else { return doc }
+            var copy = doc
+            copy.isTemporary.toggle()
             copy.isSynced = false
             copy.lastModified = now
             return copy
@@ -443,6 +458,7 @@ final class FilingRepository: ObservableObject {
                 let propDocId = (props["docId"]?.isEmpty == false) ? props["docId"]! : key
                 let propNotes = props["notes"] ?? rDesc
                 let propPinned = (props["isPinned"] ?? "false").lowercased() == "true"
+                let propTemp = (props["isTemporary"] ?? "false").lowercased() == "true"
                 let remoteTimestamp = parseTimestamp(rf.createdTime, fallback: rf.modifiedTime)
 
                 if let existingIndex = localList.firstIndex(where: {
@@ -466,6 +482,7 @@ final class FilingRepository: ObservableObject {
 
                     let hasUnsyncedLocalEdits = !existing.isSynced
                     let finalPinned = hasUnsyncedLocalEdits ? existing.isPinned : propPinned
+                    let finalTemp = hasUnsyncedLocalEdits ? existing.isTemporary : propTemp
                     // Note: "vaultName" is read/written strictly for cross-platform interoperability with Android & Web.
                     let propVaultName = (props["vaultName"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
                     let remoteName: String = {
@@ -478,7 +495,7 @@ final class FilingRepository: ObservableObject {
                     let finalNotes = hasUnsyncedLocalEdits ? existing.notes : propNotes
 
                     var metadataSynced = true
-                    if hasUnsyncedLocalEdits && !(finalName == remoteName && finalNotes == propNotes && finalPinned == propPinned) {
+                    if hasUnsyncedLocalEdits && !(finalName == remoteName && finalNotes == propNotes && finalPinned == propPinned && finalTemp == propTemp) {
                         do {
                             try await driveService.updateFileProperties(
                                 token: token,
@@ -487,7 +504,8 @@ final class FilingRepository: ObservableObject {
                                 properties: [
                                     "vaultName": finalName,
                                     "notes": finalNotes,
-                                    "isPinned": finalPinned ? "true" : "false"
+                                    "isPinned": finalPinned ? "true" : "false",
+                                    "isTemporary": finalTemp ? "true" : "false"
                                 ]
                             )
                         } catch {
@@ -521,6 +539,7 @@ final class FilingRepository: ObservableObject {
                     existing.name = finalName
                     existing.notes = finalNotes
                     existing.isPinned = finalPinned
+                    existing.isTemporary = finalTemp
                     existing.driveFileId = fId
                     existing.driveFileUrl = rUrl
                     existing.isSynced = metadataSynced && contentSynced
@@ -555,6 +574,7 @@ final class FilingRepository: ObservableObject {
                         fileName: finalFileName,
                         mimeType: rMime,
                         isPinned: propPinned,
+                        isTemporary: propTemp,
                         timestamp: remoteTimestamp,
                         driveFileId: fId,
                         driveFileUrl: rUrl,
@@ -591,7 +611,8 @@ final class FilingRepository: ObservableObject {
                                 notes: doc.notes,
                                 mimeType: doc.mimeType,
                                 docId: doc.id,
-                                isPinned: doc.isPinned
+                                isPinned: doc.isPinned,
+                                isTemporary: doc.isTemporary
                             )
                             doc.driveFileId = fId
                             doc.driveFileUrl = link
@@ -654,6 +675,7 @@ final class FilingRepository: ObservableObject {
                 var merged = winner
                 if winner.isSynced != loser.isSynced {
                     merged.isPinned = !winner.isSynced ? winner.isPinned : loser.isPinned
+                    merged.isTemporary = !winner.isSynced ? winner.isTemporary : loser.isTemporary
                 }
                 merged.driveFileId = winner.driveFileId ?? loser.driveFileId
                 merged.driveFileUrl = winner.driveFileUrl ?? loser.driveFileUrl

@@ -30,6 +30,7 @@ struct RootView: View {
                     HomeView(
                         onOpenFileIn: { currentScreen = .fileIn },
                         onOpenEssentials: { currentScreen = .essentials },
+                        onOpenTemporary: { currentScreen = .temporary },
                         onOpenCabinet: { currentScreen = .cabinet },
                         onOpenSettings: { showSettings = true }
                     )
@@ -40,6 +41,14 @@ struct RootView: View {
                     )
                 case .essentials:
                     EssentialsView(
+                        onBack: { currentScreen = .home },
+                        onOpenDoc: { handleOpenDoc($0) },
+                        onShareDoc: { handleShareDoc($0) },
+                        onEditDoc: { handleEditDoc($0) },
+                        onDeleteDoc: { docToDelete = $0 }
+                    )
+                case .temporary:
+                    TemporaryView(
                         onBack: { currentScreen = .home },
                         onOpenDoc: { handleOpenDoc($0) },
                         onShareDoc: { handleShareDoc($0) },

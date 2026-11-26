@@ -35,6 +35,7 @@ data class VaultDocument(
     val mimeType: String,
     val date: String = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()),
     val isPinned: Boolean = false,
+    val isTemporary: Boolean = false,
     val timestamp: Long = System.currentTimeMillis(),
     val driveFileId: String? = null,
     val driveFileUrl: String? = null,
@@ -217,6 +218,9 @@ class VaultRepository(private val context: Context) {
                     isPinned = if (winner.isSynced != loser.isSynced) {
                         if (!winner.isSynced) winner.isPinned else loser.isPinned
                     } else winner.isPinned,
+                    isTemporary = if (winner.isSynced != loser.isSynced) {
+                        if (!winner.isSynced) winner.isTemporary else loser.isTemporary
+                    } else winner.isTemporary,
                     driveFileId = winner.driveFileId ?: loser.driveFileId,
                     driveFileUrl = winner.driveFileUrl ?: loser.driveFileUrl,
                     filePath = if (winner.filePath.isNotBlank() && File(winner.filePath).exists()) winner.filePath else loser.filePath,
@@ -261,6 +265,7 @@ class VaultRepository(private val context: Context) {
             mimeType = obj.optString("mimeType", "image/jpeg"),
             date = obj.optString("date", ""),
             isPinned = obj.optBoolean("isPinned", false),
+            isTemporary = obj.optBoolean("isTemporary", false),
             timestamp = obj.optLong("timestamp", 0L),
             driveFileId = obj.optString("driveFileId").takeIf { !it.isNullOrBlank() },
             driveFileUrl = obj.optString("driveFileUrl").takeIf { !it.isNullOrBlank() },
@@ -288,6 +293,7 @@ class VaultRepository(private val context: Context) {
         put("mimeType", doc.mimeType)
         put("date", doc.date)
         put("isPinned", doc.isPinned)
+        put("isTemporary", doc.isTemporary)
         put("timestamp", doc.timestamp)
         put("driveFileId", doc.driveFileId ?: "")
         put("driveFileUrl", doc.driveFileUrl ?: "")
@@ -296,7 +302,7 @@ class VaultRepository(private val context: Context) {
         put("contentPending", doc.contentPending)
     }
 
-    suspend fun saveFileToVault(name: String, notes: String, isPinned: Boolean, sourceFile: File, mimeType: String): VaultDocument = cloudMutex.withLock {
+    suspend fun saveFileToVault(name: String, notes: String, isPinned: Boolean, isTemporary: Boolean = false, sourceFile: File, mimeType: String): VaultDocument = cloudMutex.withLock {
         val ext = sourceFile.extension.ifEmpty { if (mimeType.contains("pdf")) "pdf" else if (mimeType.contains("text")) "txt" else "jpg" }
         val targetFile = File(docsDir, "Vault_${UUID.randomUUID()}.$ext")
         sourceFile.copyTo(targetFile, overwrite = true)
@@ -309,6 +315,7 @@ class VaultRepository(private val context: Context) {
             filePath = targetFile.absolutePath,
             mimeType = mimeType,
             isPinned = isPinned,
+            isTemporary = isTemporary,
             isSynced = false,
             timestamp = now,
             lastModified = now
@@ -323,6 +330,14 @@ class VaultRepository(private val context: Context) {
     suspend fun togglePin(docId: String): List<VaultDocument> = cloudMutex.withLock {
         val list = getDocuments().map {
             if (it.id == docId) it.copy(isPinned = !it.isPinned, isSynced = false, lastModified = System.currentTimeMillis()) else it
+        }
+        saveDocuments(list)
+        list
+    }
+
+    suspend fun toggleTemporary(docId: String): List<VaultDocument> = cloudMutex.withLock {
+        val list = getDocuments().map {
+            if (it.id == docId) it.copy(isTemporary = !it.isTemporary, isSynced = false, lastModified = System.currentTimeMillis()) else it
         }
         saveDocuments(list)
         list
@@ -502,6 +517,7 @@ class VaultRepository(private val context: Context) {
                 val propDocId = props?.optString("docId", "").takeIf { !it.isNullOrBlank() } ?: key
                 val propNotes = props?.optString("notes", rDesc) ?: rDesc
                 val propPinned = props?.optString("isPinned", "false")?.toBoolean() ?: false
+                val propTemp = props?.optString("isTemporary", "false")?.toBoolean() ?: false
                 val remoteTimestamp = parseTimestamp(rf.optString("createdTime", ""), rf.optString("modifiedTime", ""))
 
                 val existingIndex = localList.indexOfFirst {
@@ -526,16 +542,17 @@ class VaultRepository(private val context: Context) {
 
                     val hasUnsyncedLocalEdits = !existing.isSynced
                     val finalPinned = if (hasUnsyncedLocalEdits) existing.isPinned else propPinned
+                    val finalTemp = if (hasUnsyncedLocalEdits) existing.isTemporary else propTemp
                     val remoteName = props?.optString("vaultName").orEmpty().ifBlank {
                         if (rName == existing.fileName) existing.name else rName.substringBeforeLast('.')
                     }
                     val finalName = if (hasUnsyncedLocalEdits) existing.name else remoteName
                     val finalNotes = if (hasUnsyncedLocalEdits) existing.notes else propNotes
                     val metadataSynced = !hasUnsyncedLocalEdits ||
-                        (finalName == remoteName && finalNotes == propNotes && finalPinned == propPinned) ||
+                        (finalName == remoteName && finalNotes == propNotes && finalPinned == propPinned && finalTemp == propTemp) ||
                         googleDriveService.updateFileProperties(
                             token, fId, finalName,
-                            mapOf("vaultName" to finalName, "notes" to finalNotes, "isPinned" to finalPinned.toString())
+                            mapOf("vaultName" to finalName, "notes" to finalNotes, "isPinned" to finalPinned.toString(), "isTemporary" to finalTemp.toString())
                         ).isSuccess
                     val contentSynced = !existing.contentPending || (fileOnDisk.isFile &&
                         googleDriveService.updateFileContent(token, fId, fileOnDisk, existing.mimeType).isSuccess)
@@ -545,6 +562,7 @@ class VaultRepository(private val context: Context) {
                         name = finalName,
                         notes = finalNotes,
                         isPinned = finalPinned,
+                        isTemporary = finalTemp,
                         driveFileId = fId,
                         driveFileUrl = rUrl,
                         filePath = actualPath,
@@ -570,6 +588,7 @@ class VaultRepository(private val context: Context) {
                         filePath = localPath,
                         mimeType = rMime,
                         isPinned = propPinned,
+                        isTemporary = propTemp,
                         driveFileId = fId,
                         driveFileUrl = rUrl,
                         isSynced = true,
@@ -607,7 +626,8 @@ class VaultRepository(private val context: Context) {
                             notes = doc.notes,
                             mimeType = doc.mimeType,
                             docId = doc.id,
-                            isPinned = doc.isPinned
+                            isPinned = doc.isPinned,
+                            isTemporary = doc.isTemporary
                         )
                         if (uploadResult.isSuccess) {
                             val (fId, link) = uploadResult.getOrThrow()

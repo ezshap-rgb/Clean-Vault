@@ -123,7 +123,8 @@ class GoogleDriveService(private val context: Context) {
         notes: String,
         mimeType: String,
         docId: String,
-        isPinned: Boolean
+        isPinned: Boolean,
+        isTemporary: Boolean = false
     ): Result<Pair<String, String>> = withContext(Dispatchers.IO) {
         try {
             val uploadUrl = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink"
@@ -136,6 +137,7 @@ class GoogleDriveService(private val context: Context) {
                     put("docId", docId)
                     put("notes", notes)
                     put("isPinned", isPinned.toString())
+                    put("isTemporary", isTemporary.toString())
                     put("client", "CleanFiling")
                 })
             }

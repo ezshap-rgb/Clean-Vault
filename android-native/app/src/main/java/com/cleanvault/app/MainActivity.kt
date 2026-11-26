@@ -107,6 +107,7 @@ enum class AppScreen {
     HOME,
     FILE_IN,
     ESSENTIALS,
+    TEMPORARY,
     FILE_CABINET
 }
 
@@ -247,6 +248,7 @@ fun StreamlinedDocCard(
     onDownload: () -> Unit,
     onEdit: () -> Unit,
     onTogglePin: () -> Unit,
+    onToggleTemporary: () -> Unit,
     onShare: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -313,7 +315,7 @@ fun StreamlinedDocCard(
                 }
             }
 
-            // Streamlined Centered Action Row: Download, Edit, Pin, Share, Delete
+            // Streamlined Centered Action Row: Download, Edit, Pin, Temporary, Share, Delete
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -334,7 +336,7 @@ fun StreamlinedDocCard(
                     )
                 }
 
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(6.dp))
 
                 // 2. Edit
                 IconButton(
@@ -349,7 +351,7 @@ fun StreamlinedDocCard(
                     )
                 }
 
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(6.dp))
 
                 // 3. Pin (RED when pinned!)
                 IconButton(
@@ -373,9 +375,24 @@ fun StreamlinedDocCard(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(6.dp))
 
-                // 4. Share
+                // 4. Temporary (AMBER when marked temporary!)
+                IconButton(
+                    onClick = onToggleTemporary,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.HourglassBottom,
+                        contentDescription = if (doc.isTemporary) "Temporary" else "Mark Temporary",
+                        tint = if (doc.isTemporary) AmberGold else TextSubtle.copy(alpha = 0.35f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                // 5. Share
                 IconButton(
                     onClick = onShare,
                     modifier = Modifier.size(36.dp)
@@ -388,9 +405,9 @@ fun StreamlinedDocCard(
                     )
                 }
 
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(6.dp))
 
-                // 5. Delete
+                // 6. Delete
                 IconButton(
                     onClick = onDelete,
                     modifier = Modifier.size(36.dp)
@@ -434,10 +451,12 @@ fun MainScreen(
     var docNameText by remember { mutableStateOf("") }
     var labelsText by remember { mutableStateOf("") }
     var isPinned by remember { mutableStateOf(false) }
+    var isTemporary by remember { mutableStateOf(false) }
 
     var showSettingsModal by remember { mutableStateOf(false) }
     var cabinetSearchQuery by remember { mutableStateOf("") }
     var cabinetFilterPinnedOnly by remember { mutableStateOf(false) }
+    var cabinetFilterTempOnly by remember { mutableStateOf(false) }
     var partnerInviteEmail by remember { mutableStateOf("") }
     var isInvitingPartner by remember { mutableStateOf(false) }
     var linkedCabinetOwnerEmail by remember { mutableStateOf(repository.getCabinetOwnerEmail()) }
@@ -1081,6 +1100,39 @@ fun MainScreen(
                                                 fontWeight = FontWeight.Bold
                                             )
                                         }
+
+                                        // Tiny Rectangular Subdrawer on Bottom-Left Corner for Temporary Files (icon-only)
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.BottomStart)
+                                                .padding(10.dp)
+                                                .clip(RoundedCornerShape(16.dp))
+                                                .background(ClaySlotBg)
+                                                .padding(3.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .width(104.dp)
+                                                    .clip(RoundedCornerShape(13.dp))
+                                                    .background(ClayDrawerGradient)
+                                                    .clickable { currentScreen = AppScreen.TEMPORARY }
+                                                    .padding(vertical = 7.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Column(
+                                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                                                ) {
+                                                    NeonHandle(width = 48.dp, height = 4.dp)
+                                                    Icon(
+                                                        imageVector = Icons.Filled.HourglassBottom,
+                                                        contentDescription = if (isHebrew) "קבצים זמניים" else "Temporary Files",
+                                                        tint = NeonAmberTop,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -1410,6 +1462,45 @@ fun MainScreen(
                                         }
                                     }
 
+                                    // Mark as Temporary Toggle
+                                    Surface(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(20.dp))
+                                            .clickable { isTemporary = !isTemporary },
+                                        shape = RoundedCornerShape(20.dp),
+                                        color = if (isTemporary) Color(0xFFFFF8E1) else CardWhite,
+                                        shadowElevation = 2.dp
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.HourglassBottom,
+                                                    contentDescription = "Temporary",
+                                                    tint = if (isTemporary) AmberGold else TextSubtle.copy(alpha = 0.4f)
+                                                )
+                                                Text(
+                                                    if (isHebrew) "סמן כזמני" else "Mark as Temporary",
+                                                    fontSize = 13.5.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isTemporary) AmberGold else TextSubtle
+                                                )
+                                            }
+                                            Switch(
+                                                checked = isTemporary,
+                                                onCheckedChange = { isTemporary = it },
+                                                colors = SwitchDefaults.colors(checkedThumbColor = AmberGold)
+                                            )
+                                        }
+                                    }
+
                                     // Save to Vault Button
                                     Button(
                                         onClick = {
@@ -1421,6 +1512,7 @@ fun MainScreen(
                                                         name = finalName,
                                                         notes = labelsText.trim(),
                                                         isPinned = isPinned,
+                                                        isTemporary = isTemporary,
                                                         sourceFile = temp,
                                                         mimeType = selectedMimeType
                                                     )
@@ -1429,6 +1521,7 @@ fun MainScreen(
                                                     docNameText = ""
                                                     labelsText = ""
                                                     isPinned = false
+                                                    isTemporary = false
                                                     Toast.makeText(context, "Filed to Cabinet! 🗄️", Toast.LENGTH_SHORT).show()
                                                     currentScreen = AppScreen.FILE_CABINET
                                                     triggerSync(silent = true)
@@ -1567,6 +1660,134 @@ fun MainScreen(
                                                 triggerSync(silent = true)
                                             }
                                         },
+                                        onToggleTemporary = {
+                                            scope.launch {
+                                                documents = repository.toggleTemporary(doc.id)
+                                                triggerSync(silent = true)
+                                            }
+                                        },
+                                        onShare = { shareDocumentFile(context, doc) },
+                                        onDelete = { docToDelete = doc }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ============================================
+                // SCREEN 3B: TEMPORARY FILES
+                // ============================================
+                AppScreen.TEMPORARY -> {
+                    val tempDocs = documents.filter { it.isTemporary }
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Sub-screen header
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = CardWhite,
+                                    shadowElevation = 3.dp,
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .clickable { currentScreen = AppScreen.HOME }
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text("‹", fontSize = 22.sp, fontWeight = FontWeight.Black, color = TextDark)
+                                    }
+                                }
+                                Text(
+                                    text = if (isHebrew) "⏳ קבצים זמניים" else "⏳ Temporary",
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = TextDark
+                                )
+                            }
+                            Text(
+                                text = if (isHebrew) "${tempDocs.size} זמניים" else "${tempDocs.size} temporary",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextSubtle
+                            )
+                        }
+
+                        if (tempDocs.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text("⏳", fontSize = 48.sp)
+                                    Text(
+                                        if (isHebrew) "אין קבצים זמניים עדיין" else "No temporary files yet",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextDark
+                                    )
+                                    Text(
+                                        if (isHebrew) "הקש על אייקון שעון החול בכל מסמך בארכיון\nכדי לסמן קבצים זמניים כמו הזמנות לאירועים." else "Tap the hourglass icon on any file in your cabinet\nfor short-term items like invitations.",
+                                        fontSize = 12.sp,
+                                        color = TextSubtle,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                items(tempDocs, key = { it.id }) { doc ->
+                                    StreamlinedDocCard(
+                                        doc = doc,
+                                        onOpen = {
+                                            if (doc.filePath.endsWith(".txt", ignoreCase = true) || doc.fileName.endsWith(".txt", ignoreCase = true)) {
+                                                noteDocToView = doc
+                                                isEditingNote = false
+                                            } else {
+                                                scope.launch { openDocumentFile(context, doc, repository) }
+                                            }
+                                        },
+                                        onDownload = {
+                                            downloadDocumentToStorage(context, doc)
+                                        },
+                                        onEdit = {
+                                            if (doc.filePath.endsWith(".txt", ignoreCase = true) || doc.fileName.endsWith(".txt", ignoreCase = true)) {
+                                                noteDocToView = doc
+                                                isEditingNote = true
+                                            } else {
+                                                docToRename = doc
+                                            }
+                                        },
+                                        onTogglePin = {
+                                            scope.launch {
+                                                documents = repository.togglePin(doc.id)
+                                                triggerSync(silent = true)
+                                            }
+                                        },
+                                        onToggleTemporary = {
+                                            scope.launch {
+                                                documents = repository.toggleTemporary(doc.id)
+                                                triggerSync(silent = true)
+                                            }
+                                        },
                                         onShare = { shareDocumentFile(context, doc) },
                                         onDelete = { docToDelete = doc }
                                     )
@@ -1585,7 +1806,8 @@ fun MainScreen(
                                 doc.name.contains(cabinetSearchQuery, ignoreCase = true) ||
                                 doc.notes.contains(cabinetSearchQuery, ignoreCase = true)
                         val matchesPinned = !cabinetFilterPinnedOnly || doc.isPinned
-                        matchesSearch && matchesPinned
+                        val matchesTemp = !cabinetFilterTempOnly || doc.isTemporary
+                        matchesSearch && matchesPinned && matchesTemp
                     }
 
                     Column(
@@ -1660,14 +1882,13 @@ fun MainScreen(
                             }
                         }
 
-                        // Search Bar & Filter
-                        Row(
+                        // Search Bar & Filter Pills
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Surface(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(20.dp),
                                 color = CardWhite,
                                 shadowElevation = 2.dp
@@ -1709,32 +1930,75 @@ fun MainScreen(
                                 }
                             }
 
-                            // Pinned Filter Toggle Pill (Red Pin)
-                            Surface(
-                                shape = RoundedCornerShape(20.dp),
-                                color = if (cabinetFilterPinnedOnly) Color(0xFFFFEBEE) else CardWhite,
-                                shadowElevation = 2.dp,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .clickable { cabinetFilterPinnedOnly = !cabinetFilterPinnedOnly }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                // Pinned Filter Toggle Pill (Red Pin)
+                                Surface(
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = if (cabinetFilterPinnedOnly) Color(0xFFFFEBEE) else CardWhite,
+                                    shadowElevation = 2.dp,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .clickable {
+                                            val next = !cabinetFilterPinnedOnly
+                                            cabinetFilterPinnedOnly = next
+                                            if (next) cabinetFilterTempOnly = false
+                                        }
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.PushPin,
-                                        contentDescription = "Pinned",
-                                        tint = if (cabinetFilterPinnedOnly) RedPin else TextSubtle.copy(alpha = 0.4f),
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Text(
-                                        if (isHebrew) "חשובים" else "Pinned",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (cabinetFilterPinnedOnly) RedPin else TextSubtle
-                                    )
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.PushPin,
+                                            contentDescription = "Pinned",
+                                            tint = if (cabinetFilterPinnedOnly) RedPin else TextSubtle.copy(alpha = 0.4f),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            if (isHebrew) "חשובים" else "Pinned",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (cabinetFilterPinnedOnly) RedPin else TextSubtle
+                                        )
+                                    }
+                                }
+
+                                // Temporary Filter Toggle Pill (Amber Hourglass)
+                                Surface(
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = if (cabinetFilterTempOnly) Color(0xFFFFF8E1) else CardWhite,
+                                    shadowElevation = 2.dp,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .clickable {
+                                            val next = !cabinetFilterTempOnly
+                                            cabinetFilterTempOnly = next
+                                            if (next) cabinetFilterPinnedOnly = false
+                                        }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.HourglassBottom,
+                                            contentDescription = "Temporary",
+                                            tint = if (cabinetFilterTempOnly) AmberGold else TextSubtle.copy(alpha = 0.4f),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Text(
+                                            if (isHebrew) "זמניים" else "Temporary",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (cabinetFilterTempOnly) AmberGold else TextSubtle
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1786,6 +2050,12 @@ fun MainScreen(
                                         onTogglePin = {
                                             scope.launch {
                                                 documents = repository.togglePin(doc.id)
+                                                triggerSync(silent = true)
+                                            }
+                                        },
+                                        onToggleTemporary = {
+                                            scope.launch {
+                                                documents = repository.toggleTemporary(doc.id)
                                                 triggerSync(silent = true)
                                             }
                                         },

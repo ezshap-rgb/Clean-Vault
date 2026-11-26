@@ -6,6 +6,7 @@ struct DocumentCardView: View {
     let onShare: () -> Void
     let onEdit: () -> Void
     let onTogglePin: () -> Void
+    let onToggleTemporary: () -> Void
     let onDelete: () -> Void
 
     var body: some View {
@@ -52,7 +53,7 @@ struct DocumentCardView: View {
                 }
 
                 // Centered Action Row (matching Android card actions)
-                HStack(spacing: 18) {
+                HStack(spacing: 12) {
                     Spacer()
 
                     actionIcon(systemName: "square.and.arrow.up", tint: CleanFilingTheme.purpleDark, action: onShare)
@@ -61,6 +62,11 @@ struct DocumentCardView: View {
                         systemName: doc.isPinned ? "pin.fill" : "pin",
                         tint: doc.isPinned ? CleanFilingTheme.redPin : CleanFilingTheme.textSubtle,
                         action: onTogglePin
+                    )
+                    actionIcon(
+                        systemName: "hourglass.bottomhalf.filled",
+                        tint: doc.isTemporary ? CleanFilingTheme.amberGold : CleanFilingTheme.textSubtle.opacity(0.4),
+                        action: onToggleTemporary
                     )
                     actionIcon(systemName: "trash", tint: CleanFilingTheme.roseRed, action: onDelete)
 

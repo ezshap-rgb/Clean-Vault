@@ -62,6 +62,7 @@ struct AppStrings {
     var labelsLabel: String { isHebrew ? "תגיות / תוויות" : "Labels / Tags" }
     var labelsPlaceholder: String { isHebrew ? "לדוגמה: מיסים, רפואי, דחוף..." : "e.g. taxes, medical, urgent..." }
     var pinToEssentials: String { isHebrew ? "נעץ לחשובים" : "Pin to Essentials" }
+    var markAsTemporary: String { isHebrew ? "סמן כזמני" : "Mark as Temporary" }
     var fileToCabinet: String { isHebrew ? "תייק לארכיון 🗄️" : "File to Cabinet 🗄️" }
     var cancelRetake: String { isHebrew ? "ביטול / צילום מחדש" : "Cancel / Retake" }
     var filedSuccessToast: String { isHebrew ? "תויק לארכיון! 🗄️" : "Filed to Cabinet! 🗄️" }
@@ -78,6 +79,18 @@ struct AppStrings {
             : "Tap the pin icon on any file in your cabinet\nto keep it handy right here."
     }
 
+    // Temporary
+    var temporaryHeader: String { isHebrew ? "⏳ קבצים זמניים" : "⏳ Temporary" }
+    func temporaryCount(_ count: Int) -> String {
+        isHebrew ? "\(count) זמניים" : "\(count) temporary"
+    }
+    var noTempTitle: String { isHebrew ? "אין קבצים זמניים עדיין" : "No temporary files yet" }
+    var noTempSubtitle: String {
+        isHebrew
+            ? "הקש על אייקון שעון החול בכל מסמך בארכיון\nכדי לסמן קבצים זמניים כמו הזמנות לאירועים."
+            : "Tap the hourglass icon on any file in your cabinet\nfor short-term items like invitations."
+    }
+
     // Cabinet
     var cabinetHeader: String { isHebrew ? "ארכיון מסמכים" : "File Cabinet" }
     func filesCount(_ count: Int) -> String {
@@ -85,6 +98,7 @@ struct AppStrings {
     }
     var searchPlaceholder: String { isHebrew ? "חיפוש מסמכים, תגיות..." : "Search documents, tags..." }
     var pinnedFilterPill: String { isHebrew ? "חשובים" : "Pinned" }
+    var temporaryFilterPill: String { isHebrew ? "זמניים" : "Temporary" }
     var noDocumentsFound: String { isHebrew ? "לא נמצאו מסמכים" : "No documents found" }
     var syncingNow: String { isHebrew ? "מסנכרן..." : "Syncing…" }
     var syncIncomplete: String { isHebrew ? "סנכרון לא הושלם" : "Sync incomplete" }

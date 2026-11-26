@@ -172,7 +172,8 @@ final class GoogleDriveService {
         notes: String,
         mimeType: String,
         docId: String,
-        isPinned: Bool
+        isPinned: Bool,
+        isTemporary: Bool = false
     ) async throws -> (id: String, webViewLink: String) {
         guard let url = URL(string: "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink&supportsAllDrives=true") else {
             throw GoogleDriveError.invalidURL
@@ -193,6 +194,7 @@ final class GoogleDriveService {
                 "vaultName": resolvedName,
                 "notes": notes,
                 "isPinned": isPinned ? "true" : "false",
+                "isTemporary": isTemporary ? "true" : "false",
                 "client": "CleanFiling"
             ]
         ]

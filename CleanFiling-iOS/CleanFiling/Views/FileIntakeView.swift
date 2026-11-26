@@ -17,6 +17,7 @@ struct FileIntakeView: View {
     @State private var docNameText = ""
     @State private var labelsText = ""
     @State private var isPinned = false
+    @State private var isTemporary = false
 
     @State private var showScanner = false
     @State private var showCamera = false
@@ -189,6 +190,29 @@ struct FileIntakeView: View {
                             .padding(.horizontal, 16)
                             .padding(.vertical, 12)
                             .background(isPinned ? CleanFilingTheme.softRedBg : CleanFilingTheme.cardWhite)
+                            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                            .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+                        }
+                        .buttonStyle(.plain)
+
+                        // Mark as Temporary Toggle
+                        Button(action: { isTemporary.toggle() }) {
+                            HStack {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "hourglass.bottomhalf.filled")
+                                        .foregroundColor(isTemporary ? CleanFilingTheme.amberGold : CleanFilingTheme.textSubtle.opacity(0.5))
+                                    Text(s.markAsTemporary)
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(isTemporary ? CleanFilingTheme.amberGold : CleanFilingTheme.textSubtle)
+                                }
+                                Spacer()
+                                Toggle("", isOn: $isTemporary)
+                                    .labelsHidden()
+                                    .tint(CleanFilingTheme.amberGold)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(isTemporary ? CleanFilingTheme.softAmberBg : CleanFilingTheme.cardWhite)
                             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                             .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
                         }
@@ -371,6 +395,7 @@ struct FileIntakeView: View {
                 name: finalName,
                 notes: labelsText,
                 isPinned: isPinned,
+                isTemporary: isTemporary,
                 sourceURL: url,
                 mimeType: selectedMimeType
             )
@@ -379,6 +404,7 @@ struct FileIntakeView: View {
             docNameText = ""
             labelsText = ""
             isPinned = false
+            isTemporary = false
             repo.showToast(s.filedSuccessToast)
             onFiled()
             if repo.hasCloudConnection {

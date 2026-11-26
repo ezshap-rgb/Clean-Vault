@@ -52,6 +52,7 @@ enum CleanFilingTheme {
     static let roseRed = Color(hex: 0xEF4444)
     static let redPin = Color(hex: 0xEF4444)
     static let softRedBg = Color(hex: 0xFFEBEE)
+    static let softAmberBg = Color(hex: 0xFFF8E1)
     static let softGreenBg = Color(hex: 0xF0FDF4)
     static let softPurpleBg = Color(hex: 0xF5F3FF)
 
